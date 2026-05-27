@@ -5,12 +5,10 @@
 // Owner tokens are 32 bytes (64 hex chars). They live in an HttpOnly
 // cookie scoped to /s/<sessionId>/.
 
-const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+import { randomUrlSafe } from './id';
 
 export function newSessionId(): string {
-  const bytes = new Uint8Array(10);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (b) => ALPHABET.charAt(b % ALPHABET.length)).join('');
+  return randomUrlSafe(10);
 }
 
 export function newOwnerToken(): string {

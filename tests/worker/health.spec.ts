@@ -20,8 +20,9 @@ describe('Worker root', () => {
     expect(res.status).toBe(404);
   });
 
-  it('returns 404 for /admin', async () => {
+  it('challenges with 401 on /admin without auth', async () => {
     const res = await SELF.fetch('http://localhost/admin');
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(401);
+    expect(res.headers.get('WWW-Authenticate')).toMatch(/Basic/);
   });
 });

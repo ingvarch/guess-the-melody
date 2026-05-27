@@ -6,7 +6,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "deploy:staging": "wrangler deploy --env staging",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.cli.json && tsc --noEmit -p tsconfig.test.json",
     "test": "bun test tests/js/",
     "test:worker": "vitest run --config vitest.config.ts",
     "test:all": "bun run test && bun run test:worker",

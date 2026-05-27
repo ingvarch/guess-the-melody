@@ -1,0 +1,8 @@
+# Sample URL list for the importer CLI tests. Blank lines and lines starting
+# with '#' are skipped; duplicates and whitespace are normalised away.
+
+https://music.apple.com/us/album/foo/1?i=111
+  https://music.apple.com/us/album/bar/2?i=222
+
+# duplicate of the first line
+https://music.apple.com/us/album/foo/1?i=111
