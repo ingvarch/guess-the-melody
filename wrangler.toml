@@ -19,7 +19,7 @@ new_sqlite_classes = ["MelodyRoom"]
 [[d1_databases]]
 binding = "CATALOG"
 database_name = "guess-the-melody-catalog"
-database_id = "REPLACE_AFTER_CREATE"
+database_id = "bac7c385-100c-4b39-9df9-0792133d0774"
 migrations_dir = "db/migrations"
 
 [[r2_buckets]]
