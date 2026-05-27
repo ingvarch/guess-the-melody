@@ -1,0 +1,23 @@
+{
+  "name": "guess-the-melody",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:staging": "wrangler deploy --env staging",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
+    "test": "bun test tests/js/",
+    "test:worker": "vitest run --config vitest.config.ts",
+    "test:all": "bun run test && bun run test:worker",
+    "import": "bun run src/cli/import.ts"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.16.10",
+    "@cloudflare/workers-types": "^4.20260527.1",
+    "@types/bun": "^1.3.14",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.7",
+    "wrangler": "^4.95.0"
+  }
+}
