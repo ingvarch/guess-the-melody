@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0a0a">
+    <title>Дисплей — Угадай мелодию</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/display.css">
+  </head>
+  <body>
+    <div id="app" class="app">
+      <section id="jukebox" class="jukebox" aria-label="Игровой автомат">
+        <div class="jukebox__cabinet">
+          <div class="jukebox__glass">
+            <div id="shelves" class="shelves"></div>
+            <div class="turntable">
+              <div id="disc" class="disc" aria-hidden="true">
+                <div class="disc__grooves"></div>
+                <div class="disc__label"></div>
+              </div>
+              <div id="tonearm" class="tonearm" aria-hidden="true">
+                <div class="tonearm__pivot"></div>
+                <div class="tonearm__tube"></div>
+                <div class="tonearm__head"></div>
+              </div>
+            </div>
+          </div>
+          <div class="jukebox__speaker-left" aria-hidden="true"></div>
+          <div class="jukebox__speaker-right" aria-hidden="true"></div>
+        </div>
+      </section>
+
+      <aside id="scoreboard" class="scoreboard" aria-label="Счёт команд">
+        <h2 class="scoreboard__title">Команды</h2>
+        <ul id="scoreboard-list" class="scoreboard__list"></ul>
+      </aside>
+
+      <section id="reveal-card" class="reveal-card" hidden aria-live="polite">
+        <div class="reveal-card__content">
+          <p class="reveal-card__artist"></p>
+          <p class="reveal-card__title"></p>
+          <p class="reveal-card__year num"></p>
+        </div>
+      </section>
+
+      <audio id="audio" preload="auto" crossorigin="anonymous"></audio>
+      <canvas id="waveform" width="240" height="240" aria-hidden="true"></canvas>
+    </div>
+
+    <script type="module" src="/static/js/main-display.js"></script>
+  </body>
+</html>
