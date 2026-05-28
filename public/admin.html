@@ -73,14 +73,17 @@
           <input id="tracks-search" type="text" placeholder="Поиск по артисту или названию">
           <button id="tracks-search-btn" class="btn btn--ghost" type="button">Найти</button>
         </div>
+        <div class="tracks-toolbar">
+          <button id="bulk-delete-btn" class="btn btn--ghost btn--sm" type="button" hidden>Удалить выбранные</button>
+        </div>
         <table class="admin-table">
           <thead>
             <tr>
+              <th><input type="checkbox" id="select-all" aria-label="Выбрать все"></th>
               <th>Жанр</th>
               <th>Артист</th>
               <th>Название</th>
               <th>Год</th>
-              <th></th>
             </tr>
           </thead>
           <tbody id="tracks-body"></tbody>

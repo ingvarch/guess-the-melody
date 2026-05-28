@@ -166,6 +166,16 @@
   background: rgba(0, 0, 0, 0.02);
 }
 
+/* ---- Tracks toolbar ------------------------------------------------------ */
+
+.tracks-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  min-height: 2rem;
+}
+
 /* ---- Tracks filter ------------------------------------------------------- */
 
 .tracks-filter {

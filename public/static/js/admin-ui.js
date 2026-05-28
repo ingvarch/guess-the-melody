@@ -110,13 +110,34 @@ export function populateGenreSelect(doc, genres, selectId) {
   }
 }
 
-export function renderTracksTable(doc, tracks, onDelete) {
+function getCheckedTrackIds(doc) {
+  const tbody = doc.getElementById('tracks-body');
+  if (!tbody) return [];
+  return Array.from(
+    tbody.querySelectorAll('input[type="checkbox"][data-action="select-row"]:checked'),
+  ).map((cb) => cb.dataset.id);
+}
+
+export function renderTracksTable(doc, tracks) {
   const tbody = doc.getElementById('tracks-body');
   if (!tbody) return;
+
+  // Remember checked ids before clearing so re-renders preserve selection.
+  const checkedIds = new Set(getCheckedTrackIds(doc));
+
   clearChildren(tbody);
 
   for (const t of tracks) {
     const tr = doc.createElement('tr');
+    tr.dataset.id = t.id;
+
+    const cbTd = doc.createElement('td');
+    const cb = doc.createElement('input');
+    cb.type = 'checkbox';
+    cb.dataset.id = t.id;
+    cb.dataset.action = 'select-row';
+    if (checkedIds.has(t.id)) cb.checked = true;
+    cbTd.append(cb);
 
     const genreTd = doc.createElement('td');
     genreTd.textContent = t.genre_slug;
@@ -131,24 +152,8 @@ export function renderTracksTable(doc, tracks, onDelete) {
     yearTd.className = 'num';
     yearTd.textContent = String(t.year);
 
-    const actionsTd = doc.createElement('td');
-    const delBtn = doc.createElement('button');
-    delBtn.type = 'button';
-    delBtn.className = 'btn btn--ghost btn--sm';
-    delBtn.textContent = 'Удалить';
-    delBtn.dataset.id = t.id;
-    actionsTd.append(delBtn);
-
-    tr.append(genreTd, artistTd, titleTd, yearTd, actionsTd);
+    tr.append(cbTd, genreTd, artistTd, titleTd, yearTd);
     tbody.append(tr);
-  }
-
-  if (onDelete) {
-    tbody.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-id]');
-      if (!btn) return;
-      onDelete(btn.dataset.id);
-    });
   }
 }
 

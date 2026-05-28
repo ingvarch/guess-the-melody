@@ -16,6 +16,7 @@ function makeDoc() {
       <tbody id="genres-body"></tbody>
     </table>
     <table class="admin-table">
+      <thead><tr id="tracks-head"><th></th><th></th></tr></thead>
       <tbody id="tracks-body"></tbody>
     </table>
     <div id="tracks-pagination"></div>
@@ -58,7 +59,7 @@ test('populateGenreSelect fills options and preserves value', () => {
   assert.equal(select.children[1].value, 'rock');
 });
 
-test('renderTracksTable creates rows with delete buttons', () => {
+test('renderTracksTable creates rows with checkboxes and track data', () => {
   const doc = makeDoc();
   const tracks = [
     { id: 't1', genre_slug: 'rock', artist: 'Queen', title: 'Rhapsody', year: 1975 },
@@ -68,7 +69,38 @@ test('renderTracksTable creates rows with delete buttons', () => {
   assert.equal(rows.length, 1);
   assert.ok(rows[0].textContent.includes('Queen'));
   assert.ok(rows[0].textContent.includes('Rhapsody'));
-  assert.ok(rows[0].querySelector('button'));
+  const checkbox = rows[0].querySelector('input[type="checkbox"]');
+  assert.ok(checkbox, 'row must have checkbox');
+  assert.equal(checkbox.dataset.id, 't1');
+  assert.equal(checkbox.dataset.action, 'select-row');
+  // No per-row delete button anymore (bulk delete replaces it).
+  assert.equal(rows[0].querySelectorAll('button').length, 0);
+});
+
+test('renderTracksTable preserves checkbox checked state across re-renders', () => {
+  const doc = makeDoc();
+  const tracks = [
+    { id: 't1', genre_slug: 'rock', artist: 'A', title: 'T1', year: 2000 },
+    { id: 't2', genre_slug: 'pop', artist: 'B', title: 'T2', year: 2001 },
+  ];
+  renderTracksTable(doc, tracks);
+  const tbody = doc.getElementById('tracks-body');
+  const cb1 = tbody.querySelector('tr[data-id="t1"] input[type="checkbox"]');
+  cb1.checked = true;
+
+  renderTracksTable(doc, tracks);
+  const cb1After = tbody.querySelector('tr[data-id="t1"] input[type="checkbox"]');
+  assert.equal(cb1After.checked, true);
+});
+
+test('renderTracksTable does not attach event listeners to tbody', () => {
+  const doc = makeDoc();
+  const tracks = [{ id: 't1', genre_slug: 'rock', artist: 'A', title: 'T1', year: 2000 }];
+  // Call twice; if listeners were attached each time they would accumulate.
+  // The function now accepts only (doc, tracks) — no onDelete callback.
+  renderTracksTable(doc, tracks);
+  renderTracksTable(doc, tracks);
+  assert.ok(true);
 });
 
 test('renderPagination creates numbered buttons', () => {

@@ -72,15 +72,8 @@ async function refreshTracks(offset = 0) {
       limit: TRACKS_LIMIT,
       offset,
     });
-    renderTracksTable(document, tracks, async (id) => {
-      if (!confirm('Удалить трек?')) return;
-      try {
-        await deleteTrack(fetch, id);
-        await refreshTracks(offset);
-      } catch (e) {
-        setError(document, e.message);
-      }
-    });
+    renderTracksTable(document, tracks);
+    updateBulkDeleteVisibility();
     // Approximate total for pagination (heuristic: if we got a full page, there are more).
     const total = tracks.length === TRACKS_LIMIT ? offset + tracks.length + 1 : offset + tracks.length;
     renderPagination(document, {
@@ -92,6 +85,16 @@ async function refreshTracks(offset = 0) {
   } catch (e) {
     setError(document, e.message);
   }
+}
+
+function updateBulkDeleteVisibility() {
+  const btn = document.getElementById('bulk-delete-btn');
+  if (!btn) return;
+  const checked = document.querySelectorAll('#tracks-body input[type="checkbox"][data-action="select-row"]:checked');
+  btn.hidden = checked.length === 0;
+  btn.textContent = checked.length > 0
+    ? `Удалить выбранные (${checked.length})`
+    : 'Удалить выбранные';
 }
 
 function wireForms() {
@@ -157,6 +160,48 @@ function wireForms() {
   if (searchInput) {
     searchInput.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') searchBtn?.click();
+    });
+  }
+
+  // Select-all checkbox.
+  const selectAll = document.getElementById('select-all');
+  if (selectAll) {
+    selectAll.addEventListener('change', () => {
+      const checkboxes = document.querySelectorAll('#tracks-body input[type="checkbox"][data-action="select-row"]');
+      for (const cb of checkboxes) {
+        cb.checked = selectAll.checked;
+      }
+      updateBulkDeleteVisibility();
+    });
+  }
+
+  // Track-row checkbox delegation — update button visibility on any change.
+  const tracksBody = document.getElementById('tracks-body');
+  if (tracksBody) {
+    tracksBody.addEventListener('change', (e) => {
+      if (e.target.closest('input[type="checkbox"][data-action="select-row"]')) {
+        updateBulkDeleteVisibility();
+      }
+    });
+  }
+
+  // Bulk delete.
+  const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.addEventListener('click', async () => {
+      const selected = Array.from(
+        document.querySelectorAll('#tracks-body input[type="checkbox"][data-action="select-row"]:checked'),
+      ).map((cb) => cb.dataset.id);
+      if (selected.length === 0) return;
+      if (!confirm(`Удалить ${selected.length} трек(ов)?`)) return;
+      try {
+        for (const id of selected) {
+          await deleteTrack(fetch, id);
+        }
+        await refreshTracks(tracksOffset);
+      } catch (e) {
+        setError(document, e.message);
+      }
     });
   }
 }
