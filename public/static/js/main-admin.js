@@ -18,6 +18,7 @@ import {
   setImportStatus,
   setError,
   renderSessions,
+  setPlayButtonState,
 } from './admin-ui.js';
 
 let currentGenres = [];
@@ -134,13 +135,11 @@ function togglePlay(btn) {
 }
 
 function markPlaying(btn) {
-  btn.textContent = 'Pause';
-  btn.classList.add('is-playing');
+  setPlayButtonState(btn, true);
 }
 
 function markStopped(btn) {
-  btn.textContent = 'Play';
-  btn.classList.remove('is-playing');
+  setPlayButtonState(btn, false);
 }
 
 function wireForms() {

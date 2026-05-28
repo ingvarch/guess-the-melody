@@ -95,8 +95,28 @@
   }
 }
 
-/* Per-row Play button states. */
-.play-btn { min-width: 4rem; }
+/* Per-row Play button: small round icon, toggles to pause while playing. */
+.play-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(208, 188, 255, 0.24);
+  background: rgba(208, 188, 255, 0.06);
+  color: #cbc3d7;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+.play-btn svg { display: block; }
+@media (hover: hover) {
+  .play-btn:hover {
+    color: #4cd7f6;
+    border-color: #4cd7f6;
+  }
+}
 .play-btn.is-playing {
   background: #4cd7f6;
   color: #003640;

@@ -2,6 +2,8 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { Window } from 'happy-dom';
 
 function makeDoc() {
@@ -28,6 +30,25 @@ function makeDoc() {
   return doc;
 }
 
+function tracksHeadCells() {
+  const html = readFileSync(
+    fileURLToPath(new URL('../../public/admin.html', import.meta.url)),
+    'utf8',
+  );
+  const win = new Window();
+  win.SyntaxError = SyntaxError;
+  win.Error = Error;
+  win.document.body.innerHTML = html;
+  const table = win.document.getElementById('tracks-body').closest('table');
+  return Array.from(table.querySelectorAll('thead th'));
+}
+
+function alignOf(el) {
+  if (el.classList.contains('text-center')) return 'center';
+  if (el.classList.contains('text-right')) return 'right';
+  return 'left';
+}
+
 const mod = await import('../../public/static/js/admin-ui.js');
 const {
   renderGenresTable,
@@ -37,6 +58,7 @@ const {
   setImportStatus,
   setError,
   renderSessions,
+  setPlayButtonState,
 } = mod;
 
 test('renderSessions shows empty state when no sessions', () => {
@@ -158,6 +180,95 @@ test('renderTracksTable does not attach event listeners to tbody', () => {
   renderTracksTable(doc, tracks);
   renderTracksTable(doc, tracks);
   assert.ok(true);
+});
+
+test('tracks table header column count matches rendered row cells', () => {
+  // The static <thead> in admin.html must line up with renderTracksTable's
+  // <td> output, or every column shifts (regression: artist/title split
+  // without updating the header).
+  const ths = tracksHeadCells();
+
+  const doc = makeDoc();
+  renderTracksTable(doc, [
+    { id: 't1', genre_slug: 'rock', artist: 'Queen', title: 'Rhapsody', year: 1975 },
+  ]);
+  const tds = doc.querySelectorAll('#tracks-body tr td');
+
+  assert.equal(ths.length, tds.length, 'thead <th> count must equal row <td> count');
+
+  const labels = ths.map((th) => th.textContent.trim());
+  for (const expected of ['Genre', 'Artist', 'Title', 'Year', 'Actions']) {
+    assert.ok(labels.includes(expected), `header must include "${expected}", got ${JSON.stringify(labels)}`);
+  }
+});
+
+test('tracks columns share horizontal alignment + padding between header and body', () => {
+  // Content drifts when a <th> centers but its <td> defaults to left (or the
+  // td lacks the header's px-6 padding). Lock alignment + padding per column.
+  const ths = tracksHeadCells();
+  const doc = makeDoc();
+  renderTracksTable(doc, [
+    { id: 't1', genre_slug: 'rock', artist: 'Queen', title: 'Rhapsody', year: 1975 },
+  ]);
+  const tds = Array.from(doc.querySelectorAll('#tracks-body tr td'));
+
+  ths.forEach((th, i) => {
+    assert.equal(alignOf(tds[i]), alignOf(th), `column ${i} alignment th vs td`);
+    assert.ok(tds[i].classList.contains('px-6'), `column ${i} td needs px-6 to match header`);
+    assert.ok(tds[i].classList.contains('py-4'), `column ${i} td needs py-4 to match header`);
+  });
+});
+
+test('checkbox, year and actions columns are centered in both header and body', () => {
+  const ths = tracksHeadCells();
+  const labels = ths.map((th) => th.textContent.trim());
+  const doc = makeDoc();
+  renderTracksTable(doc, [
+    { id: 't1', genre_slug: 'rock', artist: 'Queen', title: 'Rhapsody', year: 1975 },
+  ]);
+  const tds = Array.from(doc.querySelectorAll('#tracks-body tr td'));
+
+  // checkbox column is index 0 (its th holds the select-all checkbox).
+  assert.equal(alignOf(ths[0]), 'center', 'checkbox header centered');
+  assert.equal(alignOf(tds[0]), 'center', 'checkbox cell centered');
+
+  const yearIdx = labels.indexOf('Year');
+  assert.equal(alignOf(ths[yearIdx]), 'center', 'Year header centered');
+  assert.equal(alignOf(tds[yearIdx]), 'center', 'Year cell centered');
+
+  const actionsIdx = labels.indexOf('Actions');
+  assert.equal(alignOf(ths[actionsIdx]), 'center', 'Actions header centered');
+  assert.equal(alignOf(tds[actionsIdx]), 'center', 'Actions cell centered');
+});
+
+test('play button renders an icon, not a text label', () => {
+  const doc = makeDoc();
+  renderTracksTable(doc, [
+    { id: 't1', genre_slug: 'rock', artist: 'A', title: 'T1', year: 2000 },
+  ]);
+  const btn = doc.querySelector('#tracks-body button[data-action="play"]');
+  assert.ok(btn.querySelector('svg'), 'play button must contain an svg icon');
+  assert.equal(btn.textContent.trim(), '', 'play button must not show text');
+  assert.ok(btn.getAttribute('aria-label'), 'play button keeps an aria-label');
+  assert.equal(btn.classList.contains('is-playing'), false);
+});
+
+test('setPlayButtonState toggles playing icon, class and aria-label', () => {
+  const doc = makeDoc();
+  renderTracksTable(doc, [
+    { id: 't1', genre_slug: 'rock', artist: 'A', title: 'T1', year: 2000 },
+  ]);
+  const btn = doc.querySelector('#tracks-body button[data-action="play"]');
+  const idle = btn.getAttribute('aria-label');
+
+  setPlayButtonState(btn, true);
+  assert.ok(btn.classList.contains('is-playing'));
+  assert.ok(btn.querySelector('svg'), 'still has an icon when playing');
+  assert.notEqual(btn.getAttribute('aria-label'), idle, 'aria-label changes while playing');
+
+  setPlayButtonState(btn, false);
+  assert.equal(btn.classList.contains('is-playing'), false);
+  assert.equal(btn.getAttribute('aria-label'), idle, 'aria-label restored when stopped');
 });
 
 test('renderPagination creates numbered buttons', () => {

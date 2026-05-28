@@ -118,6 +118,19 @@ function getCheckedTrackIds(doc) {
   ).map((cb) => cb.dataset.id);
 }
 
+const PLAY_ICON =
+  '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
+const PAUSE_ICON =
+  '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+
+// Single source of truth for the per-row play button's look. Used by the
+// renderer (initial, stopped) and by main-admin's playback glue on toggle.
+export function setPlayButtonState(btn, playing) {
+  btn.classList.toggle('is-playing', playing);
+  btn.setAttribute('aria-label', playing ? 'Остановить фрагмент' : 'Воспроизвести фрагмент');
+  btn.innerHTML = playing ? PAUSE_ICON : PLAY_ICON;
+}
+
 export function renderTracksTable(doc, tracks) {
   const tbody = doc.getElementById('tracks-body');
   if (!tbody) return;
@@ -132,6 +145,7 @@ export function renderTracksTable(doc, tracks) {
     tr.dataset.id = t.id;
 
     const cbTd = doc.createElement('td');
+    cbTd.className = 'px-6 py-4 text-center';
     const cb = doc.createElement('input');
     cb.type = 'checkbox';
     cb.dataset.id = t.id;
@@ -140,26 +154,29 @@ export function renderTracksTable(doc, tracks) {
     cbTd.append(cb);
 
     const genreTd = doc.createElement('td');
+    genreTd.className = 'px-6 py-4';
     genreTd.textContent = t.genre_slug;
 
     const artistTd = doc.createElement('td');
+    artistTd.className = 'px-6 py-4';
     artistTd.textContent = t.artist;
 
     const titleTd = doc.createElement('td');
+    titleTd.className = 'px-6 py-4';
     titleTd.textContent = t.title;
 
     const yearTd = doc.createElement('td');
-    yearTd.className = 'num';
+    yearTd.className = 'px-6 py-4 text-center num';
     yearTd.textContent = String(t.year);
 
     const playTd = doc.createElement('td');
+    playTd.className = 'px-6 py-4 text-center';
     const playBtn = doc.createElement('button');
     playBtn.type = 'button';
-    playBtn.className = 'btn btn--ghost btn--sm play-btn';
+    playBtn.className = 'play-btn';
     playBtn.dataset.action = 'play';
     playBtn.dataset.id = t.id;
-    playBtn.setAttribute('aria-label', 'Воспроизвести фрагмент');
-    playBtn.textContent = 'Play';
+    setPlayButtonState(playBtn, false);
     playTd.append(playBtn);
 
     tr.append(cbTd, genreTd, artistTd, titleTd, yearTd, playTd);
