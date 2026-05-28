@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f6efe4">
+    <title>Хост — Угадай мелодию</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/host.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <span class="topbar__code">Сессия <span id="session-code" class="num"></span></span>
+      <div class="topbar__actions">
+        <button id="qr-btn" class="btn btn--ghost" type="button" disabled title="QR будет в следующей фазе">QR</button>
+        <button id="endgame-btn" class="btn btn--ghost" type="button">Завершить</button>
+      </div>
+    </header>
+
+    <main class="host">
+      <section class="controls" aria-labelledby="controls-h">
+        <h2 id="controls-h" class="visually-hidden">Управление</h2>
+
+        <section class="teams" aria-labelledby="teams-h">
+          <h3 id="teams-h">Команды</h3>
+          <ul id="teams-list" class="teams__list"></ul>
+          <form id="add-team-form" class="teams__add">
+            <input id="add-team-input" type="text" required maxlength="40" placeholder="Название команды" autocomplete="off" aria-label="Название команды">
+            <button class="btn btn--primary" type="submit">+ Команда</button>
+          </form>
+        </section>
+
+        <section class="round" aria-labelledby="round-h">
+          <h3 id="round-h">Раунд</h3>
+
+          <div class="round__genre">
+            <label class="round__genre-mode"><input type="radio" name="genre-mode" value="auto" checked> Авто</label>
+            <label class="round__genre-mode"><input type="radio" name="genre-mode" value="pick"> Выбрать жанр</label>
+            <select id="genre-select" disabled aria-label="Жанр"></select>
+          </div>
+
+          <button id="spin-btn" class="btn btn--primary btn--lg" type="button">Крутить</button>
+
+          <div id="phase-controls" class="round__phase" hidden>
+            <audio id="audio" preload="auto"></audio>
+            <div class="audio-controls">
+              <button id="play-btn" class="btn btn--ghost" type="button" aria-label="Воспроизвести">
+                <svg class="icon" aria-hidden="true" width="20" height="20"><use href="#icon-play"/></svg>
+              </button>
+              <button id="replay-btn" class="btn btn--ghost" type="button" aria-label="Сначала">
+                <svg class="icon" aria-hidden="true" width="20" height="20"><use href="#icon-replay"/></svg>
+              </button>
+              <input id="scrubber" type="range" min="0" max="30" step="0.1" value="0" aria-label="Позиция" disabled>
+              <span id="time-readout" class="num">0:00 / 0:30</span>
+            </div>
+
+            <div id="award-area" class="award-area" hidden>
+              <p class="award-area__hint">Кому начислить?</p>
+              <ul id="award-teams" class="award-list"></ul>
+            </div>
+
+            <button id="reveal-btn" class="btn btn--primary" type="button" hidden>Показать ответ</button>
+
+            <div id="reveal-card" class="reveal-card" hidden>
+              <p class="reveal-card__artist"></p>
+              <p class="reveal-card__title"></p>
+              <p class="reveal-card__year num"></p>
+            </div>
+
+            <button id="next-btn" class="btn btn--primary" type="button" hidden>Следующий раунд</button>
+          </div>
+        </section>
+      </section>
+
+      <aside class="mirror" aria-labelledby="mirror-h">
+        <h3 id="mirror-h">Что видят игроки</h3>
+        <div id="mirror-content" class="mirror__content"></div>
+      </aside>
+    </main>
+
+    <p id="error" class="error" role="alert" aria-live="polite"></p>
+
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <symbol id="icon-play" viewBox="0 0 24 24">
+          <path d="M7 5v14l12-7z" fill="currentColor"/>
+        </symbol>
+        <symbol id="icon-replay" viewBox="0 0 24 24">
+          <path fill="currentColor" d="M12 5V2L7 7l5 5V8a5 5 0 1 1-5 5H5a7 7 0 1 0 7-8z"/>
+        </symbol>
+      </defs>
+    </svg>
+
+    <script type="module" src="/static/js/main-host.js"></script>
+  </body>
+</html>

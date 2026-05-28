@@ -7,6 +7,7 @@
 // boot rehydrates without losing state.
 
 import { DurableObject } from 'cloudflare:workers';
+import { getTrack, pickRandomTrack } from './catalog/tracks';
 import type { Env, RoomState } from './types';
 // applyAction is bundled by Wrangler at deploy and resolved by Vitest's
 // workers-pool. Re-implementing it here would split the source of truth.
@@ -104,9 +105,20 @@ export class MelodyRoom extends DurableObject<Env> {
       return new Response('bad json', { status: 400 });
     }
 
+    // Resolve catalogue-backed actions (spin, reveal) into the fully-populated
+    // payload the pure state machine expects. Callers pass only intent; the DO
+    // is the single owner of "which track" and "what metadata".
+    let effective: Record<string, unknown>;
+    try {
+      effective = await this.#resolveAction(payload as Record<string, unknown>);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'invalid action';
+      return new Response(msg, { status: 409 });
+    }
+
     let next: RoomState;
     try {
-      next = applyAction(this.#state, payload) as RoomState;
+      next = applyAction(this.#state, effective) as RoomState;
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'invalid action';
       return new Response(msg, { status: 409 });
@@ -115,6 +127,56 @@ export class MelodyRoom extends DurableObject<Env> {
     await this.ctx.storage.put(STATE_KEY, this.#state);
     this.#broadcast();
     return Response.json(this.#state);
+  }
+
+  async #resolveAction(
+    payload: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    if (payload['action'] === 'spin') {
+      const selectedGenre =
+        typeof payload['selectedGenre'] === 'string'
+          ? payload['selectedGenre']
+          : undefined;
+      const opts: { genreSlug?: string; excludeIds?: string[] } = {
+        excludeIds: this.#state.playedTrackIds,
+      };
+      if (selectedGenre !== undefined) opts.genreSlug = selectedGenre;
+      const picked = await pickRandomTrack(this.env.CATALOG, opts);
+      if (picked === null) {
+        throw new Error('no tracks available');
+      }
+      const seedBuf = new Uint32Array(1);
+      crypto.getRandomValues(seedBuf);
+      return {
+        action: 'spin',
+        selectedGenre: picked.genre_slug,
+        trackId: picked.id,
+        spinSeed: seedBuf[0],
+      };
+    }
+    if (payload['action'] === 'play') {
+      return { ...payload, now: Date.now() };
+    }
+    if (payload['action'] === 'reveal') {
+      const current = this.#state.currentTrack;
+      if (current === null) {
+        throw new Error('no current track');
+      }
+      const track = await getTrack(this.env.CATALOG, current.id);
+      if (track === null) {
+        throw new Error('track not found');
+      }
+      const revealed: { artist: string; title: string; year: number; artworkUrl?: string } = {
+        artist: track.artist,
+        title: track.title,
+        year: track.year,
+      };
+      if (track.artwork_url !== null) {
+        revealed.artworkUrl = track.artwork_url;
+      }
+      return { action: 'reveal', track: revealed };
+    }
+    return payload;
   }
 
   #handleEvents(): Response {

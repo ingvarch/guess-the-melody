@@ -276,6 +276,27 @@ describe('Worker router', () => {
     expect(res.status).toBe(501);
   });
 
+  it('GET /api/genres returns non-archived genres without auth, sorted by sort_order', async () => {
+    const res = await SELF.fetch('http://localhost/api/genres');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    const body = (await res.json()) as Array<{ slug: string; sort_order: number; archived: number }>;
+    expect(body.length).toBeGreaterThan(0);
+    // Default seed includes rock, pop, hip-hop, soundtrack.
+    expect(body.map((g) => g.slug)).toContain('rock');
+    // Only non-archived genres should be returned.
+    expect(body.every((g) => g.archived === 0)).toBe(true);
+    // Sorted by sort_order ascending.
+    for (let i = 1; i < body.length; i++) {
+      expect(body[i]!.sort_order).toBeGreaterThanOrEqual(body[i - 1]!.sort_order);
+    }
+  });
+
+  it('POST /api/genres is not allowed (405)', async () => {
+    const res = await SELF.fetch('http://localhost/api/genres', { method: 'POST' });
+    expect(res.status).toBe(405);
+  });
+
   it('GET /admin/api/genres still works through the router (regression)', async () => {
     const res = await SELF.fetch('http://localhost/admin/api/genres', {
       headers: { authorization: 'Basic ' + btoa('admin:test-pw') },

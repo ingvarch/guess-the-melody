@@ -2,9 +2,10 @@
 // These tests speak to the DO directly via internal HTTP routes that the
 // Worker calls in later phases.
 
-import { describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import type { Env, RoomState } from '../../src/types';
+import { insertTrack } from '../../src/catalog/tracks';
 
 // `cloudflare:test` types `env` as the empty `Cloudflare.Env`; our project
 // hasn't run `wrangler types` so we cast once for binding access.
@@ -47,7 +48,38 @@ async function readNextStateEvent(reader: ChunkReader): Promise<RoomState> {
   }
 }
 
+async function resetTracks(): Promise<void> {
+  await testEnv.CATALOG.exec('DELETE FROM tracks');
+}
+
+async function seedTrack(overrides: Partial<{
+  id: string;
+  genre_slug: string;
+  artist: string;
+  title: string;
+  year: number;
+  artwork_url: string | null;
+}> = {}): Promise<{ id: string; genre_slug: string }> {
+  const id = overrides.id ?? 'tr-room-1';
+  const genre_slug = overrides.genre_slug ?? 'rock';
+  await insertTrack(testEnv.CATALOG, {
+    id,
+    genre_slug,
+    artist: overrides.artist ?? 'A',
+    title: overrides.title ?? 'T',
+    year: overrides.year ?? 2001,
+    preview_url: 'https://example.com/p.m4a',
+    artwork_url: overrides.artwork_url ?? null,
+    added_at: Date.now(),
+  });
+  return { id, genre_slug };
+}
+
 describe('MelodyRoom DO', () => {
+  beforeEach(async () => {
+    await resetTracks();
+  });
+
   it('returns initial idle state on a fresh room', async () => {
     const stub = roomStub('session-initial');
     const res = await stub.fetch(`${BASE}/state`);
@@ -308,13 +340,14 @@ describe('MelodyRoom DO', () => {
   });
 
   it('endgame without resetScores preserves teams and scores', async () => {
+    await seedTrack({ id: 'tr-endgame', genre_slug: 'rock' });
     const stub = roomStub('session-endgame');
     await stub.fetch(`${BASE}/init`, {
       method: 'POST',
       body: JSON.stringify({ ownerToken: 'x' }),
     });
 
-    // Build up: add team, spin, play, reveal, award.
+    // Build up: add team, spin, play, award.
     await stub.fetch(`${BASE}/state`, {
       method: 'POST',
       headers: { 'X-Owner-Token': 'x' },
@@ -323,12 +356,7 @@ describe('MelodyRoom DO', () => {
     await stub.fetch(`${BASE}/state`, {
       method: 'POST',
       headers: { 'X-Owner-Token': 'x' },
-      body: JSON.stringify({
-        action: 'spin',
-        selectedGenre: 'rock',
-        trackId: 'tr-1',
-        spinSeed: 42,
-      }),
+      body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
     });
     await stub.fetch(`${BASE}/state`, {
       method: 'POST',
@@ -358,5 +386,131 @@ describe('MelodyRoom DO', () => {
     expect(state.teams).toEqual([{ id: 'te', name: 'Endteam', score: 2 }]);
     expect(state.selectedGenre).toBeNull();
     expect(state.currentTrack).toBeNull();
+  });
+
+  it('spin with no tracks in D1 returns 409 "no tracks available"', async () => {
+    const stub = roomStub('session-spin-empty');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'spin' }),
+    });
+    expect(res.status).toBe(409);
+    const body = await res.text();
+    expect(body).toMatch(/no tracks/i);
+  });
+
+  it('spin with a genre picks a track from D1 and advances to spinning', async () => {
+    await seedTrack({ id: 'tr-spin-rock', genre_slug: 'rock' });
+    const stub = roomStub('session-spin-pick');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
+    });
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoomState;
+    expect(state.phase).toBe('spinning');
+    expect(state.selectedGenre).toBe('rock');
+    expect(state.currentTrack).not.toBeNull();
+    expect(state.currentTrack!.id).toBe('tr-spin-rock');
+    expect(state.currentTrack!.genre).toBe('rock');
+    expect(state.spinSeed).not.toBe(0);
+  });
+
+  it('spin without genre picks any non-archived track', async () => {
+    await seedTrack({ id: 'tr-any', genre_slug: 'pop' });
+    const stub = roomStub('session-spin-any');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'spin' }),
+    });
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoomState;
+    expect(state.phase).toBe('spinning');
+    expect(state.currentTrack!.id).toBe('tr-any');
+    expect(state.currentTrack!.genre).toBe('pop');
+  });
+
+  it('reveal resolves track metadata from D1 (host posts no payload)', async () => {
+    await seedTrack({
+      id: 'tr-reveal',
+      genre_slug: 'rock',
+      artist: 'Queen',
+      title: 'Radio Ga Ga',
+      year: 1984,
+      artwork_url: 'https://example.com/art.jpg',
+    });
+    const stub = roomStub('session-reveal');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
+    });
+    await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'play', now: 5_000 }),
+    });
+
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'reveal' }),
+    });
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoomState;
+    expect(state.phase).toBe('revealed');
+    expect(state.revealedTrack).toEqual({
+      artist: 'Queen',
+      title: 'Radio Ga Ga',
+      year: 1984,
+      artworkUrl: 'https://example.com/art.jpg',
+    });
+  });
+
+  it('reveal returns 409 when the current track row has gone missing', async () => {
+    await seedTrack({ id: 'tr-vanish', genre_slug: 'rock' });
+    const stub = roomStub('session-reveal-missing');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
+    });
+    await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'play', now: 1 }),
+    });
+    // Yank the row out from under the DO before reveal.
+    await testEnv.CATALOG.prepare('DELETE FROM tracks WHERE id = ?').bind('tr-vanish').run();
+
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'reveal' }),
+    });
+    expect(res.status).toBe(409);
   });
 });

@@ -3,6 +3,7 @@
 //
 // Path map (priority order):
 //   POST /api/session                    -- mint a new session + owner cookie
+//   GET  /api/genres                     -- public catalogue metadata
 //   GET  /s/<id>/qr.svg                  -- Phase 13 placeholder (501)
 //   GET  /s/<id>/api/state               -- proxy DO GET /state
 //   POST /s/<id>/api/state               -- proxy DO POST /state (owner gate)
@@ -19,6 +20,7 @@
 // would still be stopped at the DO boundary.
 
 import { handleAdmin } from './admin/handlers';
+import { listGenres } from './catalog/genres';
 import { getTrack } from './catalog/tracks';
 import {
   newOwnerToken,
@@ -49,6 +51,19 @@ async function enforceRateLimit(
   if (env.SESSION_RATE_LIMITER === undefined) return { ok: true };
   const { success } = await env.SESSION_RATE_LIMITER.limit({ key: ip });
   return success ? { ok: true } : { ok: false };
+}
+
+async function handleGenresPublic(req: Request, env: Env): Promise<Response> {
+  if (req.method !== 'GET') {
+    return new Response('method not allowed', {
+      status: 405,
+      headers: { Allow: 'GET' },
+    });
+  }
+  // listGenres without includeArchived returns only archived=0 rows, ordered
+  // by sort_order. Public metadata: no auth, no secrets exposed.
+  const rows = await listGenres(env.CATALOG);
+  return Response.json(rows);
 }
 
 async function handleSessionCreate(req: Request, env: Env): Promise<Response> {
@@ -225,6 +240,10 @@ export async function route(
 
   if (path === '/api/session') {
     return handleSessionCreate(req, env);
+  }
+
+  if (path === '/api/genres') {
+    return handleGenresPublic(req, env);
   }
 
   if (path === '/admin' || path.startsWith('/admin/')) {
