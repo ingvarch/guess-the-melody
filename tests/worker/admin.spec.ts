@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import type { Env } from '../../src/types';
 import { insertTrack } from '../../src/catalog/tracks';
+import { upsertSession } from '../../src/catalog/sessions';
 
 const testEnv = env as unknown as Env;
 const PW = 'test-pw';
@@ -87,6 +88,30 @@ describe('admin handlers', () => {
     expect(ok.status).toBe(200);
     const text = await ok.text();
     expect(text).toMatch(/admin/i);
+  });
+
+  it('GET /admin/api/sessions without auth returns 401', async () => {
+    const res = await SELF.fetch('http://localhost/admin/api/sessions');
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /admin/api/sessions returns the registry newest-first', async () => {
+    await testEnv.CATALOG.exec('DELETE FROM sessions');
+    await upsertSession(testEnv.CATALOG, {
+      id: 'older', now: Date.now() - 1000, phase: 'idle', selectedGenre: null, roundsPlayed: 0, teams: [],
+    });
+    await upsertSession(testEnv.CATALOG, {
+      id: 'newer', now: Date.now(), phase: 'playing', selectedGenre: 'rock', roundsPlayed: 3,
+      teams: [{ name: 'Cats', score: 7 }],
+    });
+    const res = await SELF.fetch('http://localhost/admin/api/sessions', {
+      headers: { authorization: authHeader() },
+    });
+    expect(res.status).toBe(200);
+    const rows = (await res.json()) as Array<{ id: string; phase: string; teams: unknown }>;
+    expect(rows.map((r) => r.id)).toEqual(['newer', 'older']);
+    expect(rows[0]!.phase).toBe('playing');
+    expect(rows[0]!.teams).toEqual([{ name: 'Cats', score: 7 }]);
   });
 
   it('GET /admin/api/genres without auth returns 401', async () => {

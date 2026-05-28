@@ -1,100 +1,308 @@
-<!doctype html>
-<html lang="ru">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#f6efe4">
-    <title>Администрирование — Угадай мелодию</title>
-    <link rel="stylesheet" href="/static/css/base.css">
-    <link rel="stylesheet" href="/static/css/admin.css">
-  </head>
-  <body>
-    <header class="admin-header">
-      <h1>Каталог</h1>
-      <a href="/" class="btn btn--ghost">На главную</a>
-    </header>
+<!DOCTYPE html>
 
-    <div id="error" class="admin-error" role="alert" aria-live="polite"></div>
-
-    <main class="admin">
-      <!-- Import section -->
-      <section class="admin-section" aria-labelledby="import-h">
-        <h2 id="import-h">Импорт трека</h2>
-        <form id="import-form" class="import-form">
-          <div class="form-row">
-            <label for="import-url">Ссылка на Spotify или iTunes</label>
-            <input id="import-url" type="url" required placeholder="https://open.spotify.com/track/...">
-          </div>
-          <div class="form-row">
-            <label for="import-genre">Жанр</label>
-            <select id="import-genre" required></select>
-          </div>
-          <div class="form-row">
-            <label for="import-itunes-id">iTunes ID (опционально, для уточнения)</label>
-            <input id="import-itunes-id" type="number" min="1" placeholder="123456789">
-          </div>
-          <button class="btn btn--primary" type="submit">Импортировать</button>
-          <span id="import-status" class="import-status"></span>
-        </form>
-      </section>
-
-      <!-- Genres section -->
-      <section class="admin-section" aria-labelledby="genres-h">
-        <h2 id="genres-h">Жанры</h2>
-        <form id="add-genre-form" class="add-genre-form">
-          <input id="genre-slug" type="text" required maxlength="40" placeholder="slug" pattern="[a-z0-9-]+" title="только a-z, 0-9, дефис">
-          <input id="genre-name" type="text" required maxlength="40" placeholder="Название">
-          <input id="genre-emoji" type="text" maxlength="8" placeholder="Emoji">
-          <input id="genre-sort" type="number" required value="100" placeholder="Порядок">
-          <button class="btn btn--primary" type="submit">+ Жанр</button>
-        </form>
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th>Slug</th>
-              <th>Название</th>
-              <th>Emoji</th>
-              <th>Порядок</th>
-              <th>Статус</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="genres-body"></tbody>
-        </table>
-      </section>
-
-      <!-- Tracks section -->
-      <section class="admin-section" aria-labelledby="tracks-h">
-        <h2 id="tracks-h">Треки</h2>
-        <div class="tracks-filter">
-          <select id="tracks-genre-filter">
-            <option value="">Все жанры</option>
-          </select>
-          <input id="tracks-search" type="text" placeholder="Поиск по артисту или названию">
-          <button id="tracks-search-btn" class="btn btn--ghost" type="button">Найти</button>
-        </div>
-        <div class="tracks-toolbar">
-          <button id="bulk-delete-btn" class="btn btn--ghost btn--sm" type="button" hidden>Удалить выбранные</button>
-        </div>
-        <table class="admin-table">
-          <thead>
-            <tr>
-              <th><input type="checkbox" id="select-all" aria-label="Выбрать все"></th>
-              <th>Жанр</th>
-              <th>Артист</th>
-              <th>Название</th>
-              <th>Год</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="tracks-body"></tbody>
-        </table>
-        <div id="tracks-pagination" class="tracks-pagination"></div>
-      </section>
-    </main>
-
-    <audio id="admin-audio" preload="none"></audio>
-
-    <script type="module" src="/static/js/main-admin.js"></script>
-  </body>
-</html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Guess The Melody - Catalogue Admin</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&amp;family=Sora:wght@700;800&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        /* The HTML `hidden` attribute must always win over Tailwind display
+           utilities (.flex/.grid/etc share equal specificity and the CDN sheet
+           loads later, so without this an element with `flex hidden` stays visible). */
+        [hidden] { display: none !important; }
+        .glow-primary { box-shadow: 0 0 20px rgba(208, 188, 255, 0.4); }
+        .glow-secondary { box-shadow: 0 0 20px rgba(76, 215, 246, 0.4); }
+        .glass-card {
+            background: rgba(20, 19, 21, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(208, 188, 255, 0.1);
+        }
+        .inner-glow-border {
+            border: 1px solid transparent;
+            background-image: linear-gradient(rgba(19, 19, 21, 1), rgba(19, 19, 21, 1)), radial-gradient(circle at top left, rgba(208, 188, 255, 0.3), rgba(208, 188, 255, 0.05));
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+        }
+        .grainy-bg {
+            background-image: url("https://www.transparenttextures.com/patterns/carbon-fibre.png");
+            opacity: 0.03;
+        }
+        @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-spin-slow { animation: spin-slow 6s linear infinite; }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-fixed": "#001f26",
+                      "tertiary-fixed-dim": "#ffb0cd",
+                      "inverse-surface": "#e5e1e4",
+                      "on-error-container": "#ffdad6",
+                      "outline-variant": "#494454",
+                      "on-tertiary-fixed-variant": "#8c0053",
+                      "error": "#ffb4ab",
+                      "inverse-on-surface": "#313032",
+                      "background": "#131315",
+                      "on-secondary": "#003640",
+                      "surface-container-highest": "#353437",
+                      "surface-variant": "#353437",
+                      "primary-fixed": "#e9ddff",
+                      "primary-container": "#a078ff",
+                      "on-surface": "#e5e1e4",
+                      "secondary": "#4cd7f6",
+                      "secondary-fixed": "#acedff",
+                      "on-tertiary-fixed": "#3e0022",
+                      "primary-fixed-dim": "#d0bcff",
+                      "on-background": "#e5e1e4",
+                      "surface-tint": "#d0bcff",
+                      "tertiary": "#ffb0cd",
+                      "on-primary-fixed-variant": "#5516be",
+                      "secondary-container": "#03b5d3",
+                      "on-secondary-container": "#00424e",
+                      "outline": "#958ea0",
+                      "surface-container-high": "#2a2a2c",
+                      "on-surface-variant": "#cbc3d7",
+                      "on-primary-container": "#340080",
+                      "surface-container": "#201f21",
+                      "tertiary-container": "#f751a1",
+                      "surface-container-lowest": "#0e0e10",
+                      "on-primary": "#3c0091",
+                      "secondary-fixed-dim": "#4cd7f6",
+                      "error-container": "#93000a",
+                      "surface-container-low": "#1c1b1d",
+                      "surface-dim": "#131315",
+                      "on-error": "#690005",
+                      "primary": "#d0bcff",
+                      "on-tertiary": "#640039",
+                      "on-tertiary-container": "#570032",
+                      "on-primary-fixed": "#23005c",
+                      "tertiary-fixed": "#ffd9e4",
+                      "inverse-primary": "#6d3bd7",
+                      "on-secondary-fixed-variant": "#004e5c",
+                      "surface-bright": "#39393b",
+                      "surface": "#131315"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "container-max": "1440px",
+                      "unit": "8px",
+                      "margin-mobile": "20px",
+                      "margin-desktop": "64px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "body-lg": ["Plus Jakarta Sans"],
+                      "headline-lg": ["Sora"],
+                      "body-md": ["Plus Jakarta Sans"],
+                      "display-lg": ["Sora"],
+                      "label-mono": ["JetBrains Mono"],
+                      "label-caps": ["JetBrains Mono"],
+                      "headline-lg-mobile": ["Sora"],
+                      "display-sm": ["Sora"]
+              },
+              "fontSize": {
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "display-lg": ["72px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+                      "label-mono": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "label-caps": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                      "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                      "display-sm": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}]
+              }
+            },
+          },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface selection:bg-primary/30 selection:text-primary">
+<!-- Background Texture -->
+<div class="fixed inset-0 grainy-bg pointer-events-none z-0"></div>
+<!-- SideNavBar (Shared Component) -->
+<aside class="hidden md:flex flex-col h-full py-8 bg-surface-container-lowest/80 backdrop-blur-2xl text-secondary font-label-mono text-label-mono h-full w-64 fixed left-0 top-0 border-r border-outline-variant/20 z-40">
+<div class="px-6 mb-12">
+<h1 class="font-headline-lg text-headline-lg text-primary">Catalogue</h1>
+<p class="text-on-surface-variant font-label-caps text-label-caps tracking-widest mt-1">Admin</p>
+</div>
+<nav class="flex-1 space-y-1 px-4">
+<button id="nav-live" type="button" class="w-full text-left flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/30 transition-colors duration-200">
+<span class="material-symbols-outlined">play_circle</span>
+<span>Live Game</span>
+</button>
+<button id="nav-library" type="button" class="w-full text-left flex items-center gap-3 px-4 py-3 text-secondary bg-secondary-container/10 border-r-4 border-secondary transition-colors duration-200">
+<span class="material-symbols-outlined">library_music</span>
+<span>Song Library</span>
+</button>
+</nav>
+<div class="px-6 mt-auto">
+<div class="glass-card p-4 rounded-xl flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
+<span class="material-symbols-outlined">person</span>
+</div>
+<div>
+<p class="text-[12px] font-bold">DJ ALPHA</p>
+<p class="text-[10px] text-on-surface-variant">Session Admin</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Stage -->
+<main class="md:ml-64 min-h-screen relative z-10">
+<!-- Top Nav - Segmented Control -->
+<header class="sticky top-0 z-50 bg-surface/70 backdrop-blur-xl border-b border-primary/30 px-margin-mobile md:px-margin-desktop py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+<h2 id="view-title" class="font-headline-lg text-headline-lg-mobile text-on-surface">Song Library</h2>
+<div class="flex items-center gap-6">
+<button id="sessions-refresh-btn" type="button" hidden class="flex items-center gap-2 px-3 py-1 rounded-lg bg-surface-container-low border border-outline-variant/30 hover:border-secondary transition-colors font-label-mono text-label-mono text-on-surface-variant">
+<span class="material-symbols-outlined text-on-surface-variant">refresh</span>
+<span>REFRESH</span>
+</button>
+<a href="/" class="flex items-center gap-2 px-3 py-1 rounded-lg bg-surface-container-low border border-outline-variant/30 hover:border-primary transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant">home</span>
+<span class="font-label-mono text-label-mono text-on-surface-variant">HOME</span>
+</a>
+</div>
+</header>
+<!-- Inline error region (host-ui writes here) -->
+<p id="error" role="alert" aria-live="polite" class="px-margin-mobile md:px-margin-desktop pt-2 text-error font-label-mono text-label-mono min-h-[1.25rem]"></p>
+<!-- Live Game View: read-only monitor of sessions in progress. -->
+<section hidden class="p-margin-mobile md:p-margin-desktop space-y-gutter" id="live-view">
+<div class="flex items-center justify-between gap-4 flex-wrap">
+<div>
+<h3 class="font-display-sm text-display-sm text-primary">Live Game</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Games in progress across all sessions. Read-only — open a console to run one.</p>
+</div>
+</div>
+<p id="sessions-empty" hidden class="glass-card rounded-xl p-8 text-center font-body-md text-on-surface-variant">No games in progress. Start one from the <a class="text-primary hover:underline" href="/">home page</a>.</p>
+<div id="sessions-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-gutter"></div>
+</section>
+<!-- Catalogue View (Initially Hidden) -->
+<section class="p-margin-mobile md:p-margin-desktop space-y-gutter" id="catalogue-view">
+<div class="flex flex-col lg:flex-row gap-gutter">
+<!-- Data Table Container -->
+<div class="flex-1 space-y-6">
+<!-- Add Track: a dedicated card so importing never gets confused with searching. -->
+<div class="glass-card rounded-xl p-5 space-y-3">
+<div class="flex items-center justify-between gap-3 flex-wrap">
+<h3 class="font-label-caps text-label-caps text-secondary tracking-widest">ADD TRACK</h3>
+<span id="import-status" class="import-status font-label-mono text-label-mono"></span>
+</div>
+<form id="import-form" class="flex flex-col md:flex-row items-stretch gap-3">
+<div class="flex-1 relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">link</span>
+<input id="import-url" type="url" required class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all font-body-md text-body-md" placeholder="Spotify or iTunes track URL"/>
+</div>
+<select id="import-genre" required aria-label="Import genre"
+  class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 md:w-44"></select>
+<input id="import-itunes-id" type="number" min="1" placeholder="iTunes ID (optional)"
+  class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50 num md:w-40"/>
+<button type="submit" class="bg-secondary text-on-secondary px-6 py-3 rounded-lg text-label-caps font-bold hover:scale-105 active:scale-95 transition-all whitespace-nowrap">ADD TRACK</button>
+</form>
+</div>
+<!-- Search / filter the existing library. -->
+<div class="flex flex-col md:flex-row gap-3 items-center">
+<div class="relative flex-1 w-full">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input id="tracks-search" class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-body-md text-body-md" placeholder="Search track library..." type="text"/>
+</div>
+<select id="tracks-genre-filter" aria-label="Filter by genre"
+  class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50">
+<option value="">All Genres</option>
+</select>
+<button id="tracks-search-btn" type="button"
+  class="px-5 py-3 rounded-lg border border-outline-variant text-on-surface-variant hover:text-primary hover:border-primary transition-colors font-label-caps text-label-caps whitespace-nowrap">
+  Search
+</button>
+<button id="bulk-delete-btn" type="button" hidden
+  class="px-3 py-3 rounded-lg border border-error/40 text-error hover:bg-error/10 transition-colors font-label-caps text-label-caps whitespace-nowrap">
+  Delete Selected
+</button>
+</div>
+<div class="glass-card rounded-xl overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead class="bg-surface-container-high">
+<tr>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant"><input id="select-all" type="checkbox" aria-label="Select all" class="accent-primary"/></th>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Track</th>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Genre</th>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Year</th>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-right">Actions</th>
+</tr>
+</thead>
+<tbody id="tracks-body" class="divide-y divide-outline-variant/10"></tbody>
+</table>
+</div>
+<div id="tracks-pagination" class="flex flex-wrap gap-1"></div>
+</div>
+<!-- Catalogue Sidebar -->
+<div class="lg:w-80 space-y-6">
+<div class="glass-card p-6 rounded-xl space-y-4">
+<h4 class="font-label-caps text-label-caps">LIBRARY STATS</h4>
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant text-sm">Total Tracks</span>
+<span class="font-label-mono text-primary font-bold">—</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant text-sm">Genres</span>
+<span class="font-label-mono text-secondary font-bold">—</span>
+</div>
+<div class="h-1 bg-surface-container-highest w-full rounded-full">
+<div class="h-full bg-primary w-3/4 rounded-full shadow-[0_0_10px_rgba(208,188,255,0.5)]"></div>
+</div>
+</div>
+<!-- Genres editor -->
+<section class="glass-card p-6 rounded-xl space-y-4">
+<h4 class="font-label-caps text-label-caps">GENRES</h4>
+<form id="add-genre-form" class="flex flex-wrap gap-2 items-center">
+<input id="genre-slug" type="text" required maxlength="40" placeholder="slug" pattern="[a-z0-9-]+" title="a-z, 0-9, hyphen only"
+  class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1.5 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 w-24 font-label-mono text-xs">
+<input id="genre-name" type="text" required maxlength="40" placeholder="Name"
+  class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1.5 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 flex-1 min-w-[80px] text-xs">
+<input id="genre-emoji" type="text" maxlength="8" placeholder="Emoji"
+  class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1.5 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 w-16 text-xs">
+<input id="genre-sort" type="number" required value="100" placeholder="Order"
+  class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1.5 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 w-16 num text-xs">
+<button type="submit"
+  class="px-3 py-1.5 rounded bg-primary text-on-primary font-label-caps text-label-caps hover:scale-105 active:scale-95 transition-all">
+  +
+</button>
+</form>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-collapse text-xs">
+<thead class="bg-surface-container-high">
+<tr>
+<th class="px-2 py-2 font-label-caps text-on-surface-variant">Slug</th>
+<th class="px-2 py-2 font-label-caps text-on-surface-variant">Name</th>
+<th class="px-2 py-2 font-label-caps text-on-surface-variant">Emoji</th>
+<th class="px-2 py-2 font-label-caps text-on-surface-variant">#</th>
+<th class="px-2 py-2 font-label-caps text-on-surface-variant">Status</th>
+<th class="px-2 py-2"></th>
+</tr>
+</thead>
+<tbody id="genres-body" class="divide-y divide-outline-variant/10"></tbody>
+</table>
+</div>
+</section>
+</div>
+</div>
+<audio id="admin-audio" preload="none"></audio>
+</section>
+</main>
+<!-- Footer (Shared Component) -->
+<footer class="md:ml-64 bg-surface-container-lowest text-on-surface-variant font-label-caps text-label-caps w-full py-4 border-t border-outline-variant/10 opacity-80 hover:opacity-100 flex flex-row justify-center space-x-gutter items-center relative z-20">
+<span>Guess The Melody · High Fidelity Audio</span>
+<div class="flex gap-6">
+<a class="hover:text-tertiary" href="https://github.com/ingvarch/guess-the-melody" target="_blank" rel="noopener noreferrer">GitHub</a>
+</div>
+</footer>
+<script type="module" src="/static/js/main-admin.js"></script>
+</body></html>

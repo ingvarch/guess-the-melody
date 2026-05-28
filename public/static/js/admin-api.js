@@ -61,6 +61,12 @@ export async function deleteTrack(fetchFn, id) {
   if (!res.ok) throw new Error(`deleteTrack: ${res.status}`);
 }
 
+export async function getSessions(fetchFn) {
+  const res = await fetchFn('/admin/api/sessions');
+  if (!res.ok) throw new Error(`getSessions: ${res.status}`);
+  return res.json();
+}
+
 export async function importTrack(fetchFn, payload) {
   const res = await fetchFn('/admin/api/import', {
     method: 'POST',

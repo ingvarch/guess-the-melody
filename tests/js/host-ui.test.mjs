@@ -13,9 +13,10 @@ function makeDoc() {
   const doc = win.document;
   doc.body.innerHTML = `
     <span id="session-code"></span>
+    <span id="current-genre">—</span>
     <ul id="teams-list"></ul>
     <form id="add-team-form"></form>
-    <select id="genre-select" aria-label="Жанр"></select>
+    <select id="genre-select" aria-label="Genre"></select>
     <button id="spin-btn"></button>
     <div id="phase-controls" hidden>
       <audio id="audio" preload="auto"></audio>
@@ -105,6 +106,7 @@ test('phase-driven hidden toggling for idle / spinning / playing / revealed', ()
   render(doc, view);
   assert.equal(doc.getElementById('reveal-btn').hasAttribute('hidden'), false);
   assert.equal(doc.getElementById('award-area').hasAttribute('hidden'), false);
+  assert.equal(doc.getElementById('replay-btn').hasAttribute('hidden'), false, 'repeat shown while playing');
 
   // revealed
   view = {
@@ -118,6 +120,22 @@ test('phase-driven hidden toggling for idle / spinning / playing / revealed', ()
   render(doc, view);
   assert.equal(doc.getElementById('reveal-card').hasAttribute('hidden'), false);
   assert.equal(doc.getElementById('next-btn').hasAttribute('hidden'), false);
+  // Repeat hidden in revealed: the `replay` transition is only valid from playing.
+  assert.equal(doc.getElementById('replay-btn').hasAttribute('hidden'), true, 'repeat hidden when revealed');
+});
+
+test('current-genre shows the resolved genre name during a round, dash when idle', () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }];
+  render(doc, {
+    state: makeState({ phase: 'spinning', selectedGenre: 'pop', currentTrack: { id: 'x', genre: 'pop' } }),
+    genres,
+    sessionId: 's',
+  });
+  assert.equal(doc.getElementById('current-genre').textContent, 'Pop');
+
+  render(doc, { state: makeState({ phase: 'idle' }), genres, sessionId: 's' });
+  assert.equal(doc.getElementById('current-genre').textContent, '—');
 });
 
 test('mirror panel never exposes currentTrack identity outside revealed', () => {

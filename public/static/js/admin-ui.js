@@ -199,3 +199,113 @@ export function setError(doc, msg) {
   const el = doc.getElementById('error');
   if (el) el.textContent = msg;
 }
+
+const LIVE_WINDOW_MS = 60_000;
+
+function fmtAgo(ms) {
+  const s = Math.max(0, Math.round(ms / 1000));
+  if (s < 60) return `${s}s ago`;
+  const m = Math.round(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.round(m / 60);
+  return `${h}h ago`;
+}
+
+const PHASE_LABEL = {
+  idle: 'Waiting',
+  spinning: 'Picking genre',
+  playing: 'Playing',
+  revealed: 'Revealed',
+};
+
+// Read-only "Live Game" monitor. Renders one card per registry row; the admin
+// is not the session owner, so the card only links out to host/display.
+export function renderSessions(doc, sessions, { now }) {
+  const list = doc.getElementById('sessions-list');
+  const empty = doc.getElementById('sessions-empty');
+  if (!list) return;
+  clearChildren(list);
+
+  if (!sessions || sessions.length === 0) {
+    if (empty) empty.removeAttribute('hidden');
+    return;
+  }
+  if (empty) empty.setAttribute('hidden', '');
+
+  for (const s of sessions) {
+    const live = now - s.updatedAt < LIVE_WINDOW_MS;
+
+    const card = doc.createElement('article');
+    card.className = 'session-card glass-card rounded-xl p-5 space-y-4';
+    card.dataset.live = String(live);
+
+    const head = doc.createElement('div');
+    head.className = 'flex items-center justify-between gap-3';
+
+    const idWrap = doc.createElement('div');
+    idWrap.className = 'flex items-center gap-2';
+    const dot = doc.createElement('span');
+    dot.className = live
+      ? 'w-2 h-2 rounded-full bg-secondary animate-pulse'
+      : 'w-2 h-2 rounded-full bg-on-surface-variant/40';
+    const code = doc.createElement('span');
+    code.className = 'session-card__id font-label-mono text-label-mono text-on-surface tracking-wider';
+    code.textContent = s.id;
+    idWrap.append(dot, code);
+
+    const badge = doc.createElement('span');
+    badge.className = 'font-label-caps text-label-caps px-2 py-1 rounded bg-primary/10 text-primary';
+    badge.textContent = PHASE_LABEL[s.phase] ?? s.phase;
+    head.append(idWrap, badge);
+
+    const meta = doc.createElement('div');
+    meta.className = 'flex flex-wrap gap-x-6 gap-y-1 font-label-mono text-label-mono text-on-surface-variant';
+    const genre = doc.createElement('span');
+    genre.textContent = `Genre: ${s.selectedGenre ?? '—'}`;
+    const rounds = doc.createElement('span');
+    rounds.textContent = `Round ${s.roundsPlayed + 1}`;
+    const ago = doc.createElement('span');
+    ago.textContent = fmtAgo(now - s.updatedAt);
+    meta.append(genre, rounds, ago);
+
+    card.append(head, meta);
+
+    if (s.teams && s.teams.length > 0) {
+      const board = doc.createElement('ul');
+      board.className = 'space-y-1 list-none p-0 m-0';
+      const sorted = s.teams.slice().sort((a, b) => b.score - a.score);
+      for (const t of sorted) {
+        const li = doc.createElement('li');
+        li.className = 'flex justify-between items-center text-body-md text-on-surface';
+        const name = doc.createElement('span');
+        name.className = 'session-team__name';
+        name.textContent = t.name;
+        const score = doc.createElement('span');
+        score.className = 'session-team__score num font-label-mono text-secondary';
+        score.textContent = String(t.score);
+        li.append(name, score);
+        board.append(li);
+      }
+      card.append(board);
+    }
+
+    const actions = doc.createElement('div');
+    actions.className = 'flex gap-2 pt-1';
+    const hostLink = doc.createElement('a');
+    hostLink.href = `/s/${s.id}/`;
+    hostLink.target = '_blank';
+    hostLink.rel = 'noopener noreferrer';
+    hostLink.className = 'px-3 py-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-on-primary transition-all font-label-caps text-label-caps';
+    hostLink.textContent = 'Open Console';
+    const dispLink = doc.createElement('a');
+    dispLink.href = `/s/${s.id}/display`;
+    dispLink.target = '_blank';
+    dispLink.rel = 'noopener noreferrer';
+    dispLink.className = 'px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant hover:text-secondary hover:border-secondary transition-all font-label-caps text-label-caps';
+    dispLink.textContent = 'Open Display';
+    actions.append(hostLink, dispLink);
+    card.append(actions);
+
+    list.append(card);
+  }
+}

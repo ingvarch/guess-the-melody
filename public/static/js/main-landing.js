@@ -14,7 +14,7 @@ export async function startGame({
   if (typeof data.sessionId !== 'string') {
     throw new Error('bad session response');
   }
-  location.href = `/s/${data.sessionId}/`;
+  location.href = `/s/${data.sessionId}/display`;
   return data.sessionId;
 }
 

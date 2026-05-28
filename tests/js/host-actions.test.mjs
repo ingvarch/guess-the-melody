@@ -12,6 +12,7 @@ const {
   removeTeam,
   spin,
   play,
+  replay,
   award,
   reveal,
   next,
@@ -113,6 +114,12 @@ test('play: includes now timestamp from Date.now', async () => {
     action: 'play',
     now: 12345,
   });
+});
+
+test('replay: posts { action: "replay" } with no payload (server stamps now)', async () => {
+  const { fetchFn, calls } = captureFetch();
+  await replay(fetchFn, 's');
+  assert.deepEqual(JSON.parse(calls[0].opts.body), { action: 'replay' });
 });
 
 test('award: posts award with teamId + points', async () => {

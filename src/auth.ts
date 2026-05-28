@@ -1,7 +1,8 @@
 // HTTP Basic auth for the admin surface. Username is ignored; only
 // the password is compared (constant-time) against ADMIN_PASSWORD.
 
-export function checkBasicAuth(authHeader: string | null, expectedPassword: string): boolean {
+export function checkBasicAuth(authHeader: string | null, expectedPassword: string | undefined): boolean {
+  if (!expectedPassword) return false;
   if (!authHeader || !authHeader.startsWith('Basic ')) return false;
   let decoded: string;
   try {

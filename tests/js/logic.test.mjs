@@ -72,6 +72,24 @@ test('next: playing -> idle is allowed (skip without reveal)', () => {
   assert.deepEqual(out.playedTrackIds, ['abc']);
 });
 
+test('replay: playing -> playing, resets audioStartTimestamp', () => {
+  let s = applyAction(initialState(), {
+    action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 1,
+  });
+  s = applyAction(s, { action: 'play', now: 1000 });
+  const out = applyAction(s, { action: 'replay', now: 5000 });
+  assert.equal(out.phase, 'playing');
+  assert.equal(out.audioStartTimestamp, 5000);
+  assert.deepEqual(out.currentTrack, { id: 'abc', genre: 'rock' });
+});
+
+test('replay: rejected outside playing', () => {
+  const idle = initialState();
+  assert.throws(() => applyAction(idle, { action: 'replay', now: 1 }));
+  const spinning = applyAction(idle, { action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 1 });
+  assert.throws(() => applyAction(spinning, { action: 'replay', now: 1 }));
+});
+
 test('award: allowed in playing and revealed', () => {
   let s = applyAction(initialState(), {
     action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 1,

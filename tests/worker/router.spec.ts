@@ -315,7 +315,7 @@ describe('Worker router', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/html/);
     const body = await res.text();
-    expect(body).toContain('Угадай мелодию');
+    expect(body).toContain('Guess The Melody');
     expect(body).toContain(
       '<script type="module" src="/static/js/main-landing.js">',
     );

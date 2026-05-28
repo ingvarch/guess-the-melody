@@ -10,6 +10,7 @@ import {
   renameTeam,
   spin,
   play,
+  replay,
   award,
   reveal,
   next,
@@ -26,9 +27,9 @@ function teamId() {
 }
 
 const DO_ERRORS = {
-  'no tracks available': 'Нет доступных треков (все жанры пусты или заархивированы)',
-  'no current track': 'Нет текущего трека',
-  'track not found': 'Трек не найден',
+  'no tracks available': 'No tracks available (all genres are empty or archived)',
+  'no current track': 'No current track',
+  'track not found': 'Track not found',
 };
 
 function showError(msg) {
@@ -88,7 +89,7 @@ function wireEvents(view) {
       removeTeam(fetch, sessionId, id).catch((err) => showError(err.message));
     } else if (btn.dataset.action === 'rename') {
       const current = view.state.teams.find((t) => t.id === id)?.name ?? '';
-      const next = prompt('Новое название команды', current);
+      const next = prompt('New team name', current);
       if (next === null) return;
       const trimmed = next.trim();
       if (!trimmed) return;
@@ -110,12 +111,8 @@ function wireEvents(view) {
 
   const replayBtn = document.getElementById('replay-btn');
   replayBtn?.addEventListener('click', () => {
-    const audio = document.getElementById('audio');
-    if (audio) {
-      try { audio.currentTime = 0; } catch { /* not seekable */ }
-      const p = audio.play();
-      if (p && typeof p.catch === 'function') p.catch(() => {});
-    }
+    // Server re-stamp so display + spectators restart the clip in sync.
+    replay(fetch, sessionId).catch((err) => showError(err.message));
   });
 
   const revealBtn = document.getElementById('reveal-btn');
@@ -140,8 +137,8 @@ function wireEvents(view) {
 
   const endBtn = document.getElementById('endgame-btn');
   endBtn?.addEventListener('click', () => {
-    if (!confirm('Завершить игру?')) return;
-    const reset = confirm('Сбросить счёт команд?');
+    if (!confirm('End the game?')) return;
+    const reset = confirm('Reset team scores?');
     endgame(fetch, sessionId, reset).catch((err) => showError(err.message));
   });
 
@@ -178,8 +175,8 @@ function wireEvents(view) {
     qrCopy?.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(displayUrl);
-        qrCopy.textContent = 'Скопировано';
-        setTimeout(() => { qrCopy.textContent = 'Копировать'; }, 1500);
+        qrCopy.textContent = 'Copied';
+        setTimeout(() => { qrCopy.textContent = 'Copy'; }, 1500);
       } catch { /* clipboard denied */ }
     });
   }

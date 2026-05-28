@@ -6,6 +6,7 @@ import { beforeEach, describe, it, expect } from 'vitest';
 import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import type { Env, RoomState } from '../../src/types';
 import { insertTrack } from '../../src/catalog/tracks';
+import { listSessions } from '../../src/catalog/sessions';
 
 // `cloudflare:test` types `env` as the empty `Cloudflare.Env`; our project
 // hasn't run `wrangler types` so we cast once for binding access.
@@ -484,6 +485,66 @@ describe('MelodyRoom DO', () => {
       year: 1984,
       artworkUrl: 'https://example.com/art.jpg',
     });
+  });
+
+  it('replay re-stamps audioStartTimestamp server-side and stays in playing', async () => {
+    await seedTrack({ id: 'tr-replay', genre_slug: 'rock' });
+    const stub = roomStub('session-replay');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
+    });
+    const played = (await (await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'play', now: 1 }),
+    })).json()) as RoomState;
+    // The DO stamps play with its own clock, ignoring the client value.
+    expect(played.audioStartTimestamp).toBeGreaterThan(1);
+
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'replay' }),
+    });
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoomState;
+    expect(state.phase).toBe('playing');
+    // Replay re-stamps with a fresh server clock, no earlier than the play stamp.
+    expect(state.audioStartTimestamp).toBeGreaterThanOrEqual(played.audioStartTimestamp!);
+  });
+
+  it('writes a registry snapshot to D1 on mutation when initialised with a sessionId', async () => {
+    await testEnv.CATALOG.exec('DELETE FROM sessions');
+    await seedTrack({ id: 'tr-reg', genre_slug: 'rock' });
+    const stub = roomStub('session-registry');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x', sessionId: 'session-registry' }),
+    });
+    await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'team.add', id: 't1', name: 'Cats' }),
+    });
+    await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
+    });
+
+    const rows = await listSessions(testEnv.CATALOG);
+    const row = rows.find((r) => r.id === 'session-registry');
+    expect(row).toBeDefined();
+    expect(row!.phase).toBe('spinning');
+    expect(row!.selected_genre).toBe('rock');
+    expect(row!.team_count).toBe(1);
+    expect(JSON.parse(row!.teams_json)).toEqual([{ name: 'Cats', score: 0 }]);
   });
 
   it('reveal returns 409 when the current track row has gone missing', async () => {

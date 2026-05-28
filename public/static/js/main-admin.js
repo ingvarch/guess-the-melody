@@ -8,6 +8,7 @@ import {
   getTracks,
   deleteTrack,
   importTrack,
+  getSessions,
 } from './admin-api.js';
 import {
   renderGenresTable,
@@ -16,6 +17,7 @@ import {
   renderPagination,
   setImportStatus,
   setError,
+  renderSessions,
 } from './admin-ui.js';
 
 let currentGenres = [];
@@ -259,10 +261,73 @@ function wireForms() {
   }
 }
 
+// ---- Live Game monitor ----
+
+const NAV_ACTIVE = ['text-secondary', 'bg-secondary-container/10', 'border-r-4', 'border-secondary'];
+let sessionsTimer = null;
+
+async function refreshSessions() {
+  if (!document.getElementById('sessions-list')) return;
+  try {
+    const sessions = await getSessions(fetch);
+    renderSessions(document, sessions, { now: Date.now() });
+  } catch (e) {
+    setError(document, e.message);
+  }
+}
+
+function setActiveNav(activeBtn, inactiveBtn) {
+  activeBtn?.classList.add(...NAV_ACTIVE);
+  activeBtn?.classList.remove('text-on-surface-variant');
+  inactiveBtn?.classList.remove(...NAV_ACTIVE);
+  inactiveBtn?.classList.add('text-on-surface-variant');
+}
+
+function showView(view) {
+  const live = document.getElementById('live-view');
+  const catalogue = document.getElementById('catalogue-view');
+  const title = document.getElementById('view-title');
+  const refreshBtn = document.getElementById('sessions-refresh-btn');
+  const navLive = document.getElementById('nav-live');
+  const navLibrary = document.getElementById('nav-library');
+  if (!live || !catalogue) return;
+
+  if (sessionsTimer) { clearInterval(sessionsTimer); sessionsTimer = null; }
+
+  if (view === 'live') {
+    live.removeAttribute('hidden');
+    catalogue.classList.add('hidden');
+    if (title) title.textContent = 'Live Game';
+    refreshBtn?.removeAttribute('hidden');
+    setActiveNav(navLive, navLibrary);
+    void refreshSessions();
+    // Poll while the monitor is on screen; rows are advisory and update often.
+    sessionsTimer = setInterval(refreshSessions, 5000);
+  } else {
+    live.setAttribute('hidden', '');
+    catalogue.classList.remove('hidden');
+    if (title) title.textContent = 'Song Library';
+    refreshBtn?.setAttribute('hidden', '');
+    setActiveNav(navLibrary, navLive);
+  }
+}
+
+function wireNav() {
+  document.getElementById('nav-live')?.addEventListener('click', () => showView('live'));
+  document.getElementById('nav-library')?.addEventListener('click', () => showView('library'));
+  document.getElementById('sessions-refresh-btn')?.addEventListener('click', () => void refreshSessions());
+}
+
 async function boot() {
+  // Catalogue management is admin-only (basic-auth /admin/api/*). The host page
+  // (/s/<id>/) authenticates with an owner cookie, not basic auth, so running
+  // these fetches there would 401 and spam the shared #error region. The host
+  // page carries a session-id meta tag; bail out when present.
+  if (document.querySelector('meta[name="session-id"]')) return;
   await refreshGenres();
   await refreshTracks(0);
   wireForms();
+  wireNav();
 }
 
 boot().catch((e) => setError(document, e.message));

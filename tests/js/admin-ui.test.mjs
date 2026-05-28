@@ -22,6 +22,8 @@ function makeDoc() {
     <div id="tracks-pagination"></div>
     <span id="import-status"></span>
     <div id="error"></div>
+    <div id="sessions-list"></div>
+    <p id="sessions-empty" hidden></p>
   `;
   return doc;
 }
@@ -34,7 +36,52 @@ const {
   renderPagination,
   setImportStatus,
   setError,
+  renderSessions,
 } = mod;
+
+test('renderSessions shows empty state when no sessions', () => {
+  const doc = makeDoc();
+  renderSessions(doc, [], { now: 1000 });
+  assert.equal(doc.getElementById('sessions-empty').hasAttribute('hidden'), false);
+  assert.equal(doc.getElementById('sessions-list').children.length, 0);
+});
+
+test('renderSessions renders a card per session with links and leaderboard', () => {
+  const doc = makeDoc();
+  const now = 1_000_000;
+  renderSessions(doc, [
+    {
+      id: 'ABC123', phase: 'playing', selectedGenre: 'rock', roundsPlayed: 3,
+      teamCount: 2, updatedAt: now - 2000, createdAt: now - 60000,
+      teams: [{ name: 'Cats', score: 2 }, { name: 'Dogs', score: 5 }],
+    },
+  ], { now });
+  assert.equal(doc.getElementById('sessions-empty').hasAttribute('hidden'), true);
+  const cards = doc.querySelectorAll('.session-card');
+  assert.equal(cards.length, 1);
+  const card = cards[0];
+  assert.ok(card.textContent.includes('ABC123'));
+  assert.ok(card.textContent.toLowerCase().includes('rock'));
+  // Links to host + display for that session.
+  const hrefs = Array.from(card.querySelectorAll('a')).map((a) => a.getAttribute('href'));
+  assert.ok(hrefs.includes('/s/ABC123/'));
+  assert.ok(hrefs.includes('/s/ABC123/display'));
+  // Leaderboard sorted desc: Dogs (5) before Cats (2).
+  const names = Array.from(card.querySelectorAll('.session-team__name')).map((n) => n.textContent);
+  assert.deepEqual(names, ['Dogs', 'Cats']);
+});
+
+test('renderSessions flags a fresh session as live', () => {
+  const doc = makeDoc();
+  const now = 1_000_000;
+  renderSessions(doc, [
+    { id: 'LIVE1', phase: 'spinning', selectedGenre: null, roundsPlayed: 0, teamCount: 0, updatedAt: now - 5000, createdAt: now - 5000, teams: [] },
+    { id: 'OLD1', phase: 'idle', selectedGenre: null, roundsPlayed: 0, teamCount: 0, updatedAt: now - 600000, createdAt: now - 600000, teams: [] },
+  ], { now });
+  const cards = doc.querySelectorAll('.session-card');
+  assert.equal(cards[0].dataset.live, 'true');
+  assert.equal(cards[1].dataset.live, 'false');
+});
 
 test('renderGenresTable creates rows with inputs and buttons', () => {
   const doc = makeDoc();

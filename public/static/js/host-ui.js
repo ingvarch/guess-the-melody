@@ -39,14 +39,14 @@ function renderTeams(doc, state) {
     rename.type = 'button';
     rename.dataset.action = 'rename';
     rename.dataset.teamId = team.id;
-    rename.textContent = 'Переименовать';
+    rename.textContent = 'Rename';
 
     const remove = doc.createElement('button');
     remove.className = 'btn btn--ghost team__btn';
     remove.type = 'button';
     remove.dataset.action = 'remove';
     remove.dataset.teamId = team.id;
-    remove.textContent = 'Удалить';
+    remove.textContent = 'Remove';
 
     li.append(name, score, rename, remove);
     list.append(li);
@@ -103,7 +103,8 @@ function renderPhaseControls(doc, state, sessionId) {
   setHidden(playBtn, state.phase !== 'spinning');
 
   const replayBtn = doc.getElementById('replay-btn');
-  setHidden(replayBtn, state.phase !== 'playing' && state.phase !== 'revealed');
+  // Repeat only while playing — the `replay` transition is invalid once revealed.
+  setHidden(replayBtn, state.phase !== 'playing');
 
   const revealBtn = doc.getElementById('reveal-btn');
   setHidden(revealBtn, state.phase !== 'playing');
@@ -202,13 +203,13 @@ function renderMirror(doc, state) {
   const phaseSpan = doc.createElement('span');
   phaseSpan.className = 'num';
   phaseSpan.textContent = state.phase;
-  appendRow('Фаза:', ' ', phaseSpan);
+  appendRow('Phase:', ' ', phaseSpan);
 
-  appendRow('Жанр:', ` ${state.selectedGenre ?? '—'}`);
+  appendRow('Genre:', ` ${state.selectedGenre ?? '—'}`);
 
   const trackRow = doc.createElement('p');
   const trackStrong = doc.createElement('strong');
-  trackStrong.textContent = 'Трек:';
+  trackStrong.textContent = 'Track:';
   trackRow.append(trackStrong);
   if (state.currentTrack && state.phase !== 'revealed') {
     trackRow.append(' ?');
@@ -227,7 +228,7 @@ function renderMirror(doc, state) {
   const playedSpan = doc.createElement('span');
   playedSpan.className = 'num';
   playedSpan.textContent = String(state.playedTrackIds.length);
-  appendRow('Сыграно раундов:', ' ', playedSpan);
+  appendRow('Rounds played:', ' ', playedSpan);
 }
 
 export function renderClock(doc, state) {
@@ -256,7 +257,17 @@ export function render(doc, view) {
 
   renderTeams(doc, state);
   renderGenres(doc, genres ?? [], state);
+  renderCurrentGenre(doc, state, genres ?? []);
   renderPhaseControls(doc, state, sessionId);
   renderMirror(doc, state);
   renderClock(doc, state);
+}
+
+// Center-stage "CURRENT CATEGORY" heading: resolved genre name during a round,
+// em-dash when idle. (state.selectedGenre is a slug; resolve to a display name.)
+function renderCurrentGenre(doc, state, genres) {
+  const el = doc.getElementById('current-genre');
+  if (!el) return;
+  const match = genres.find((g) => g.slug === state.selectedGenre);
+  el.textContent = match?.name ?? state.selectedGenre ?? '—';
 }

@@ -14,7 +14,7 @@ function fakeLocation() {
   return { href: '' };
 }
 
-test('startGame: POSTs /api/session and redirects to /s/<id>/ on success', async () => {
+test('startGame: POSTs /api/session and redirects to /s/<id>/display on success', async () => {
   const calls = [];
   const fetchFn = async (url, opts) => {
     calls.push([url, opts]);
@@ -26,7 +26,7 @@ test('startGame: POSTs /api/session and redirects to /s/<id>/ on success', async
   const location = fakeLocation();
   const id = await startGame({ fetchFn, location });
   assert.equal(id, 'abc123');
-  assert.equal(location.href, '/s/abc123/');
+  assert.equal(location.href, '/s/abc123/display');
   assert.equal(calls.length, 1);
   assert.equal(calls[0][0], '/api/session');
   assert.deepEqual(calls[0][1], { method: 'POST' });

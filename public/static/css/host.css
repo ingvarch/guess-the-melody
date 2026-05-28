@@ -1,407 +1,132 @@
-/* Host (judge) UI. Two-column grid on desktop, stacked on phone. Tokens
-   inherited from base.css; only host-specific rules live here. */
+/* Host — Sonic Pulse. Tailwind utilities own the bulk of the layout; this
+ * stylesheet holds host-specific bits that Tailwind can't model cleanly:
+ *   - team row layout with renderTeams() DOM
+ *   - award-list spacing
+ *   - QR modal display switching via hidden attribute
+ *   - reveal-card class selectors used by host-ui.js (.reveal-card__*)
+ *   - error highlight tweak
+ *
+ * Glass + grain effects are inline <style> blocks in host.html.
+ */
 
-.visually-hidden {
-  position: absolute;
-  width: 1px; height: 1px;
-  margin: -1px; padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0); clip-path: inset(50%);
-  white-space: nowrap; border: 0;
-}
-
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  padding: 0.75rem 1.25rem;
-  background: rgba(246, 239, 228, 0.88);
-  backdrop-filter: saturate(160%) blur(12px);
-  -webkit-backdrop-filter: saturate(160%) blur(12px);
-  border-bottom: 1px solid var(--color-line);
-}
-
-.topbar__code {
-  font-family: var(--font-display);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.topbar__actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.host {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
-  padding: 1.5rem;
-  max-width: 1400px;
-  margin: 0 auto;
-}
-
-@media (min-width: 980px) {
-  .host {
-    grid-template-columns: 2fr 1fr;
-    gap: 2rem;
-    padding: 2rem;
-  }
-}
-
-.controls {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  min-width: 0;
-}
-
-.teams,
-.round,
-.mirror {
-  background: #fff;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-card);
-  padding: 1.25rem 1.25rem 1.5rem;
-  box-shadow: var(--shadow-soft);
-}
-
-.teams h3,
-.round h3,
-.mirror h3 {
-  font-size: 1.125rem;
-  margin-bottom: 0.75rem;
-}
-
-/* --- Teams --- */
-
-.teams__list {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
+/* renderTeams() emits .team list items; lay them out for one-row card. */
 .team {
   display: grid;
   grid-template-columns: 1fr auto auto auto;
   align-items: center;
   gap: 0.75rem;
   padding: 0.625rem 0.875rem;
-  background: var(--color-paper);
+  background: rgba(20, 19, 21, 0.7);
+  border: 1px solid rgba(208, 188, 255, 0.1);
   border-radius: 12px;
   min-height: 48px;
 }
 
 .team__name {
+  font-family: "JetBrains Mono", monospace;
   font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #e5e1e4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .team__score {
+  font-family: "Sora", sans-serif;
   font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  font-size: 1.25rem;
+  font-weight: 800;
+  font-size: 1.5rem;
   min-width: 2ch;
   text-align: right;
-  padding: 0.125rem 0.625rem;
-  background: var(--color-paper-deep);
-  border-radius: 999px;
+  color: #4cd7f6;
+  text-shadow: 0 0 12px rgba(76, 215, 246, 0.4);
 }
 
 .team__btn {
-  min-height: 44px;
-  padding: 0 0.875rem;
-  font-size: 0.875rem;
-}
-
-.teams__add {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.teams__add input {
-  flex: 1 1 200px;
-  min-height: 48px;
-  padding: 0 1rem;
-  border-radius: 12px;
-  border: 1px solid var(--color-line);
-  background: var(--color-paper);
-}
-
-.teams__add input:focus {
-  outline: 2px solid var(--color-ink);
-  outline-offset: 2px;
-}
-
-/* --- Round --- */
-
-.round {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.round__genre {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.round__genre-mode {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
+  padding: 0 0.625rem;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid rgba(73, 68, 84, 0.6);
+  color: #cbc3d7;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
   cursor: pointer;
+  transition: color 120ms, border-color 120ms;
 }
-
-#genre-select {
-  min-height: 40px;
-  padding: 0 0.75rem;
-  border-radius: 10px;
-  border: 1px solid var(--color-line);
-  background: var(--color-paper);
-}
-
-#genre-select:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn--lg {
-  min-height: 64px;
-  font-size: 1.125rem;
-  padding: 0 2rem;
-}
-
-.round__phase {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--color-line);
-}
-
-.audio-controls {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.audio-controls .btn {
-  min-width: 48px;
-  padding: 0;
-}
-
-.audio-controls .icon {
-  width: 20px;
-  height: 20px;
-}
-
-#scrubber {
-  width: 100%;
-  accent-color: var(--color-accent);
-}
-
-#time-readout {
-  font-variant-numeric: tabular-nums;
-  color: var(--color-muted);
-  font-size: 0.95rem;
-}
-
-/* --- Award area --- */
-
-.award-area {
-  background: var(--color-paper);
-  border-radius: 12px;
-  padding: 0.875rem 1rem 1rem;
-}
-
-.award-area__hint {
-  margin: 0 0 0.625rem;
-  color: var(--color-muted);
-  font-size: 0.95rem;
-}
-
-.award-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 0.5rem;
-}
-
-@media (min-width: 540px) {
-  .award-list {
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+@media (hover: hover) {
+  .team__btn:hover {
+    color: #d0bcff;
+    border-color: #d0bcff;
   }
 }
 
+/* renderAwardTeams() emits li.award-list__item with two action buttons. */
 .award-list__item {
   display: grid;
   grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.75rem;
-  background: #fff;
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  min-height: 56px;
+  background: rgba(208, 188, 255, 0.05);
+  border: 1px solid rgba(208, 188, 255, 0.15);
+  border-radius: 10px;
+  min-height: 48px;
 }
 
 .award-list__name {
+  font-family: "JetBrains Mono", monospace;
   font-weight: 600;
+  letter-spacing: 0.03em;
+  color: #e5e1e4;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .award-list__item .btn {
-  min-width: 56px;
-  min-height: 44px;
-  padding: 0 0.75rem;
-}
-
-/* --- Reveal card --- */
-
-.reveal-card {
-  background: var(--color-paper);
-  border-radius: 12px;
-  padding: 1.25rem;
-  text-align: center;
-}
-
-.reveal-card__artist {
-  margin: 0 0 0.25rem;
-  font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 1.5rem;
-  color: var(--color-accent-deep);
-}
-
-.reveal-card__title {
-  margin: 0 0 0.5rem;
-  font-family: var(--font-display);
-  font-size: 1.25rem;
-}
-
-.reveal-card__year {
-  margin: 0;
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-/* --- Mirror --- */
-
-.mirror__content p {
-  margin: 0 0 0.5rem;
-  font-size: 0.95rem;
-  color: var(--color-ink);
-}
-
-.mirror__content strong {
-  color: var(--color-muted);
-  font-weight: 600;
-  margin-right: 0.375rem;
-}
-
-/* --- Error --- */
-
-.error {
-  margin: 0;
-  padding: 0.5rem 1.5rem 1.25rem;
-  text-align: center;
-  color: var(--color-accent-deep);
-  min-height: 1.5rem;
-}
-
-/* ---- QR Modal ----------------------------------------------------------- */
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: none;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  padding: 1.5rem;
-}
-
-.modal-backdrop:not([hidden]) {
-  display: flex;
-}
-
-.modal {
-  background: #fff;
-  border-radius: var(--radius-card);
-  padding: 1.5rem;
-  max-width: 420px;
-  width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-}
-
-.modal-title {
-  font-size: 1.125rem;
-  font-weight: 700;
-  margin: 0 0 0.5rem;
-}
-
-.modal-text {
-  margin: 0 0 1rem;
-  color: var(--color-muted);
-  font-size: 0.95rem;
-}
-
-.qr-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 1rem;
-}
-
-.qr-wrap img {
-  width: 200px;
-  height: 200px;
-  border-radius: 12px;
-  border: 1px solid var(--color-line);
-}
-
-.qr-url-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
-}
-
-.qr-url {
-  flex: 1 1 200px;
-  font-size: 0.8rem;
-  background: var(--color-paper);
-  padding: 0.375rem 0.625rem;
+  min-width: 48px;
+  min-height: 36px;
+  padding: 0 0.625rem;
   border-radius: 8px;
-  word-break: break-all;
-  color: var(--color-muted);
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 120ms, background-color 120ms;
+  border: 1px solid transparent;
+}
+.award-list__item .btn--ghost {
+  background: rgba(76, 215, 246, 0.1);
+  color: #4cd7f6;
+  border-color: rgba(76, 215, 246, 0.3);
+}
+.award-list__item .btn--primary {
+  background: #d0bcff;
+  color: #3c0091;
+}
+@media (hover: hover) {
+  .award-list__item .btn:hover { transform: scale(1.05); }
+}
+.award-list__item .btn:active { transform: scale(0.95); }
+
+/* Mirror panel rows. host-ui.js emits <p><strong>Label:</strong> value</p>. */
+.mirror__content p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #e5e1e4;
+}
+.mirror__content strong {
+  color: #cbc3d7;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-right: 0.5rem;
 }
 
-.modal-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
+/* Native range thumb tinted to match the cyan secondary. */
+#scrubber { accent-color: #4cd7f6; }

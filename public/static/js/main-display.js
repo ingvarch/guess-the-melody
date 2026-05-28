@@ -1,21 +1,48 @@
-// Display bootstrap. Mirrors the host SSE + render loop, but read-only.
-// Triggers jukebox spin animation and waveform attach on phase transitions.
+// Display bootstrap. Renders the cinematic display, mirrors host SSE, AND
+// drives the gameplay control surface (spin/play/reveal/next/award/teams).
+// Anonymous viewers see the same controls; their POSTs will 403 against the
+// DO owner-cookie check. Acceptable for the MVP — the URL is unguessable.
 
-import { render, runSpin } from './display-ui.js';
+import { render, renderClock, runSpin, renderPlaybackControls } from './display-ui.js';
+import {
+  fetchGenres,
+  fetchState,
+  addTeam,
+  removeTeam,
+  renameTeam,
+  spin,
+  play,
+  replay,
+  award,
+  reveal,
+  next,
+  endgame,
+} from './host-actions.js';
 import { attachWaveform } from './waveform.js';
 
 const sessionId = document.querySelector('meta[name="session-id"]')?.content ?? '';
+const TICK_MS = 250;
 
-async function fetchGenres(fetchFn) {
-  const res = await fetchFn('/api/genres');
-  if (!res.ok) return [];
-  return res.json();
+const DO_ERRORS = {
+  'no tracks available': 'No tracks available (all genres are empty or archived)',
+  'no current track': 'No current track',
+  'track not found': 'Track not found',
+};
+
+function teamId() {
+  return 't_' + Math.random().toString(36).slice(2, 10);
 }
 
-async function fetchState(fetchFn, sid) {
-  const res = await fetchFn(`/s/${sid}/api/state`);
-  if (!res.ok) throw new Error(`fetchState: ${res.status}`);
-  return res.json();
+function showError(msg) {
+  const mapped = DO_ERRORS[msg] ?? msg;
+  // Display has no dedicated error region; fall back to alert for non-403 errors.
+  // 403s from owner-cookie checks are swallowed in the catch sites below.
+  if (mapped) console.warn('display action error:', mapped);
+}
+
+function silentlyIgnore403(err) {
+  if (err instanceof Error && /\b403\b/.test(err.message)) return;
+  showError(err instanceof Error ? err.message : String(err));
 }
 
 function boot() {
@@ -30,31 +57,27 @@ function boot() {
 
   function onState() {
     render(document, view);
+    // Expose phase to the inline visualiser so the bars react only while playing.
+    document.body.dataset.phase = view.state.phase ?? '';
 
-    // Phase transition: idle -> spinning -> run spin animation.
     if (prevPhase !== 'spinning' && view.state.phase === 'spinning') {
-      void runSpin(document, view.state, view.genres);
+      void runSpin(document, view.state, view.genres, { getPhase: () => view.state.phase });
     }
 
-    // Phase transition: spinning -> playing -> attach/resume waveform.
-    if (prevPhase !== 'playing' && view.state.phase === 'playing') {
+    if (view.state.phase === 'playing') {
+      // Attach the analyser exactly once for the page lifetime; reuse it every
+      // round. Re-attaching would call createMediaElementSource twice and throw.
       if (!waveformCtrl) {
         waveformCtrl = attachWaveform({
           audioEl: document.getElementById('audio'),
           canvas: document.getElementById('waveform'),
         });
       }
-      if (waveformCtrl?.resume) {
-        void waveformCtrl.resume();
-      }
-    }
-
-    // Phase transition: playing -> revealed -> stop waveform.
-    if (prevPhase === 'playing' && view.state.phase === 'revealed') {
-      if (waveformCtrl) {
-        waveformCtrl.stop();
-        waveformCtrl = null;
-      }
+      void waveformCtrl?.resume?.();
+    } else if (prevPhase === 'playing') {
+      // Leaving playback (reveal or skip): pause the render loop only. The
+      // AudioContext stays open so the next round still produces sound.
+      waveformCtrl?.stop?.();
     }
 
     prevPhase = view.state.phase;
@@ -83,10 +106,103 @@ function boot() {
         onState();
       } catch { /* malformed frame */ }
     });
-    // Browser auto-reconnects on transient errors.
   }
 
-  // Re-fetch + reconnect when tab wakes from sleep.
+  function wireEvents() {
+    const spinBtn = document.getElementById('spin-btn');
+    spinBtn?.addEventListener('click', () => {
+      const mode = document.querySelector('input[name="genre-mode"]:checked')?.value;
+      const genre = mode === 'pick' ? document.getElementById('genre-select')?.value || null : null;
+      spin(fetch, sessionId, genre).catch(silentlyIgnore403);
+    });
+
+    const playBtn = document.getElementById('play-btn');
+    playBtn?.addEventListener('click', () => {
+      play(fetch, sessionId).catch(silentlyIgnore403);
+    });
+
+    const replayBtn = document.getElementById('replay-btn');
+    replayBtn?.addEventListener('click', () => {
+      // Re-stamp the start timestamp on the DO so every viewer restarts in sync.
+      replay(fetch, sessionId).catch(silentlyIgnore403);
+    });
+
+    const revealBtn = document.getElementById('reveal-btn');
+    revealBtn?.addEventListener('click', () => {
+      reveal(fetch, sessionId).catch(silentlyIgnore403);
+    });
+
+    const nextBtn = document.getElementById('next-btn');
+    nextBtn?.addEventListener('click', () => {
+      next(fetch, sessionId).catch(silentlyIgnore403);
+    });
+
+    const endBtn = document.getElementById('endgame-btn');
+    endBtn?.addEventListener('click', () => {
+      if (!confirm('End the game?')) return;
+      const reset = confirm('Reset team scores?');
+      endgame(fetch, sessionId, reset).catch(silentlyIgnore403);
+    });
+
+    // Award buttons delegated from scoreboard footer.
+    const scoreboard = document.getElementById('scoreboard-list');
+    scoreboard?.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action="award"]');
+      if (!btn) return;
+      const id = btn.dataset.teamId;
+      const points = Number(btn.dataset.points);
+      if (!id || !(points === 1 || points === 2)) return;
+      award(fetch, sessionId, id, points).catch(silentlyIgnore403);
+    });
+
+    // Teams panel toggle.
+    const teamsPanel = document.getElementById('teams-panel');
+    const teamsToggle = document.getElementById('teams-toggle-btn');
+    const teamsClose = document.getElementById('teams-panel-close-btn');
+    teamsToggle?.addEventListener('click', () => {
+      if (teamsPanel?.hasAttribute('hidden')) teamsPanel.removeAttribute('hidden');
+      else teamsPanel?.setAttribute('hidden', '');
+    });
+    teamsClose?.addEventListener('click', () => teamsPanel?.setAttribute('hidden', ''));
+
+    // Add team form.
+    const addForm = document.getElementById('add-team-form');
+    addForm?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const input = document.getElementById('add-team-input');
+      const name = input?.value.trim();
+      if (!name) return;
+      addTeam(fetch, sessionId, teamId(), name)
+        .then(() => { if (input) input.value = ''; })
+        .catch(silentlyIgnore403);
+    });
+
+    // Teams list rename/remove.
+    const teamsList = document.getElementById('teams-list');
+    teamsList?.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const id = btn.dataset.teamId;
+      if (!id) return;
+      if (btn.dataset.action === 'remove') {
+        removeTeam(fetch, sessionId, id).catch(silentlyIgnore403);
+      } else if (btn.dataset.action === 'rename') {
+        const current = view.state.teams?.find((t) => t.id === id)?.name ?? '';
+        const proposed = prompt('New team name', current);
+        if (proposed === null) return;
+        const trimmed = proposed.trim();
+        if (!trimmed) return;
+        renameTeam(fetch, sessionId, id, trimmed).catch(silentlyIgnore403);
+      }
+    });
+
+    // Re-render when genre-mode radio changes so genre-select disabled state flips.
+    const modeRadios = document.querySelectorAll('input[name="genre-mode"]');
+    for (const r of modeRadios) {
+      r.addEventListener('change', () => render(document, view));
+    }
+  }
+
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
     void init();
@@ -94,6 +210,12 @@ function boot() {
 
   void init();
   connectSse();
+  wireEvents();
+  setInterval(() => {
+    renderClock(document, view.state);
+    // Surface Reveal/Repeat the moment the 30s clip elapses, without a server msg.
+    renderPlaybackControls(document, view.state);
+  }, TICK_MS);
 }
 
 boot();

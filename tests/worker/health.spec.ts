@@ -7,7 +7,7 @@ describe('Worker root', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/html/);
     const body = await res.text();
-    expect(body).toContain('Угадай мелодию');
+    expect(body).toContain('Guess The Melody');
   });
 
   it('returns 404 for /api/* unknown path', async () => {

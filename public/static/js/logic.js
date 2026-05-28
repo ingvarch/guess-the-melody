@@ -3,6 +3,7 @@ import { addTeam, renameTeam, removeTeam, awardPoints, initialState } from './st
 const VALID_TRANSITIONS = {
   spin:    new Set(['idle']),
   play:    new Set(['spinning']),
+  replay:  new Set(['playing']),
   reveal:  new Set(['playing']),
   next:    new Set(['playing', 'revealed']),
   award:   new Set(['playing', 'revealed']),
@@ -37,6 +38,11 @@ export function applyAction(state, payload) {
     case 'play': {
       expectPhase('play', state);
       return { ...state, phase: 'playing', audioStartTimestamp: payload.now };
+    }
+
+    case 'replay': {
+      expectPhase('replay', state);
+      return { ...state, audioStartTimestamp: payload.now };
     }
 
     case 'reveal': {

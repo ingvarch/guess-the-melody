@@ -1,101 +1,214 @@
-<!doctype html>
-<html lang="ru">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#f6efe4">
-    <title>Угадай мелодию</title>
-    <link rel="stylesheet" href="/static/css/base.css">
-    <link rel="stylesheet" href="/static/css/landing.css">
-  </head>
-  <body>
-    <main class="landing">
-      <div class="vinyl" aria-hidden="true">
-        <svg viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <radialGradient id="vinyl-body" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#1a1410"/>
-              <stop offset="55%" stop-color="#0d0907"/>
-              <stop offset="100%" stop-color="#040302"/>
-            </radialGradient>
-            <radialGradient id="vinyl-sheen" cx="35%" cy="30%" r="65%">
-              <stop offset="0%" stop-color="rgba(255,255,255,0.22)"/>
-              <stop offset="40%" stop-color="rgba(255,255,255,0.04)"/>
-              <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-            </radialGradient>
-            <radialGradient id="vinyl-label" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stop-color="#c9472f"/>
-              <stop offset="70%" stop-color="#b03a2e"/>
-              <stop offset="100%" stop-color="#8c2c22"/>
-            </radialGradient>
-          </defs>
+<!DOCTYPE html>
 
-          <circle cx="180" cy="180" r="178" fill="url(#vinyl-body)"/>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Guess The Melody | High Fidelity Audio</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary-fixed": "#001f26",
+                        "tertiary-fixed-dim": "#ffb0cd",
+                        "inverse-surface": "#e5e1e4",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#494454",
+                        "on-tertiary-fixed-variant": "#8c0053",
+                        "error": "#ffb4ab",
+                        "inverse-on-surface": "#313032",
+                        "background": "#131315",
+                        "on-secondary": "#003640",
+                        "surface-container-highest": "#353437",
+                        "surface-variant": "#353437",
+                        "primary-fixed": "#e9ddff",
+                        "primary-container": "#a078ff",
+                        "on-surface": "#e5e1e4",
+                        "secondary": "#4cd7f6",
+                        "secondary-fixed": "#acedff",
+                        "on-tertiary-fixed": "#3e0022",
+                        "primary-fixed-dim": "#d0bcff",
+                        "on-background": "#e5e1e4",
+                        "surface-tint": "#d0bcff",
+                        "tertiary": "#ffb0cd",
+                        "on-primary-fixed-variant": "#5516be",
+                        "secondary-container": "#03b5d3",
+                        "on-secondary-container": "#00424e",
+                        "outline": "#958ea0",
+                        "surface-container-high": "#2a2a2c",
+                        "on-surface-variant": "#cbc3d7",
+                        "on-primary-container": "#340080",
+                        "surface-container": "#201f21",
+                        "tertiary-container": "#f751a1",
+                        "surface-container-lowest": "#0e0e10",
+                        "on-primary": "#3c0091",
+                        "secondary-fixed-dim": "#4cd7f6",
+                        "error-container": "#93000a",
+                        "surface-container-low": "#1c1b1d",
+                        "surface-dim": "#131315",
+                        "on-error": "#690005",
+                        "primary": "#d0bcff",
+                        "on-tertiary": "#640039",
+                        "on-tertiary-container": "#570032",
+                        "on-primary-fixed": "#23005c",
+                        "tertiary-fixed": "#ffd9e4",
+                        "inverse-primary": "#6d3bd7",
+                        "on-secondary-fixed-variant": "#004e5c",
+                        "surface-bright": "#39393b",
+                        "surface": "#131315"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-max": "1440px",
+                        "unit": "8px",
+                        "margin-mobile": "20px",
+                        "margin-desktop": "64px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Plus Jakarta Sans"],
+                        "headline-lg": ["Sora"],
+                        "body-md": ["Plus Jakarta Sans"],
+                        "display-lg": ["Sora"],
+                        "label-mono": ["JetBrains Mono"],
+                        "label-caps": ["JetBrains Mono"],
+                        "headline-lg-mobile": ["Sora"],
+                        "display-sm": ["Sora"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                        "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                        "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                        "display-lg": ["72px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+                        "label-mono": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "label-caps": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                        "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                        "display-sm": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        @keyframes subtle-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes glow-pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(208, 188, 255, 0.2); transform: scale(1); }
+            50% { box-shadow: 0 0 40px rgba(208, 188, 255, 0.6); transform: scale(1.02); }
+        }
+        .glow-primary {
+            text-shadow: 0 0 12px rgba(208, 188, 255, 0.5);
+        }
+        .mesh-gradient {
+            background-color: #131315;
+            background-image:
+                radial-gradient(at 0% 0%, rgba(109, 59, 215, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(76, 215, 246, 0.1) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(20, 20, 20, 1) 0px, transparent 100%);
+        }
+        .glass-panel {
+            background: rgba(14, 14, 16, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(208, 188, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-surface/70 backdrop-blur-xl border-b border-primary/30 shadow-[0_0_15px_rgba(208,188,255,0.1)] flex justify-between items-center px-margin-mobile md:px-margin-desktop py-4">
+<div class="font-display-sm text-display-sm tracking-tighter text-primary">
+            Guess The Melody
+        </div>
+<nav class="hidden md:flex items-center space-x-gutter">
+<a class="text-primary font-bold border-b-2 border-primary pb-1 font-label-mono text-label-mono hover:text-primary transition-all" href="#">Play</a>
+<a class="text-on-surface-variant font-medium font-label-mono text-label-mono hover:text-primary transition-all" href="/admin">Catalogue</a>
+</nav>
+<div class="flex items-center space-x-4">
+<button class="text-on-surface-variant hover:text-primary transition-all scale-102 active:scale-95">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+</button>
+</div>
+</header>
+<!-- Hero Content -->
+<main class="relative min-h-screen flex flex-col items-center justify-center pt-24 px-margin-mobile mesh-gradient">
+<!-- Background Visual Elements -->
+<div class="absolute inset-0 overflow-hidden pointer-events-none">
+<div class="absolute top-1/4 left-1/4 w-96 h-96 bg-primary/5 rounded-full blur-[120px] animate-pulse"></div>
+<div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-[120px] animate-pulse" style="animation-delay: 2s;"></div>
+</div>
+<div class="relative z-10 text-center max-w-4xl mx-auto flex flex-col items-center">
+<!-- Branding / Title -->
+<h1 class="font-display-lg text-[64px] md:text-display-lg leading-tight tracking-tighter text-on-surface mb-6 glow-primary">
+                Guess The <span class="text-primary italic">Melody</span>
+</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-12 max-w-xl mx-auto opacity-80">
+                Experience high-fidelity audio trivia. Challenge your friends or host a room in the ultimate sonic playground.
+            </p>
+<!-- Main CTA -->
+<div class="flex flex-col items-center space-y-8 w-full max-w-xs">
+<button class="group relative w-full py-6 px-12 bg-primary text-on-primary font-headline-lg text-headline-lg-mobile md:text-headline-lg rounded-xl transition-all duration-300 hover:scale-105 active:scale-95" id="start" type="button" style="animation: glow-pulse 3s infinite ease-in-out;">
+                    START GAME
+                    <span class="absolute -inset-1 bg-primary/20 rounded-xl blur-xl group-hover:bg-primary/40 transition-all"></span>
+</button>
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-tertiary transition-all flex items-center gap-2 tracking-widest opacity-60 hover:opacity-100" href="/admin">
+<span class="material-symbols-outlined text-[16px]" data-icon="admin_panel_settings">admin_panel_settings</span>
+                    CATALOGUE ADMIN
+                </a>
+<p id="error" role="alert" aria-live="polite" class="font-label-mono text-label-mono text-error min-h-[1.25rem]"></p>
+</div>
+</div>
+<!-- Decorative Elements: Abstract Audio Visualizer Bars -->
+<div class="absolute bottom-24 left-1/2 -translate-x-1/2 flex items-end gap-1 h-12 opacity-20">
+<div class="w-1 bg-primary h-4 animate-bounce" style="animation-duration: 0.8s"></div>
+<div class="w-1 bg-secondary h-8 animate-bounce" style="animation-duration: 1.1s"></div>
+<div class="w-1 bg-primary h-12 animate-bounce" style="animation-duration: 0.6s"></div>
+<div class="w-1 bg-tertiary h-6 animate-bounce" style="animation-duration: 1.4s"></div>
+<div class="w-1 bg-secondary h-10 animate-bounce" style="animation-duration: 0.9s"></div>
+<div class="w-1 bg-primary h-4 animate-bounce" style="animation-duration: 1.2s"></div>
+<div class="w-1 bg-primary h-4 animate-bounce" style="animation-duration: 0.8s"></div>
+<div class="w-1 bg-secondary h-8 animate-bounce" style="animation-duration: 1.1s"></div>
+<div class="w-1 bg-primary h-12 animate-bounce" style="animation-duration: 0.6s"></div>
+<div class="w-1 bg-tertiary h-6 animate-bounce" style="animation-duration: 1.4s"></div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="w-full py-4 bg-surface-container-lowest border-t border-outline-variant/10 flex flex-row justify-center space-x-gutter items-center z-40">
+<p class="font-label-caps text-label-caps text-on-surface-variant opacity-80">Guess The Melody · High Fidelity Audio</p>
+<div class="flex space-x-6">
+<a class="font-label-caps text-label-caps text-on-surface-variant hover:text-tertiary transition-all opacity-80 hover:opacity-100" href="https://github.com/ingvarch/guess-the-melody" target="_blank" rel="noopener noreferrer">GitHub</a>
+</div>
+</footer>
+<script>
+        // Micro-interactions
+        const btn = document.getElementById('start');
+        if (btn) {
+          btn.addEventListener('mousemove', (e) => {
+              const rect = btn.getBoundingClientRect();
+              const x = e.clientX - rect.left;
+              const y = e.clientY - rect.top;
+              btn.style.setProperty('--x', `${x}px`);
+              btn.style.setProperty('--y', `${y}px`);
+          });
+        }
 
-          <g fill="none" stroke="rgba(255,255,255,0.045)" stroke-width="0.6">
-            <circle cx="180" cy="180" r="170"/>
-            <circle cx="180" cy="180" r="162"/>
-            <circle cx="180" cy="180" r="154"/>
-            <circle cx="180" cy="180" r="146"/>
-            <circle cx="180" cy="180" r="138"/>
-            <circle cx="180" cy="180" r="130"/>
-            <circle cx="180" cy="180" r="122"/>
-            <circle cx="180" cy="180" r="114"/>
-            <circle cx="180" cy="180" r="106"/>
-            <circle cx="180" cy="180" r="98"/>
-            <circle cx="180" cy="180" r="90"/>
-            <circle cx="180" cy="180" r="82"/>
-            <circle cx="180" cy="180" r="74"/>
-          </g>
-
-          <g fill="none" stroke="rgba(0,0,0,0.55)" stroke-width="0.4">
-            <circle cx="180" cy="180" r="166"/>
-            <circle cx="180" cy="180" r="150"/>
-            <circle cx="180" cy="180" r="134"/>
-            <circle cx="180" cy="180" r="118"/>
-            <circle cx="180" cy="180" r="102"/>
-            <circle cx="180" cy="180" r="86"/>
-            <circle cx="180" cy="180" r="70"/>
-          </g>
-
-          <circle cx="180" cy="180" r="178" fill="url(#vinyl-sheen)"/>
-
-          <circle cx="180" cy="180" r="60" fill="url(#vinyl-label)"/>
-          <circle cx="180" cy="180" r="60" fill="none"
-            stroke="rgba(0,0,0,0.35)" stroke-width="0.8"/>
-
-          <text x="180" y="160" text-anchor="middle"
-            font-family="-apple-system, 'SF Pro Display', system-ui, sans-serif"
-            font-size="11" font-weight="700" letter-spacing="2"
-            fill="#f6efe4">УГАДАЙ</text>
-          <text x="180" y="178" text-anchor="middle"
-            font-family="-apple-system, 'SF Pro Display', system-ui, sans-serif"
-            font-size="11" font-weight="700" letter-spacing="2"
-            fill="#f6efe4">МЕЛОДИЮ</text>
-          <text x="180" y="208" text-anchor="middle"
-            font-family="-apple-system, 'SF Pro Text', system-ui, sans-serif"
-            font-size="6" letter-spacing="1.5"
-            fill="rgba(246,239,228,0.7)">SIDE A · 33⅓ RPM</text>
-
-          <circle cx="180" cy="180" r="6" fill="#0a0706"/>
-          <circle cx="180" cy="180" r="2" fill="#f6efe4"/>
-        </svg>
-      </div>
-
-      <h1 class="landing__title">Угадай мелодию</h1>
-      <p class="landing__sub">Виниловая вечеринка с друзьями</p>
-
-      <div class="landing__actions">
-        <button id="start" class="btn btn--primary" type="button">Начать игру</button>
-        <a href="/admin" class="btn btn--ghost">Управление каталогом</a>
-      </div>
-
-      <p id="error" class="landing__error" role="alert" aria-live="polite"></p>
-
-      <footer class="landing__footer">
-        <a href="https://github.com/ingvarch/guess-the-melody" target="_blank" rel="noopener noreferrer">github</a>
-      </footer>
-    </main>
-    <script type="module" src="/static/js/main-landing.js"></script>
-  </body>
-</html>
+        // Simulating rhythmic background color shift
+        let hue = 260;
+        setInterval(() => {
+            hue = (hue + 1) % 360;
+            document.querySelector('.mesh-gradient').style.filter = `hue-rotate(${Math.sin(Date.now() / 2000) * 10}deg)`;
+        }, 100);
+    </script>
+<script type="module" src="/static/js/main-landing.js"></script>
+</body></html>

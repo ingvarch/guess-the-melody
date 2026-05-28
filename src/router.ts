@@ -90,7 +90,7 @@ async function handleSessionCreate(req: Request, env: Env): Promise<Response> {
   const init = await stub.fetch(`${DO_BASE}/init`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ownerToken }),
+    body: JSON.stringify({ ownerToken, sessionId }),
   });
   if (!init.ok) {
     return new Response('init failed', { status: 500 });

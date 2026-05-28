@@ -8,6 +8,7 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { getTrack, pickRandomTrack } from './catalog/tracks';
+import { upsertSession } from './catalog/sessions';
 import type { Env, RoomState } from './types';
 // applyAction is bundled by Wrangler at deploy and resolved by Vitest's
 // workers-pool. Re-implementing it here would split the source of truth.
@@ -23,6 +24,7 @@ const HEARTBEAT_MS = 25_000;
 
 interface Meta {
   ownerToken: string | null;
+  sessionId: string | null;
 }
 
 interface Subscriber {
@@ -47,7 +49,7 @@ async function safeJson(req: Request): Promise<unknown> {
 
 export class MelodyRoom extends DurableObject<Env> {
   #state: RoomState = initialState() as RoomState;
-  #meta: Meta = { ownerToken: null };
+  #meta: Meta = { ownerToken: null, sessionId: null };
   #subscribers = new Set<Subscriber>();
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -87,7 +89,11 @@ export class MelodyRoom extends DurableObject<Env> {
     if (this.#meta.ownerToken !== null) {
       return new Response('already initialised', { status: 409 });
     }
-    this.#meta = { ownerToken: (body as { ownerToken: string }).ownerToken };
+    const b = body as { ownerToken: string; sessionId?: unknown };
+    this.#meta = {
+      ownerToken: b.ownerToken,
+      sessionId: typeof b.sessionId === 'string' ? b.sessionId : null,
+    };
     await this.ctx.storage.put(META_KEY, this.#meta);
     return new Response('ok');
   }
@@ -126,7 +132,27 @@ export class MelodyRoom extends DurableObject<Env> {
     this.#state = next;
     await this.ctx.storage.put(STATE_KEY, this.#state);
     this.#broadcast();
+    await this.#registerSnapshot();
     return Response.json(this.#state);
+  }
+
+  // Best-effort write-through to the D1 session registry that backs the admin
+  // "Live Game" view. A registry failure must never fail the mutation, so it is
+  // swallowed; the snapshot is advisory and will be refreshed on the next write.
+  async #registerSnapshot(): Promise<void> {
+    if (this.#meta.sessionId === null) return;
+    try {
+      await upsertSession(this.env.CATALOG, {
+        id: this.#meta.sessionId,
+        now: Date.now(),
+        phase: this.#state.phase,
+        selectedGenre: this.#state.selectedGenre,
+        roundsPlayed: this.#state.playedTrackIds.length,
+        teams: this.#state.teams.map((t) => ({ name: t.name, score: t.score })),
+      });
+    } catch {
+      /* advisory registry; ignore write failures */
+    }
   }
 
   async #resolveAction(
@@ -154,7 +180,7 @@ export class MelodyRoom extends DurableObject<Env> {
         spinSeed: seedBuf[0],
       };
     }
-    if (payload['action'] === 'play') {
+    if (payload['action'] === 'play' || payload['action'] === 'replay') {
       return { ...payload, now: Date.now() };
     }
     if (payload['action'] === 'reveal') {

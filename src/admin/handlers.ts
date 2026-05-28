@@ -20,6 +20,7 @@ import {
   updateGenre,
 } from '../catalog/genres';
 import { deleteTrack, getTrack, listTracks } from '../catalog/tracks';
+import { listSessions } from '../catalog/sessions';
 import { importTrack } from '../importer/import-track';
 import type { Env } from '../types';
 
@@ -196,6 +197,33 @@ async function handleTrackAudio(
   return new Response(obj.body, { status: 200, headers });
 }
 
+function parseTeams(json: string): { name: string; score: number }[] {
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+async function handleSessions(req: Request, env: Env): Promise<Response> {
+  if (req.method !== 'GET') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const rows = await listSessions(env.CATALOG);
+  const out = rows.map((r) => ({
+    id: r.id,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at,
+    phase: r.phase,
+    selectedGenre: r.selected_genre,
+    roundsPlayed: r.rounds_played,
+    teamCount: r.team_count,
+    teams: parseTeams(r.teams_json),
+  }));
+  return json(out);
+}
+
 async function handleImport(req: Request, env: Env): Promise<Response> {
   if (req.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
@@ -293,6 +321,9 @@ export async function handleAdmin(
   }
   if (path === '/admin/api/import') {
     return handleImport(req, env);
+  }
+  if (path === '/admin/api/sessions') {
+    return handleSessions(req, env);
   }
 
   return new Response('not found', { status: 404 });

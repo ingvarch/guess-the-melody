@@ -1,53 +1,362 @@
-<!doctype html>
-<html lang="ru">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#0a0a0a">
-    <title>Дисплей — Угадай мелодию</title>
-    <link rel="stylesheet" href="/static/css/base.css">
-    <link rel="stylesheet" href="/static/css/display.css">
-  </head>
-  <body>
-    <div id="app" class="app">
-      <section id="jukebox" class="jukebox" aria-label="Игровой автомат">
-        <div class="jukebox__cabinet">
-          <div class="jukebox__glass">
-            <div id="shelves" class="shelves"></div>
-            <div class="turntable">
-              <div id="disc" class="disc" aria-hidden="true">
-                <div class="disc__grooves"></div>
-                <div class="disc__label"></div>
-              </div>
-              <div id="tonearm" class="tonearm" aria-hidden="true">
-                <div class="tonearm__pivot"></div>
-                <div class="tonearm__tube"></div>
-                <div class="tonearm__head"></div>
-              </div>
-            </div>
-          </div>
-          <div class="jukebox__speaker-left" aria-hidden="true"></div>
-          <div class="jukebox__speaker-right" aria-hidden="true"></div>
-        </div>
-      </section>
+<!DOCTYPE html>
 
-      <aside id="scoreboard" class="scoreboard" aria-label="Счёт команд">
-        <h2 class="scoreboard__title">Команды</h2>
-        <ul id="scoreboard-list" class="scoreboard__list"></ul>
-      </aside>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Guess The Melody - Player Display</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        /* The HTML `hidden` attribute must always win over Tailwind display
+           utilities (.flex/.grid/etc share equal specificity and the CDN sheet
+           loads later, so without this an element with `flex hidden` stays visible). */
+        [hidden] { display: none !important; }
+        @keyframes pulse-glow {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 0.9; transform: scale(1.05); }
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(2deg); }
+        }
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100%); }
+        }
+        @keyframes spin-slow { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        .animate-spin-slow { animation: spin-slow 6s linear infinite; }
+        /* Reveal slide-in: replays every time #reveal-card loses [hidden]. */
+        @keyframes reveal-in {
+            0%   { opacity: 0; transform: translateY(40px) scale(0.96); }
+            100% { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes reveal-line {
+            0%   { opacity: 0; transform: translateY(24px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+        #reveal-card:not([hidden]) { animation: reveal-in 0.6s cubic-bezier(0.16,1,0.3,1) both; }
+        #reveal-card:not([hidden]) .reveal-card__artist { animation: reveal-line 0.6s cubic-bezier(0.16,1,0.3,1) 0.15s both; }
+        #reveal-card:not([hidden]) .reveal-card__title  { animation: reveal-line 0.6s cubic-bezier(0.16,1,0.3,1) 0.30s both; }
+        #reveal-card:not([hidden]) .reveal-card__year   { animation: reveal-line 0.6s cubic-bezier(0.16,1,0.3,1) 0.45s both; }
+        #reveal-card:not([hidden]) #next-btn            { animation: reveal-line 0.6s cubic-bezier(0.16,1,0.3,1) 0.65s both; }
+        /* Headline cross-fade while the genre slot-machine cycles. */
+        #display-genre { transition: opacity 0.12s ease; }
+        /* Visualiser bars idle low; they come alive only while a clip plays. */
+        @keyframes bar-rest { 0%,100% { opacity: 0.5; } }
+        body:not([data-phase="playing"]) .visualizer-bar { opacity: 0.45; }
+        .glow-primary-soft { box-shadow: 0 0 30px rgba(208, 188, 255, 0.4); }
+        .glow-secondary-soft { box-shadow: 0 0 20px rgba(76, 215, 246, 0.4); }
+        .glass-card {
+            background: rgba(10, 10, 12, 0.7);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(208, 188, 255, 0.15);
+        }
+        .inner-glow-border {
+            border: 1px solid transparent;
+            background-image: linear-gradient(rgba(19, 19, 21, 1), rgba(19, 19, 21, 1)), radial-gradient(circle at top left, rgba(208, 188, 255, 0.3), rgba(208, 188, 255, 0.05));
+            background-origin: border-box;
+            background-clip: padding-box, border-box;
+        }
+        .glow-track-fill {
+            box-shadow: 0 0 15px rgba(76, 215, 246, 0.6);
+        }
+        .visualizer-bar {
+            transition: height 0.1s ease;
+        }
+        .film-grain::after {
+            content: "";
+            position: fixed;
+            top: -100%;
+            left: -100%;
+            right: -100%;
+            bottom: -100%;
+            background-image: url("https://www.transparenttextures.com/patterns/stardust.png");
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 50;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-secondary-fixed": "#001f26",
+                      "tertiary-fixed-dim": "#ffb0cd",
+                      "inverse-surface": "#e5e1e4",
+                      "on-error-container": "#ffdad6",
+                      "outline-variant": "#494454",
+                      "on-tertiary-fixed-variant": "#8c0053",
+                      "error": "#ffb4ab",
+                      "inverse-on-surface": "#313032",
+                      "background": "#131315",
+                      "on-secondary": "#003640",
+                      "surface-container-highest": "#353437",
+                      "surface-variant": "#353437",
+                      "primary-fixed": "#e9ddff",
+                      "primary-container": "#a078ff",
+                      "on-surface": "#e5e1e4",
+                      "secondary": "#4cd7f6",
+                      "secondary-fixed": "#acedff",
+                      "on-tertiary-fixed": "#3e0022",
+                      "primary-fixed-dim": "#d0bcff",
+                      "on-background": "#e5e1e4",
+                      "surface-tint": "#d0bcff",
+                      "tertiary": "#ffb0cd",
+                      "on-primary-fixed-variant": "#5516be",
+                      "secondary-container": "#03b5d3",
+                      "on-secondary-container": "#00424e",
+                      "outline": "#958ea0",
+                      "surface-container-high": "#2a2a2c",
+                      "on-surface-variant": "#cbc3d7",
+                      "on-primary-container": "#340080",
+                      "surface-container": "#201f21",
+                      "tertiary-container": "#f751a1",
+                      "surface-container-lowest": "#0e0e10",
+                      "on-primary": "#3c0091",
+                      "secondary-fixed-dim": "#4cd7f6",
+                      "error-container": "#93000a",
+                      "surface-container-low": "#1c1b1d",
+                      "surface-dim": "#131315",
+                      "on-error": "#690005",
+                      "primary": "#d0bcff",
+                      "on-tertiary": "#640039",
+                      "on-tertiary-container": "#570032",
+                      "on-primary-fixed": "#23005c",
+                      "tertiary-fixed": "#ffd9e4",
+                      "inverse-primary": "#6d3bd7",
+                      "on-secondary-fixed-variant": "#004e5c",
+                      "surface-bright": "#39393b",
+                      "surface": "#131315"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.25rem",
+                      "lg": "0.5rem",
+                      "xl": "0.75rem",
+                      "full": "9999px"
+              },
+              "spacing": {
+                      "container-max": "1440px",
+                      "unit": "8px",
+                      "margin-mobile": "20px",
+                      "margin-desktop": "64px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "body-lg": ["Plus Jakarta Sans"],
+                      "headline-lg": ["Sora"],
+                      "body-md": ["Plus Jakarta Sans"],
+                      "display-lg": ["Sora"],
+                      "label-mono": ["JetBrains Mono"],
+                      "label-caps": ["JetBrains Mono"],
+                      "headline-lg-mobile": ["Sora"],
+                      "display-sm": ["Sora"]
+              },
+              "fontSize": {
+                      "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                      "body-md": ["16px", {"lineHeight": "1.5", "fontWeight": "400"}],
+                      "display-lg": ["72px", {"lineHeight": "1.1", "letterSpacing": "-0.04em", "fontWeight": "800"}],
+                      "label-mono": ["14px", {"lineHeight": "1.4", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                      "label-caps": ["12px", {"lineHeight": "1.2", "letterSpacing": "0.1em", "fontWeight": "700"}],
+                      "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "fontWeight": "700"}],
+                      "display-sm": ["48px", {"lineHeight": "1.1", "letterSpacing": "-0.02em", "fontWeight": "800"}]
+              }
+            },
+          },
+        }
+      </script>
+</head>
+<!-- Anyone with the session URL can see this page. Owner-cookie-scoped POSTs
+     (spin, play, reveal, award, next, team mutations) will be silently 403'd for
+     spectators; only the host's browser (which created the session) can mutate
+     state. We intentionally show the same controls to everyone to keep the URL
+     scheme simple. -->
+<body class="bg-background text-on-background font-body-md overflow-x-hidden film-grain selection:bg-primary selection:text-on-primary">
+<!-- Cinematic Background Visualizer -->
+<div class="fixed inset-0 z-0">
+<div class="absolute inset-0 bg-gradient-to-tr from-surface-container-lowest via-background to-primary/5 opacity-80"></div>
+<div class="absolute inset-0 flex items-center justify-center opacity-20 blur-3xl" style="animation: pulse-glow 8s infinite ease-in-out;">
+<div class="w-[800px] h-[800px] bg-primary rounded-full"></div>
+</div>
+<!-- Dynamic Abstract Shape -->
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full flex items-center justify-center pointer-events-none">
+<img class="w-[120%] h-[120%] object-cover opacity-10 mix-blend-screen scale-110" alt="" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD12zIdzTTFzt4cMtEc7Gg2JfeuHOaRv4Z9P-G7pzNl9j_eA8syALLBG0vmlVZ0q3suseXakWgIlobvaoUCrtiGLE6TecoAW5fNiu2VKTUhARABt3ZixpaBE2gRoc8H9htOYiEJ4AtZvzpAsKlGhjMnfWIiz75Kiv9FvqMbMTO2X_3AL2pHxWQf5NTA5pGvr_Op0D6bAUIVgVwBBcSYz9gLD0aALnc1P1amVF3IqAP-N4oHvo6OLw_eHy3t7wSsq08b4ISGolrcEAI" style="animation: float 20s infinite ease-in-out;"/>
+</div>
+</div>
+<!-- Top Status Bar -->
+<header class="fixed top-0 w-full flex justify-between items-center px-margin-desktop py-8 z-50">
+<div class="flex items-center space-x-4">
+<div class="w-3 h-3 bg-secondary rounded-full animate-pulse glow-track-fill"></div>
+<span class="font-label-mono text-label-mono text-secondary tracking-widest">LIVE FROM <span id="session-code"></span></span>
+</div>
+<div class="flex items-center gap-4">
+<button id="teams-toggle-btn" type="button" aria-label="Manage teams" class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">groups</button>
+<button id="endgame-btn" type="button" aria-label="End game" class="material-symbols-outlined text-on-surface-variant hover:text-error transition-colors">logout</button>
+<div class="text-right">
+<h1 class="font-display-sm text-display-sm tracking-tighter text-primary leading-none">Guess The Melody</h1>
+</div>
+</div>
+</header>
+<!-- Main Content Stage -->
+<main class="relative z-10 min-h-screen flex flex-col items-center justify-center px-margin-desktop pt-32 pb-48">
+<!-- Game State Indicator -->
+<div class="mb-12 transition-all duration-1000 transform scale-100 opacity-100" id="game-state">
+<p id="phase-label" class="font-label-caps text-label-caps text-on-surface-variant text-center mb-4 tracking-[0.4em]">READY</p>
+<h2 id="display-genre" class="font-display-lg text-display-lg text-center text-on-surface uppercase tracking-tighter max-w-4xl">
+                Picking Genre...
+            </h2>
+</div>
+<!-- Central Visualizer (waveform canvas overlays decorative bars) -->
+<div id="visualizer" class="relative w-full max-w-5xl h-64 flex items-end justify-center space-x-2 mb-12 overflow-hidden">
+<div class="visualizer-bar w-2 bg-primary/20 rounded-full h-12"></div>
+<div class="visualizer-bar w-2 bg-primary/40 rounded-full h-24"></div>
+<div class="visualizer-bar w-2 bg-primary/60 rounded-full h-48"></div>
+<div class="visualizer-bar w-3 bg-secondary glow-track-fill rounded-full h-64"></div>
+<div class="visualizer-bar w-2 bg-primary/60 rounded-full h-48"></div>
+<div class="visualizer-bar w-2 bg-primary/40 rounded-full h-24"></div>
+<div class="visualizer-bar w-2 bg-primary/20 rounded-full h-12"></div>
+<canvas id="waveform" width="1024" height="256" aria-hidden="true" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+</div>
+<!-- Idle controls: SPIN + genre selector. Visible when phase === 'idle'. -->
+<div id="idle-controls" hidden class="flex flex-col items-center gap-6 w-full max-w-2xl">
+<div class="flex flex-wrap items-center justify-center gap-4 font-label-mono text-label-mono text-on-surface-variant">
+<label class="inline-flex items-center gap-2 cursor-pointer">
+<input type="radio" name="genre-mode" value="auto" checked class="accent-primary"> Auto
+</label>
+<label class="inline-flex items-center gap-2 cursor-pointer">
+<input type="radio" name="genre-mode" value="pick" class="accent-primary"> Pick Genre
+</label>
+<select id="genre-select" disabled aria-label="Genre"
+  class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"></select>
+</div>
+<button id="spin-btn" type="button" class="relative w-48 h-48 md:w-64 md:h-64 rounded-full bg-background border-4 border-primary inner-glow-border flex items-center justify-center group active:scale-95 transition-all duration-200 glow-primary-soft disabled:opacity-50 disabled:cursor-not-allowed">
+<span class="material-symbols-outlined text-6xl md:text-8xl text-primary animate-spin-slow group-hover:animate-none">autorenew</span>
+<span class="absolute font-headline-lg text-headline-lg text-primary opacity-0 group-hover:opacity-100 transition-opacity">SPIN</span>
+</button>
+</div>
+<!-- Current track teaser (artist hidden until reveal) -->
+<div id="current-track" hidden class="mb-8 text-center">
+<p class="font-label-caps text-label-caps text-secondary tracking-[0.4em] mb-2">NOW PLAYING</p>
+<p class="font-headline-lg text-headline-lg text-on-surface">?</p>
+</div>
+<!-- Playback Controls (visible during spinning/playing/revealed) -->
+<div id="phase-controls" hidden class="glass-card rounded-xl p-6 flex flex-wrap items-center justify-between gap-6 w-full max-w-2xl">
+<audio id="audio" preload="auto" crossorigin="anonymous"></audio>
+<div class="flex items-center gap-4">
+<button id="replay-btn" type="button" aria-label="Replay" hidden class="w-12 h-12 rounded-full flex items-center justify-center border border-outline-variant text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">replay</span>
+</button>
+<button id="play-btn" type="button" aria-label="Play" hidden class="w-16 h-16 rounded-full flex items-center justify-center bg-secondary text-on-secondary hover:glow-secondary-soft transition-all">
+<span class="material-symbols-outlined text-4xl" data-weight="fill">play_arrow</span>
+</button>
+</div>
+<div class="flex-1 max-w-md">
+<div class="flex justify-between font-label-mono text-[10px] text-on-surface-variant mb-2">
+<span id="time-readout" class="num">0:00 / 0:30</span>
+</div>
+<input id="scrubber" type="range" min="0" max="30" step="0.1" value="0" aria-label="Playback progress" disabled class="w-full accent-secondary pointer-events-none">
+</div>
+</div>
+<!-- Reveal button (shown when the clip ends). NEXT lives inside the reveal
+     overlay below so it sits above the z-60 layer and stays clickable. -->
+<div class="mt-6 flex flex-col items-center gap-4 w-full max-w-2xl">
+<button id="reveal-btn" type="button" hidden class="w-full max-w-md py-4 rounded-xl bg-primary text-on-primary font-headline-lg text-headline-lg-mobile md:text-headline-lg hover:scale-[1.02] active:scale-95 transition-all glow-primary-soft">
+                REVEAL TRACK
+            </button>
+</div>
+<!-- REVEAL STATE -->
+<div id="reveal-card" hidden class="fixed inset-0 z-[60] bg-background/95 backdrop-blur-2xl flex flex-col items-center justify-center transition-opacity duration-700">
+<div class="absolute inset-0 bg-gradient-to-b from-primary/10 to-transparent"></div>
+<div class="relative text-center px-margin-desktop flex flex-col items-center">
+<span class="font-label-caps text-label-caps text-secondary tracking-[0.5em] mb-8 block">REVEALED ARTIST</span>
+<h3 class="reveal-card__artist font-display-lg text-display-lg text-on-surface mb-4 leading-none tracking-tight"></h3>
+<h4 class="reveal-card__title font-headline-lg text-headline-lg text-primary-fixed-dim italic"></h4>
+<p class="reveal-card__year num font-label-mono text-label-mono text-on-surface-variant mt-6"></p>
+<button id="next-btn" type="button" hidden class="mt-12 px-12 py-4 rounded-xl bg-secondary text-on-secondary font-headline-lg text-headline-lg-mobile hover:scale-[1.05] active:scale-95 transition-all glow-secondary-soft">
+                NEXT SONG
+            </button>
+</div>
+</div>
+</main>
+<!-- Scoreboard Footer (display-ui replaces children from state.teams) -->
+<footer class="fixed bottom-0 w-full bg-surface-container-lowest/50 backdrop-blur-3xl border-t border-outline-variant/10 px-margin-desktop py-10 z-40">
+<ul id="scoreboard-list" class="grid grid-cols-4 gap-gutter max-w-screen-2xl mx-auto h-full items-end list-none p-0 m-0">
+<!-- Stitch sample team cards (template; display-ui replaces from real state) -->
+<li class="space-y-4">
+<div class="flex justify-between items-end">
+<div class="flex items-center space-x-3">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">rocket_launch</span>
+<span class="font-label-mono text-label-mono text-on-surface uppercase tracking-wider">NEON RIDERS</span>
+</div>
+<span class="font-headline-lg text-headline-lg text-secondary">2,450</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary glow-track-fill rounded-full" style="width: 75%"></div>
+</div>
+</li>
+</ul>
+</footer>
+<!-- Teams panel (toggleable via #teams-toggle-btn). Holds add/remove/rename UI. -->
+<div id="teams-panel" hidden class="fixed top-24 right-margin-desktop z-[55] w-80 max-w-[calc(100vw-2rem)] glass-card rounded-xl p-6 space-y-4 shadow-2xl">
+<div class="flex items-center justify-between">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant tracking-widest">TEAMS</h3>
+<button id="teams-panel-close-btn" type="button" aria-label="Close" class="material-symbols-outlined text-on-surface-variant hover:text-primary">close</button>
+</div>
+<ul id="teams-list" class="grid grid-cols-1 gap-2 list-none p-0 m-0"></ul>
+<form id="add-team-form" class="flex gap-2">
+<input id="add-team-input" type="text" required maxlength="40" placeholder="Team name" autocomplete="off" aria-label="Team name"
+  class="flex-1 bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50">
+<button type="submit"
+  class="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-caps text-label-caps hover:scale-105 active:scale-95 transition-all">
+  + Team
+</button>
+</form>
+<!-- Award area is mirrored into the scoreboard cards by display-ui;
+     this is the JS contract container kept hidden offscreen. -->
+<div id="award-area" hidden>
+<ul id="award-teams" class="list-none p-0 m-0"></ul>
+</div>
+</div>
+<!-- Scripts for Visualizer & Screen Transitions -->
+<script>
+        const barsContainer = document.getElementById('visualizer');
+        if (barsContainer) {
+            // Generate dynamic visualizer bars (keep canvas overlay if present)
+            function createBars() {
+                const canvas = barsContainer.querySelector('canvas');
+                barsContainer.innerHTML = '';
+                for (let i = 0; i < 40; i++) {
+                    const bar = document.createElement('div');
+                    bar.className = 'visualizer-bar w-3 rounded-full';
+                    if (i % 5 === 0) {
+                        bar.classList.add('bg-secondary', 'glow-track-fill');
+                    } else if (i % 3 === 0) {
+                        bar.classList.add('bg-primary');
+                    } else {
+                        bar.classList.add('bg-primary/20');
+                    }
+                    barsContainer.appendChild(bar);
+                }
+                if (canvas) barsContainer.appendChild(canvas);
+            }
 
-      <section id="reveal-card" class="reveal-card" hidden aria-live="polite">
-        <div class="reveal-card__content">
-          <p class="reveal-card__artist"></p>
-          <p class="reveal-card__title"></p>
-          <p class="reveal-card__year num"></p>
-        </div>
-      </section>
+            function animateBars() {
+                const playing = document.body.dataset.phase === 'playing';
+                const bars = barsContainer.querySelectorAll('.visualizer-bar');
+                bars.forEach(bar => {
+                    // React only while a clip plays; otherwise settle to a calm baseline.
+                    const height = playing ? Math.random() * 240 + 20 : 16;
+                    bar.style.height = `${height}px`;
+                });
+            }
 
-      <audio id="audio" preload="auto" crossorigin="anonymous"></audio>
-      <canvas id="waveform" width="240" height="240" aria-hidden="true"></canvas>
-    </div>
-
-    <script type="module" src="/static/js/main-display.js"></script>
-  </body>
-</html>
+            createBars();
+            setInterval(animateBars, 150);
+        }
+    </script>
+<script type="module" src="/static/js/main-display.js"></script>
+</body></html>
