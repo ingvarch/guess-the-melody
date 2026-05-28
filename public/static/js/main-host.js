@@ -149,6 +149,40 @@ function wireEvents(view) {
   for (const r of modeRadios) {
     r.addEventListener('change', () => render(document, view));
   }
+
+  // QR modal.
+  const qrBtn = document.getElementById('qr-btn');
+  const qrModal = document.getElementById('qr-modal');
+  const qrImg = document.getElementById('qr-img');
+  const qrUrl = document.getElementById('qr-url');
+  const qrCopy = document.getElementById('qr-copy-btn');
+  const qrClose = document.getElementById('qr-close-btn');
+  const qrOpen = document.getElementById('qr-open-link');
+
+  if (qrBtn && qrModal) {
+    const displayUrl = `${window.location.origin}/s/${sessionId}/display`;
+    const qrSvgUrl = `/s/${sessionId}/qr.svg`;
+
+    qrBtn.addEventListener('click', () => {
+      if (qrImg) qrImg.src = qrSvgUrl;
+      if (qrUrl) qrUrl.textContent = displayUrl;
+      if (qrOpen) qrOpen.href = displayUrl;
+      qrModal.removeAttribute('hidden');
+    });
+
+    qrClose?.addEventListener('click', () => qrModal.setAttribute('hidden', ''));
+    qrModal.addEventListener('click', (e) => {
+      if (e.target === qrModal) qrModal.setAttribute('hidden', '');
+    });
+
+    qrCopy?.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(displayUrl);
+        qrCopy.textContent = 'Скопировано';
+        setTimeout(() => { qrCopy.textContent = 'Копировать'; }, 1500);
+      } catch { /* clipboard denied */ }
+    });
+  }
 }
 
 function openSse(view) {

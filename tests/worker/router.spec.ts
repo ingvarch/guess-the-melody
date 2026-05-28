@@ -270,10 +270,14 @@ describe('Worker router', () => {
     expect(text).toContain(`<meta name="session-id" content="${sessionId}">`);
   });
 
-  it('GET /s/<id>/qr.svg is deferred to Phase 13 and returns 501', async () => {
+  it('GET /s/<id>/qr.svg returns 200 SVG with Cache-Control max-age=3600', async () => {
     const { sessionId } = await createSession();
     const res = await SELF.fetch(`http://localhost/s/${sessionId}/qr.svg`);
-    expect(res.status).toBe(501);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/image\/svg\+xml/);
+    expect(res.headers.get('cache-control')).toMatch(/max-age=3600/);
+    const text = await res.text();
+    expect(text).toContain('<svg');
   });
 
   it('GET /api/genres returns non-archived genres without auth, sorted by sort_order', async () => {

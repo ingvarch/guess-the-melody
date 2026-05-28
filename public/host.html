@@ -12,7 +12,7 @@
     <header class="topbar">
       <span class="topbar__code">Сессия <span id="session-code" class="num"></span></span>
       <div class="topbar__actions">
-        <button id="qr-btn" class="btn btn--ghost" type="button" disabled title="QR будет в следующей фазе">QR</button>
+        <button id="qr-btn" class="btn btn--ghost" type="button" title="QR-код для дисплея">QR</button>
         <button id="endgame-btn" class="btn btn--ghost" type="button">Завершить</button>
       </div>
     </header>
@@ -90,6 +90,24 @@
         </symbol>
       </defs>
     </svg>
+
+    <div id="qr-modal" class="modal-backdrop" hidden>
+      <div class="modal">
+        <p class="modal-title">Открыть дисплей</p>
+        <p class="modal-text">Отсканируй QR-код камерой телефона или открой ссылку напрямую.</p>
+        <div class="qr-wrap">
+          <img id="qr-img" alt="QR-код ссылки на дисплей">
+        </div>
+        <div class="qr-url-row">
+          <code id="qr-url" class="qr-url"></code>
+          <button id="qr-copy-btn" class="btn btn--ghost" type="button">Копировать</button>
+        </div>
+        <div class="modal-actions">
+          <a id="qr-open-link" href="display" target="_blank" rel="noopener noreferrer" class="btn btn--primary">Открыть на этом устройстве</a>
+          <button id="qr-close-btn" class="btn btn--ghost" type="button">Закрыть</button>
+        </div>
+      </div>
+    </div>
 
     <script type="module" src="/static/js/main-host.js"></script>
   </body>

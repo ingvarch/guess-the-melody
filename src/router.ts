@@ -22,6 +22,7 @@
 import { handleAdmin } from './admin/handlers';
 import { listGenres } from './catalog/genres';
 import { getTrack } from './catalog/tracks';
+import { handleQr } from './qr';
 import {
   newOwnerToken,
   newSessionId,
@@ -206,7 +207,7 @@ async function handleSessionScoped(
   rest: string,
 ): Promise<Response> {
   if (req.method === 'GET' && rest === '/qr.svg') {
-    return new Response('not implemented', { status: 501 });
+    return handleQr(req, sessionId);
   }
   if (req.method === 'GET' && rest === '/api/state') {
     return proxyGetState(env, sessionId);
