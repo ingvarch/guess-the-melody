@@ -430,8 +430,9 @@ describe('admin handlers', () => {
       }),
     });
     expect(res.status).toBe(409);
-    const body = (await res.json()) as { code: string; candidates: unknown[] };
+    const body = (await res.json()) as { code: string; message: string; candidates: unknown[] };
     expect(body.code).toBe('ambiguous');
+    expect(body.message).toMatch(/несколько совпадений/);
     expect(Array.isArray(body.candidates)).toBe(true);
     expect(body.candidates.length).toBeGreaterThanOrEqual(2);
   });
@@ -449,8 +450,9 @@ describe('admin handlers', () => {
       }),
     });
     expect(res.status).toBe(400);
-    const body = (await res.json()) as { code: string };
+    const body = (await res.json()) as { code: string; message: string };
     expect(body.code).toBe('unknown_genre');
+    expect(body.message).toMatch(/Неизвестный жанр/);
   });
 
   it('POST /admin/api/import returns 400 bad_itunes_id for non-positive itunesIdOverride', async () => {

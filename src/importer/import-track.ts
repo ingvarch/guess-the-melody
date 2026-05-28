@@ -20,9 +20,9 @@ import { deletePreviewFromR2, downloadPreviewToR2 } from './r2';
 export type ImportError =
   | { code: 'bad_url'; message: string }
   | { code: 'no_preview'; message: string }
-  | { code: 'ambiguous'; candidates: MatchCandidate[] }
-  | { code: 'duplicate'; existingId: string }
-  | { code: 'unknown_genre' };
+  | { code: 'ambiguous'; message: string; candidates: MatchCandidate[] }
+  | { code: 'duplicate'; message: string; existingId: string }
+  | { code: 'unknown_genre'; message: string };
 
 export interface ImportSuccess {
   id: string;
@@ -80,7 +80,10 @@ async function resolveItunes(
     }
     if (match.kind === 'unique') return { kind: 'ok', track: match.track };
     if (match.kind === 'ambiguous') {
-      return { kind: 'err', err: { code: 'ambiguous', candidates: match.candidates } };
+      return {
+        kind: 'err',
+        err: { code: 'ambiguous', message: 'Найдено несколько совпадений на iTunes', candidates: match.candidates },
+      };
     }
     return {
       kind: 'err',
@@ -114,7 +117,7 @@ export async function importTrack(
   // 1. Genre check first — cheapest validation, and guarantees we never
   // touch iTunes/R2 for an unknown genre.
   const genre = await getGenre(env.CATALOG, opts.genreSlug);
-  if (!genre) return { code: 'unknown_genre' };
+  if (!genre) return { code: 'unknown_genre', message: 'Неизвестный жанр' };
 
   // 2. Resolve URL → ItunesTrack (or a typed error).
   const resolved = await resolveItunes(env, {
@@ -127,7 +130,11 @@ export async function importTrack(
   // 3. Dedupe by iTunes id before any R2 work.
   const existing = await getTrackByItunesId(env.CATALOG, t.trackId);
   if (existing) {
-    return { code: 'duplicate', existingId: existing.id };
+    return {
+      code: 'duplicate',
+      message: `Трек уже есть в каталоге: ${existing.artist} – ${existing.title}`,
+      existingId: existing.id,
+    };
   }
 
   // 4. Validate release year before any R2 work. yearFromItunes returns 0
@@ -180,7 +187,10 @@ export async function importTrack(
       // getTrackByItunesId will find it; otherwise (artist, title, year)
       // dedupe — no easy lookup, so omit existingId precision.
       const dupe = await getTrackByItunesId(env.CATALOG, t.trackId);
-      return { code: 'duplicate', existingId: dupe?.id ?? '' };
+      const msg = dupe
+        ? `Трек уже есть в каталоге: ${dupe.artist} – ${dupe.title}`
+        : 'Трек уже есть в каталоге';
+      return { code: 'duplicate', message: msg, existingId: dupe?.id ?? '' };
     }
     throw err;
   }

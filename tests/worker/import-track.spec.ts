@@ -222,6 +222,7 @@ describe('importer/import-track', () => {
 
     expect('code' in out && out.code === 'ambiguous').toBe(true);
     if ('code' in out && out.code === 'ambiguous') {
+      expect(out.message).toMatch(/несколько совпадений/);
       expect(out.candidates.length).toBeGreaterThanOrEqual(2);
     }
   });
@@ -260,6 +261,9 @@ describe('importer/import-track', () => {
     });
 
     expect('code' in out && out.code === 'unknown_genre').toBe(true);
+    if ('code' in out && out.code === 'unknown_genre') {
+      expect(out.message).toMatch(/Неизвестный жанр/);
+    }
   });
 
   it('returns duplicate when the iTunes id is already in D1', async () => {
@@ -294,6 +298,9 @@ describe('importer/import-track', () => {
     expect('code' in out && out.code === 'duplicate').toBe(true);
     if ('code' in out && out.code === 'duplicate') {
       expect(out.existingId).toBe('existing1');
+      expect(out.message).toMatch(/уже есть в каталоге/);
+      expect(out.message).toMatch(/Guns N' Roses/);
+      expect(out.message).toMatch(/Sweet Child o' Mine/);
     }
   });
 
