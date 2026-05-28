@@ -1,12 +1,101 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Guess The Melody</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f6efe4">
+    <title>Угадай мелодию</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/landing.css">
   </head>
   <body>
-    <h1>Guess The Melody</h1>
-    <p>Setup in progress.</p>
+    <main class="landing">
+      <div class="vinyl" aria-hidden="true">
+        <svg viewBox="0 0 360 360" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="vinyl-body" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#1a1410"/>
+              <stop offset="55%" stop-color="#0d0907"/>
+              <stop offset="100%" stop-color="#040302"/>
+            </radialGradient>
+            <radialGradient id="vinyl-sheen" cx="35%" cy="30%" r="65%">
+              <stop offset="0%" stop-color="rgba(255,255,255,0.22)"/>
+              <stop offset="40%" stop-color="rgba(255,255,255,0.04)"/>
+              <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+            </radialGradient>
+            <radialGradient id="vinyl-label" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stop-color="#c9472f"/>
+              <stop offset="70%" stop-color="#b03a2e"/>
+              <stop offset="100%" stop-color="#8c2c22"/>
+            </radialGradient>
+          </defs>
+
+          <circle cx="180" cy="180" r="178" fill="url(#vinyl-body)"/>
+
+          <g fill="none" stroke="rgba(255,255,255,0.045)" stroke-width="0.6">
+            <circle cx="180" cy="180" r="170"/>
+            <circle cx="180" cy="180" r="162"/>
+            <circle cx="180" cy="180" r="154"/>
+            <circle cx="180" cy="180" r="146"/>
+            <circle cx="180" cy="180" r="138"/>
+            <circle cx="180" cy="180" r="130"/>
+            <circle cx="180" cy="180" r="122"/>
+            <circle cx="180" cy="180" r="114"/>
+            <circle cx="180" cy="180" r="106"/>
+            <circle cx="180" cy="180" r="98"/>
+            <circle cx="180" cy="180" r="90"/>
+            <circle cx="180" cy="180" r="82"/>
+            <circle cx="180" cy="180" r="74"/>
+          </g>
+
+          <g fill="none" stroke="rgba(0,0,0,0.55)" stroke-width="0.4">
+            <circle cx="180" cy="180" r="166"/>
+            <circle cx="180" cy="180" r="150"/>
+            <circle cx="180" cy="180" r="134"/>
+            <circle cx="180" cy="180" r="118"/>
+            <circle cx="180" cy="180" r="102"/>
+            <circle cx="180" cy="180" r="86"/>
+            <circle cx="180" cy="180" r="70"/>
+          </g>
+
+          <circle cx="180" cy="180" r="178" fill="url(#vinyl-sheen)"/>
+
+          <circle cx="180" cy="180" r="60" fill="url(#vinyl-label)"/>
+          <circle cx="180" cy="180" r="60" fill="none"
+            stroke="rgba(0,0,0,0.35)" stroke-width="0.8"/>
+
+          <text x="180" y="160" text-anchor="middle"
+            font-family="-apple-system, 'SF Pro Display', system-ui, sans-serif"
+            font-size="11" font-weight="700" letter-spacing="2"
+            fill="#f6efe4">УГАДАЙ</text>
+          <text x="180" y="178" text-anchor="middle"
+            font-family="-apple-system, 'SF Pro Display', system-ui, sans-serif"
+            font-size="11" font-weight="700" letter-spacing="2"
+            fill="#f6efe4">МЕЛОДИЮ</text>
+          <text x="180" y="208" text-anchor="middle"
+            font-family="-apple-system, 'SF Pro Text', system-ui, sans-serif"
+            font-size="6" letter-spacing="1.5"
+            fill="rgba(246,239,228,0.7)">SIDE A · 33⅓ RPM</text>
+
+          <circle cx="180" cy="180" r="6" fill="#0a0706"/>
+          <circle cx="180" cy="180" r="2" fill="#f6efe4"/>
+        </svg>
+      </div>
+
+      <h1 class="landing__title">Угадай мелодию</h1>
+      <p class="landing__sub">Виниловая вечеринка с друзьями</p>
+
+      <div class="landing__actions">
+        <button id="start" class="btn btn--primary" type="button">Начать игру</button>
+        <a href="/admin" class="btn btn--ghost">Управление каталогом</a>
+      </div>
+
+      <p id="error" class="landing__error" role="alert" aria-live="polite"></p>
+
+      <footer class="landing__footer">
+        <a href="https://github.com/ingvarch/guess-the-melody" target="_blank" rel="noopener noreferrer">github</a>
+      </footer>
+    </main>
+    <script type="module" src="/static/js/main-landing.js"></script>
   </body>
 </html>

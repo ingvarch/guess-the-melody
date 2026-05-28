@@ -1,0 +1,148 @@
+/* Project-wide base. CSS custom properties, minimal reset, typographic
+   defaults. Page-specific styles live in their own files. */
+
+:root {
+  /* Palette: warm paper background, near-black ink, vinyl-red accent. */
+  --color-paper: #f6efe4;
+  --color-paper-deep: #ece2d0;
+  --color-ink: #1f1a14;
+  --color-muted: #6b6258;
+  --color-accent: #b03a2e;
+  --color-accent-deep: #8c2c22;
+  --color-line: rgba(31, 26, 20, 0.12);
+
+  /* System font stacks. Display = headlines; Text = body + UI. */
+  --font-display:
+    -apple-system, "SF Pro Display", BlinkMacSystemFont, "Segoe UI",
+    system-ui, sans-serif;
+  --font-text:
+    -apple-system, "SF Pro Text", BlinkMacSystemFont, "Segoe UI",
+    system-ui, sans-serif;
+
+  --radius-card: 16px;
+  --shadow-soft: 0 1px 2px rgba(31, 26, 20, 0.08),
+    0 8px 24px rgba(31, 26, 20, 0.10);
+  --shadow-press: 0 1px 1px rgba(31, 26, 20, 0.10);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-text);
+  font-size: 17px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+img, svg {
+  display: block;
+  max-width: 100%;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--color-accent-deep);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  a:hover {
+    text-decoration: underline;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+}
+
+/* Tabular numerals in any score / numeric context. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Shared button vocabulary. Page styles can extend with modifiers. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0 1.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-family: var(--font-text);
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease,
+    background-color 120ms ease, color 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.btn--primary {
+  background: var(--color-accent);
+  color: #fff;
+  box-shadow: var(--shadow-soft);
+}
+
+@media (hover: hover) {
+  .btn--primary:hover:not(:disabled) {
+    background: var(--color-accent-deep);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(31, 26, 20, 0.12),
+      0 12px 28px rgba(31, 26, 20, 0.14);
+  }
+
+  .btn--ghost:hover:not(:disabled) {
+    background: var(--color-paper-deep);
+    border-color: rgba(31, 26, 20, 0.22);
+  }
+}
+
+.btn--primary:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: var(--shadow-press);
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--color-ink);
+  border-color: var(--color-line);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}

@@ -285,11 +285,15 @@ describe('Worker router', () => {
     expect(body.map((g) => g.slug)).toContain('rock');
   });
 
-  it('GET / still serves the landing placeholder', async () => {
+  it('GET / serves the landing page with title and main-landing.js module', async () => {
     const res = await SELF.fetch('http://localhost/');
     expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/html/);
     const body = await res.text();
-    expect(body).toContain('Guess The Melody');
+    expect(body).toContain('Угадай мелодию');
+    expect(body).toContain(
+      '<script type="module" src="/static/js/main-landing.js">',
+    );
   });
 
   it('POST /api/session returns 429 when SESSION_RATE_LIMITER reports success=false', async () => {
