@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f6efe4">
+    <title>Администрирование — Угадай мелодию</title>
+    <link rel="stylesheet" href="/static/css/base.css">
+    <link rel="stylesheet" href="/static/css/admin.css">
+  </head>
+  <body>
+    <header class="admin-header">
+      <h1>Каталог</h1>
+      <a href="/" class="btn btn--ghost">На главную</a>
+    </header>
+
+    <div id="error" class="admin-error" role="alert" aria-live="polite"></div>
+
+    <main class="admin">
+      <!-- Import section -->
+      <section class="admin-section" aria-labelledby="import-h">
+        <h2 id="import-h">Импорт трека</h2>
+        <form id="import-form" class="import-form">
+          <div class="form-row">
+            <label for="import-url">Ссылка на Spotify или iTunes</label>
+            <input id="import-url" type="url" required placeholder="https://open.spotify.com/track/...">
+          </div>
+          <div class="form-row">
+            <label for="import-genre">Жанр</label>
+            <select id="import-genre" required></select>
+          </div>
+          <div class="form-row">
+            <label for="import-itunes-id">iTunes ID (опционально, для уточнения)</label>
+            <input id="import-itunes-id" type="number" min="1" placeholder="123456789">
+          </div>
+          <button class="btn btn--primary" type="submit">Импортировать</button>
+          <span id="import-status" class="import-status"></span>
+        </form>
+      </section>
+
+      <!-- Genres section -->
+      <section class="admin-section" aria-labelledby="genres-h">
+        <h2 id="genres-h">Жанры</h2>
+        <form id="add-genre-form" class="add-genre-form">
+          <input id="genre-slug" type="text" required maxlength="40" placeholder="slug" pattern="[a-z0-9-]+" title="только a-z, 0-9, дефис">
+          <input id="genre-name" type="text" required maxlength="40" placeholder="Название">
+          <input id="genre-emoji" type="text" maxlength="8" placeholder="Emoji">
+          <input id="genre-sort" type="number" required value="100" placeholder="Порядок">
+          <button class="btn btn--primary" type="submit">+ Жанр</button>
+        </form>
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Slug</th>
+              <th>Название</th>
+              <th>Emoji</th>
+              <th>Порядок</th>
+              <th>Статус</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="genres-body"></tbody>
+        </table>
+      </section>
+
+      <!-- Tracks section -->
+      <section class="admin-section" aria-labelledby="tracks-h">
+        <h2 id="tracks-h">Треки</h2>
+        <div class="tracks-filter">
+          <select id="tracks-genre-filter">
+            <option value="">Все жанры</option>
+          </select>
+          <input id="tracks-search" type="text" placeholder="Поиск по артисту или названию">
+          <button id="tracks-search-btn" class="btn btn--ghost" type="button">Найти</button>
+        </div>
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Жанр</th>
+              <th>Артист</th>
+              <th>Название</th>
+              <th>Год</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="tracks-body"></tbody>
+        </table>
+        <div id="tracks-pagination" class="tracks-pagination"></div>
+      </section>
+    </main>
+
+    <script type="module" src="/static/js/main-admin.js"></script>
+  </body>
+</html>

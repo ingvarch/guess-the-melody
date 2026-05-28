@@ -1,0 +1,279 @@
+/* Admin UI — light warm-paper theme. Compact tables, clear async feedback.
+ * Inherits tokens from base.css.
+ */
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.5rem;
+  background: rgba(246, 239, 228, 0.88);
+  backdrop-filter: saturate(160%) blur(12px);
+  -webkit-backdrop-filter: saturate(160%) blur(12px);
+  border-bottom: 1px solid var(--color-line);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.admin-header h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.admin {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.admin-section {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  padding: 1.25rem 1.5rem 1.5rem;
+  box-shadow: var(--shadow-soft);
+}
+
+.admin-section h2 {
+  font-size: 1.125rem;
+  margin: 0 0 1rem;
+}
+
+.admin-error {
+  margin: 0;
+  padding: 0.75rem 1.5rem;
+  text-align: center;
+  color: var(--color-accent-deep);
+  min-height: 1.5rem;
+}
+
+/* ---- Forms --------------------------------------------------------------- */
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  flex: 1 1 200px;
+}
+
+.form-row label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.form-row input,
+.form-row select {
+  min-height: 44px;
+  padding: 0 0.875rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  font-size: 1rem;
+}
+
+.form-row input:focus,
+.form-row select:focus {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* ---- Import form --------------------------------------------------------- */
+
+.import-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.import-status {
+  font-size: 0.875rem;
+  color: var(--color-muted);
+  min-height: 1.25rem;
+}
+
+.import-status.ok {
+  color: #2b8a3e;
+}
+
+.import-status.err {
+  color: var(--color-accent-deep);
+}
+
+/* ---- Add genre form ------------------------------------------------------ */
+
+.add-genre-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.add-genre-form input {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+}
+
+.add-genre-form input:focus {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+#genre-slug { width: 120px; }
+#genre-name { width: 160px; }
+#genre-emoji { width: 80px; }
+#genre-sort { width: 100px; }
+
+/* ---- Tables -------------------------------------------------------------- */
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 0.625rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--color-line);
+}
+
+.admin-table th {
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-muted);
+  background: var(--color-paper);
+}
+
+.admin-table tr:last-child td {
+  border-bottom: none;
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* ---- Tracks filter ------------------------------------------------------- */
+
+.tracks-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.tracks-filter select,
+.tracks-filter input {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  font-size: 0.95rem;
+}
+
+.tracks-filter input {
+  flex: 1 1 240px;
+}
+
+/* ---- Pagination ---------------------------------------------------------- */
+
+.tracks-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-line);
+}
+
+.tracks-pagination button {
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 10px;
+  border: 1px solid var(--color-line);
+  background: var(--color-paper);
+  cursor: pointer;
+}
+
+.tracks-pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.tracks-pagination button.active {
+  background: var(--color-ink);
+  color: #fff;
+  border-color: var(--color-ink);
+}
+
+/* ---- Status badges ------------------------------------------------------- */
+
+.badge {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.badge--active {
+  background: #d3f9d8;
+  color: #2b8a3e;
+}
+
+.badge--archived {
+  background: #ffe3e3;
+  color: #c92a2a;
+}
+
+/* ---- Action buttons in tables -------------------------------------------- */
+
+.btn--sm {
+  min-height: 32px;
+  padding: 0 0.625rem;
+  font-size: 0.8rem;
+}
+
+/* ---- Responsive ----------------------------------------------------------- */
+
+@media (max-width: 640px) {
+  .admin {
+    padding: 1rem;
+    gap: 1.25rem;
+  }
+
+  .admin-section {
+    padding: 1rem;
+  }
+
+  .admin-table {
+    font-size: 0.85rem;
+  }
+
+  .admin-table th,
+  .admin-table td {
+    padding: 0.5rem;
+  }
+
+  .tracks-filter input {
+    flex: 1 1 100%;
+  }
+}
