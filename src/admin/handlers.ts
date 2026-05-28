@@ -1,6 +1,6 @@
 // Admin HTTP surface. Every route here is gated by basic auth against
 // `env.ADMIN_PASSWORD`. The handler is the single entry point for any path
-// starting with `/admin` or `/admin/` — `src/index.ts` delegates straight to
+// starting with `/admin` or `/admin/` — `src/router.ts` delegates straight to
 // `handleAdmin` without any path inspection of its own.
 //
 // Status code conventions:
