@@ -35,10 +35,13 @@ type ResolveResult =
   | { kind: 'ok'; track: ItunesTrack }
   | { kind: 'err'; err: ImportError };
 
-async function resolveItunes(opts: {
-  url: string;
-  itunesIdOverride?: number;
-}): Promise<ResolveResult> {
+async function resolveItunes(
+  env: Env,
+  opts: {
+    url: string;
+    itunesIdOverride?: number;
+  },
+): Promise<ResolveResult> {
   if (opts.itunesIdOverride !== undefined) {
     const t = await lookupItunes({ trackId: opts.itunesIdOverride });
     if (!t) {
@@ -66,7 +69,11 @@ async function resolveItunes(opts: {
   if (spotify) {
     let match;
     try {
-      match = await matchItunesForSpotify(opts.url);
+      match = await matchItunesForSpotify(
+        opts.url,
+        env.SPOTIFY_CLIENT_ID,
+        env.SPOTIFY_CLIENT_SECRET,
+      );
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'spotify metadata fetch failed';
       return { kind: 'err', err: { code: 'no_preview', message: `spotify: ${msg}` } };
@@ -110,7 +117,7 @@ export async function importTrack(
   if (!genre) return { code: 'unknown_genre' };
 
   // 2. Resolve URL → ItunesTrack (or a typed error).
-  const resolved = await resolveItunes({
+  const resolved = await resolveItunes(env, {
     url: opts.url,
     ...(opts.itunesIdOverride !== undefined ? { itunesIdOverride: opts.itunesIdOverride } : {}),
   });

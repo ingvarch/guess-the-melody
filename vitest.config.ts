@@ -21,7 +21,7 @@ export default defineConfig({
           // ADMIN_PASSWORD is a plain var (not a secret) for the worker tests;
           // wrangler.toml does not define it, so we inject it here so the
           // admin handler tests can use a known credential.
-          bindings: { TEST_MIGRATIONS: migrations, ADMIN_PASSWORD: 'test-pw' },
+          bindings: { TEST_MIGRATIONS: migrations, ADMIN_PASSWORD: 'test-pw', SPOTIFY_CLIENT_ID: 'test-id', SPOTIFY_CLIENT_SECRET: 'test-secret' },
         },
       };
     }),

@@ -1,4 +1,4 @@
-// Spotify metadata via the public oEmbed endpoint (no auth required), plus
+// Spotify metadata via the public Web API (Client Credentials flow), plus
 // a heuristic to find the matching iTunes track that we can actually play.
 //
 // We cannot stream Spotify preview audio without their Web API; iTunes hands
@@ -26,7 +26,8 @@ export type SpotifyMatchResult =
   | { kind: 'ambiguous'; candidates: MatchCandidate[] }
   | { kind: 'none' };
 
-const OEMBED_URL = 'https://open.spotify.com/oembed';
+const TOKEN_URL = 'https://accounts.spotify.com/api/token';
+const API_BASE = 'https://api.spotify.com/v1';
 
 export function parseSpotifyUrl(url: string): { providerId: string } | null {
   let parsed: URL;
@@ -44,27 +45,59 @@ export function parseSpotifyUrl(url: string): { providerId: string } | null {
   return { providerId: id };
 }
 
-export async function metadataFromSpotify(url: string): Promise<SpotifyTrackMeta> {
-  const res = await fetch(`${OEMBED_URL}?url=${encodeURIComponent(url)}`);
+async function getAccessToken(clientId: string, clientSecret: string): Promise<string> {
+  const res = await fetch(TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Authorization: 'Basic ' + btoa(`${clientId}:${clientSecret}`),
+    },
+    body: 'grant_type=client_credentials',
+  });
   if (!res.ok) {
-    throw new Error(`Spotify oEmbed failed: ${res.status}`);
+    throw new Error(`Spotify token request failed: ${res.status}`);
   }
-  const data = (await res.json()) as { title?: unknown; author_name?: unknown };
-  const title = typeof data.title === 'string' ? data.title : '';
-  const author = typeof data.author_name === 'string' ? data.author_name : '';
+  const data = (await res.json()) as { access_token?: string; error?: string };
+  if (data.error || !data.access_token) {
+    throw new Error(`Spotify token error: ${data.error ?? 'no access_token'}`);
+  }
+  return data.access_token;
+}
 
-  if (author && title) {
-    return { artist: author, title };
+export async function metadataFromSpotify(
+  url: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<SpotifyTrackMeta> {
+  const parsed = parseSpotifyUrl(url);
+  if (!parsed) {
+    throw new Error('invalid spotify url');
   }
-  // Fallback: oEmbed sometimes returns "Artist - Title" in `title` only.
-  const sepIdx = title.indexOf(' - ');
-  if (sepIdx > 0) {
-    return {
-      artist: title.slice(0, sepIdx).trim(),
-      title: title.slice(sepIdx + 3).trim(),
-    };
+
+  const token = await getAccessToken(clientId, clientSecret);
+  const res = await fetch(`${API_BASE}/tracks/${parsed.providerId}`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Spotify API failed: ${res.status}`);
   }
-  throw new Error('Spotify oEmbed: could not extract artist/title');
+
+  const data = (await res.json()) as {
+    name?: unknown;
+    artists?: Array<{ name?: unknown }>;
+  };
+  const title = typeof data.name === 'string' ? data.name : '';
+  const artist =
+    Array.isArray(data.artists) &&
+    data.artists[0] &&
+    typeof data.artists[0].name === 'string'
+      ? data.artists[0].name
+      : '';
+
+  if (!artist || !title) {
+    throw new Error('Spotify API: could not extract artist/title');
+  }
+  return { artist, title };
 }
 
 function normalise(s: string): string {
@@ -100,8 +133,12 @@ function toCandidate(t: ItunesTrack, score: number): MatchCandidate {
   };
 }
 
-export async function matchItunesForSpotify(url: string): Promise<SpotifyMatchResult> {
-  const meta = await metadataFromSpotify(url);
+export async function matchItunesForSpotify(
+  url: string,
+  clientId: string,
+  clientSecret: string,
+): Promise<SpotifyMatchResult> {
+  const meta = await metadataFromSpotify(url, clientId, clientSecret);
   const term = `${meta.artist} ${meta.title}`;
   const results = await searchItunes({ term });
 

@@ -10,6 +10,8 @@ export interface Env {
   AUDIO: R2Bucket;
   SESSION_RATE_LIMITER?: RateLimit;
   ADMIN_PASSWORD: string;
+  SPOTIFY_CLIENT_ID: string;
+  SPOTIFY_CLIENT_SECRET: string;
 }
 
 export type Phase = 'idle' | 'spinning' | 'playing' | 'revealed';

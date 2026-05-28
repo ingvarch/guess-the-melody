@@ -134,11 +134,15 @@ describe('importer/import-track', () => {
       'fetch',
       routedFetch([
         {
-          match: (u) => u.includes('open.spotify.com/oembed'),
+          match: (u) => u.includes('accounts.spotify.com/api/token'),
+          respond: () => jsonResponse({ access_token: 'tok123', token_type: 'Bearer' }),
+        },
+        {
+          match: (u) => u.includes('api.spotify.com/v1/tracks'),
           respond: () =>
             jsonResponse({
-              title: "Sweet Child o' Mine",
-              author_name: "Guns N' Roses",
+              name: "Sweet Child o' Mine",
+              artists: [{ name: "Guns N' Roses" }],
             }),
         },
         {
@@ -170,9 +174,13 @@ describe('importer/import-track', () => {
       'fetch',
       routedFetch([
         {
-          match: (u) => u.includes('open.spotify.com/oembed'),
+          match: (u) => u.includes('accounts.spotify.com/api/token'),
+          respond: () => jsonResponse({ access_token: 'tok123', token_type: 'Bearer' }),
+        },
+        {
+          match: (u) => u.includes('api.spotify.com/v1/tracks'),
           respond: () =>
-            jsonResponse({ title: 'Yesterday', author_name: 'The Beatles' }),
+            jsonResponse({ name: 'Yesterday', artists: [{ name: 'The Beatles' }] }),
         },
         {
           match: (u) => u.includes('itunes.apple.com/search'),
@@ -378,13 +386,13 @@ describe('importer/import-track', () => {
     deleteSpy.mockRestore();
   });
 
-  it('returns no_preview when Spotify oEmbed responds non-2xx', async () => {
+  it('returns no_preview when Spotify token endpoint responds non-2xx', async () => {
     vi.stubGlobal(
       'fetch',
       routedFetch([
         {
-          match: (u) => u.includes('open.spotify.com/oembed'),
-          respond: () => new Response('boom', { status: 500 }),
+          match: (u) => u.includes('accounts.spotify.com/api/token'),
+          respond: () => new Response('invalid_client', { status: 400 }),
         },
       ]),
     );

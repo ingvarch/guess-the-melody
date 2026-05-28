@@ -387,9 +387,13 @@ describe('admin handlers', () => {
       'fetch',
       routedFetch([
         {
-          match: (u) => u.includes('open.spotify.com/oembed'),
+          match: (u) => u.includes('accounts.spotify.com/api/token'),
+          respond: () => jsonResponse({ access_token: 'tok123', token_type: 'Bearer' }),
+        },
+        {
+          match: (u) => u.includes('api.spotify.com/v1/tracks'),
           respond: () =>
-            jsonResponse({ title: 'Yesterday', author_name: 'The Beatles' }),
+            jsonResponse({ name: 'Yesterday', artists: [{ name: 'The Beatles' }] }),
         },
         {
           match: (u) => u.includes('itunes.apple.com/search'),
