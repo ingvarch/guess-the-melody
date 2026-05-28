@@ -323,6 +323,68 @@ describe('admin handlers', () => {
     expect(res.status).toBe(404);
   });
 
+  it('GET /admin/api/tracks/:id.mp3 returns 200 audio/mpeg from R2', async () => {
+    const id = 't-play-1';
+    const key = `tracks/${id}.mp3`;
+    const payload = new Uint8Array([1, 2, 3, 4, 5]);
+    await testEnv.AUDIO.put(key, payload, {
+      httpMetadata: { contentType: 'audio/mpeg' },
+    });
+    await insertTrack(testEnv.CATALOG, {
+      id,
+      genre_slug: 'rock',
+      artist: 'PA',
+      title: 'PT',
+      year: 2010,
+      r2_key: key,
+      preview_url: 'https://example.com/p.m4a',
+      added_at: 400,
+    });
+
+    const res = await SELF.fetch(`http://localhost/admin/api/tracks/${id}.mp3`, {
+      method: 'GET',
+      headers: { authorization: authHeader() },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('audio/mpeg');
+    const body = new Uint8Array(await res.arrayBuffer());
+    expect(Array.from(body)).toEqual(Array.from(payload));
+  });
+
+  it('GET /admin/api/tracks/:id.mp3 returns 401 without auth', async () => {
+    const res = await SELF.fetch('http://localhost/admin/api/tracks/some-id.mp3', {
+      method: 'GET',
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /admin/api/tracks/:id.mp3 returns 404 when track missing', async () => {
+    const res = await SELF.fetch('http://localhost/admin/api/tracks/nope.mp3', {
+      method: 'GET',
+      headers: { authorization: authHeader() },
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('GET /admin/api/tracks/:id.mp3 returns 404 when r2_key is null', async () => {
+    const id = 't-no-r2';
+    await insertTrack(testEnv.CATALOG, {
+      id,
+      genre_slug: 'rock',
+      artist: 'NA',
+      title: 'NT',
+      year: 2011,
+      preview_url: 'https://example.com/n.m4a',
+      added_at: 401,
+    });
+
+    const res = await SELF.fetch(`http://localhost/admin/api/tracks/${id}.mp3`, {
+      method: 'GET',
+      headers: { authorization: authHeader() },
+    });
+    expect(res.status).toBe(404);
+  });
+
   it('POST /admin/api/import: happy iTunes path inserts D1 row and R2 object', async () => {
     vi.stubGlobal(
       'fetch',

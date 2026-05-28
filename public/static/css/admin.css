@@ -262,6 +262,16 @@
   font-size: 0.8rem;
 }
 
+.play-btn {
+  min-width: 4rem;
+}
+
+.play-btn.is-playing {
+  background: var(--color-accent);
+  color: #fff;
+  border-color: var(--color-accent);
+}
+
 /* ---- Responsive ----------------------------------------------------------- */
 
 @media (max-width: 640px) {

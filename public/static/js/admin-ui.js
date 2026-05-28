@@ -152,7 +152,17 @@ export function renderTracksTable(doc, tracks) {
     yearTd.className = 'num';
     yearTd.textContent = String(t.year);
 
-    tr.append(cbTd, genreTd, artistTd, titleTd, yearTd);
+    const playTd = doc.createElement('td');
+    const playBtn = doc.createElement('button');
+    playBtn.type = 'button';
+    playBtn.className = 'btn btn--ghost btn--sm play-btn';
+    playBtn.dataset.action = 'play';
+    playBtn.dataset.id = t.id;
+    playBtn.setAttribute('aria-label', 'Воспроизвести фрагмент');
+    playBtn.textContent = 'Play';
+    playTd.append(playBtn);
+
+    tr.append(cbTd, genreTd, artistTd, titleTd, yearTd, playTd);
     tbody.append(tr);
   }
 }

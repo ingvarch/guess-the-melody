@@ -170,6 +170,32 @@ async function handleTrackById(
   return new Response(null, { status: 204 });
 }
 
+async function handleTrackAudio(
+  req: Request,
+  env: Env,
+  id: string,
+): Promise<Response> {
+  if (req.method !== 'GET') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const row = await getTrack(env.CATALOG, id);
+  if (!row || !row.r2_key) {
+    return new Response('not found', { status: 404 });
+  }
+  const obj = await env.AUDIO.get(row.r2_key);
+  if (!obj) {
+    return new Response('not found', { status: 404 });
+  }
+  const headers: Record<string, string> = {
+    'Content-Type': 'audio/mpeg',
+    'Cache-Control': 'private, max-age=3600',
+  };
+  if (typeof obj.size === 'number') {
+    headers['Content-Length'] = String(obj.size);
+  }
+  return new Response(obj.body, { status: 200, headers });
+}
+
 async function handleImport(req: Request, env: Env): Promise<Response> {
   if (req.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
@@ -256,6 +282,10 @@ export async function handleAdmin(
   }
   if (path === '/admin/api/tracks') {
     return handleTracksIndex(req, env);
+  }
+  const audioMatch = /^\/admin\/api\/tracks\/([^/]+)\.mp3$/.exec(path);
+  if (audioMatch && audioMatch[1]) {
+    return handleTrackAudio(req, env, decodeURIComponent(audioMatch[1]));
   }
   const trackMatch = /^\/admin\/api\/tracks\/([^/]+)$/.exec(path);
   if (trackMatch && trackMatch[1]) {

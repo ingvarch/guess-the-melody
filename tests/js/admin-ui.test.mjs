@@ -73,8 +73,18 @@ test('renderTracksTable creates rows with checkboxes and track data', () => {
   assert.ok(checkbox, 'row must have checkbox');
   assert.equal(checkbox.dataset.id, 't1');
   assert.equal(checkbox.dataset.action, 'select-row');
-  // No per-row delete button anymore (bulk delete replaces it).
-  assert.equal(rows[0].querySelectorAll('button').length, 0);
+});
+
+test('renderTracksTable adds a Play button per row', () => {
+  const doc = makeDoc();
+  const tracks = [
+    { id: 't1', genre_slug: 'rock', artist: 'A', title: 'T1', year: 2000 },
+  ];
+  renderTracksTable(doc, tracks);
+  const playBtn = doc.querySelector('#tracks-body tr[data-id="t1"] button[data-action="play"]');
+  assert.ok(playBtn, 'row must have play button');
+  assert.equal(playBtn.dataset.id, 't1');
+  assert.equal(playBtn.type, 'button');
 });
 
 test('renderTracksTable preserves checkbox checked state across re-renders', () => {

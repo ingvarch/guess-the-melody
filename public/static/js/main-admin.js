@@ -97,6 +97,50 @@ function updateBulkDeleteVisibility() {
     : 'Удалить выбранные';
 }
 
+let currentPlayingBtn = null;
+
+function togglePlay(btn) {
+  const audio = document.getElementById('admin-audio');
+  if (!audio) return;
+  const id = btn.dataset.id;
+  const src = `/admin/api/tracks/${encodeURIComponent(id)}.mp3`;
+
+  // Same button: toggle pause/play.
+  if (currentPlayingBtn === btn && !audio.paused) {
+    audio.pause();
+    return;
+  }
+  if (currentPlayingBtn === btn && audio.paused) {
+    audio.play().catch((e) => setError(document, e.message));
+    return;
+  }
+
+  // Different track: stop previous, restart on this one.
+  if (currentPlayingBtn) markStopped(currentPlayingBtn);
+  audio.src = src;
+  audio.currentTime = 0;
+  audio.play().catch((e) => setError(document, e.message));
+  currentPlayingBtn = btn;
+  markPlaying(btn);
+
+  audio.onpause = () => markStopped(btn);
+  audio.onended = () => {
+    markStopped(btn);
+    currentPlayingBtn = null;
+  };
+  audio.onplay = () => markPlaying(btn);
+}
+
+function markPlaying(btn) {
+  btn.textContent = 'Pause';
+  btn.classList.add('is-playing');
+}
+
+function markStopped(btn) {
+  btn.textContent = 'Play';
+  btn.classList.remove('is-playing');
+}
+
 function wireForms() {
   // Import form.
   const importForm = document.getElementById('import-form');
@@ -182,6 +226,15 @@ function wireForms() {
       if (e.target.closest('input[type="checkbox"][data-action="select-row"]')) {
         updateBulkDeleteVisibility();
       }
+    });
+  }
+
+  // Per-row Play button. Single shared audio element; clicking another row's
+  // button stops whatever is currently playing.
+  if (tracksBody) {
+    tracksBody.addEventListener('click', (e) => {
+      const btn = e.target.closest('button[data-action="play"]');
+      if (btn) togglePlay(btn);
     });
   }
 
