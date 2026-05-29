@@ -26,6 +26,9 @@ import {
   closeTrackEditor,
   readTrackEditor,
   setTrackEditorError,
+  openTrackImporter,
+  closeTrackImporter,
+  readTrackImporter,
   openGenreEditor,
   openGenreCreator,
   closeGenreEditor,
@@ -253,35 +256,53 @@ function wireGenreEditor() {
   });
 }
 
-function wireForms() {
-  // Import form.
-  const importForm = document.getElementById('import-form');
-  if (importForm) {
-    importForm.addEventListener('submit', async (e) => {
+function wireTrackImporter() {
+  // Add Track button opens the import modal (step 1). Only active genres are
+  // valid import targets.
+  document.getElementById('track-add-btn')?.addEventListener('click', () =>
+    openTrackImporter(document, currentGenres.filter((g) => !g.archived)),
+  );
+
+  const form = document.getElementById('track-import-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const url = document.getElementById('import-url')?.value.trim();
-      const genreSlug = document.getElementById('import-genre')?.value;
-      const itunesIdRaw = document.getElementById('import-itunes-id')?.value;
-      const itunesIdOverride = itunesIdRaw ? Number(itunesIdRaw) : undefined;
-      if (!url || !genreSlug) return;
-      setImportStatus(document, 'Импорт...');
+      const { url, genreSlug, itunesIdOverride } = readTrackImporter(document);
+      if (!url || !genreSlug) {
+        setImportStatus(document, 'Укажите ссылку и жанр', true);
+        return;
+      }
+      const payload = { url, genreSlug };
+      if (itunesIdOverride && Number.isFinite(itunesIdOverride)) {
+        payload.itunesIdOverride = itunesIdOverride;
+      }
+      setImportStatus(document, 'Импорт... качаем превью');
       try {
-        const payload = { url, genreSlug };
-        if (itunesIdOverride && Number.isFinite(itunesIdOverride)) {
-          payload.itunesIdOverride = itunesIdOverride;
-        }
-        await importTrack(fetch, payload);
-        setImportStatus(document, 'Готово!');
-        document.getElementById('import-url').value = '';
-        document.getElementById('import-itunes-id').value = '';
+        const created = await importTrack(fetch, payload);
         await refreshStats();
         await refreshTracks(0);
         await refreshGenres();
-      } catch (e) {
-        setImportStatus(document, e.message, true);
+        // Hand off to the editor so genre/title can be corrected (iTunes often
+        // returns transliterated names). genre_slug comes from the import form.
+        closeTrackImporter(document);
+        openTrackEditor(document, { ...created, genre_slug: genreSlug }, currentGenres);
+      } catch (err) {
+        setImportStatus(document, err.message, true);
       }
     });
   }
+
+  document.getElementById('track-import-cancel')?.addEventListener('click', () => closeTrackImporter(document));
+  document.getElementById('track-import-backdrop')?.addEventListener('click', () => closeTrackImporter(document));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('track-import')?.hasAttribute('hidden')) {
+      closeTrackImporter(document);
+    }
+  });
+}
+
+function wireForms() {
+  wireTrackImporter();
 
   // Add Genre button — opens the shared editor modal in create mode.
   document.getElementById('genre-add-btn')?.addEventListener('click', () => openGenreCreator(document));

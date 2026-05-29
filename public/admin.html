@@ -193,8 +193,10 @@
 </section>
 <!-- Song Library View -->
 <section hidden class="p-margin-mobile md:p-margin-desktop space-y-gutter" id="catalogue-view">
-<!-- Library stats: live counts pulled from /admin/api/stats. -->
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-gutter">
+<!-- Library stats: live counts pulled from /admin/api/stats. Add Track sits in
+     this row, mirroring the Add Genre button on the Genres view. -->
+<div class="flex items-stretch gap-gutter flex-wrap">
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-gutter flex-1 min-w-[260px]">
 <div class="glass-card rounded-xl p-5 flex flex-col gap-1">
 <span class="font-label-caps text-label-caps text-on-surface-variant">Tracks</span>
 <span id="stat-total-tracks" class="font-display-sm text-display-sm text-primary num leading-none">—</span>
@@ -208,23 +210,8 @@
 <span id="stat-active-genres" class="font-display-sm text-display-sm text-tertiary num leading-none">—</span>
 </div>
 </div>
-<!-- Add Track: a dedicated card so importing never gets confused with searching. -->
-<div class="glass-card rounded-xl p-5 space-y-3">
-<div class="flex items-center justify-between gap-3 flex-wrap">
-<h3 class="font-label-caps text-label-caps text-secondary tracking-widest">ADD TRACK</h3>
-<span id="import-status" class="import-status font-label-mono text-label-mono"></span>
-</div>
-<form id="import-form" class="flex flex-col md:flex-row items-stretch gap-3">
-<div class="flex-1 relative">
-<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">link</span>
-<input id="import-url" type="url" required class="w-full bg-surface-container-low border border-outline-variant rounded-lg pl-12 pr-4 py-3 focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all font-body-md text-body-md" placeholder="Spotify or iTunes track URL"/>
-</div>
-<select id="import-genre" required aria-label="Import genre"
-  class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 md:w-44"></select>
-<input id="import-itunes-id" type="number" min="1" placeholder="iTunes ID (optional)"
-  class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50 num md:w-40"/>
-<button type="submit" class="bg-secondary text-on-secondary px-6 py-3 rounded-lg text-label-caps font-bold hover:scale-105 active:scale-95 transition-all whitespace-nowrap">ADD TRACK</button>
-</form>
+<button id="track-add-btn" type="button" class="shrink-0 self-stretch bg-secondary text-on-secondary px-6 rounded-xl text-label-caps font-bold hover:scale-105 active:scale-95 transition-all whitespace-nowrap flex items-center gap-2">
+<span class="material-symbols-outlined">add</span>Add Track</button>
 </div>
 <!-- Search / filter the existing library. -->
 <div class="flex flex-col md:flex-row gap-3 items-center">
@@ -367,6 +354,41 @@
 </div>
 <button id="genre-edit-save" type="submit"
   class="bg-primary text-on-primary px-6 py-3 rounded-lg text-label-caps font-bold hover:scale-105 active:scale-95 transition-all">Save</button>
+</div>
+</form>
+</div>
+</div>
+<!-- Track Import Modal: step 1 of adding a track. On success it hands off to the
+     Edit Track modal so metadata (genre, title) can be corrected. Hidden by default. -->
+<div id="track-import" hidden class="fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile">
+<div id="track-import-backdrop" class="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
+<div role="dialog" aria-modal="true" aria-labelledby="track-import-title" class="glass-card relative z-10 w-full max-w-md rounded-xl p-6 space-y-5 shadow-2xl">
+<div class="flex items-center justify-between gap-3">
+<h3 id="track-import-title" class="font-headline-lg text-headline-lg-mobile text-on-surface">Add Track</h3>
+<button id="track-import-cancel" type="button" aria-label="Закрыть" class="text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<form id="track-import-form" class="space-y-4">
+<label class="block space-y-1.5">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Spotify or iTunes URL</span>
+<input id="import-url" type="url" required placeholder="https://…"
+  class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all font-body-md text-body-md"/>
+</label>
+<label class="block space-y-1.5">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Genre</span>
+<select id="import-genre" required aria-label="Import genre"
+  class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-3 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/50"></select>
+</label>
+<label class="block space-y-1.5">
+<span class="font-label-caps text-label-caps text-on-surface-variant">iTunes ID (optional)</span>
+<input id="import-itunes-id" type="number" min="1" placeholder="напр. 1440834367"
+  class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-secondary/50 num"/>
+</label>
+<p id="import-status" role="status" aria-live="polite" class="import-status font-label-mono text-label-mono min-h-[1.25rem]"></p>
+<div class="flex items-center justify-end gap-3 pt-1">
+<button id="track-import-submit" type="submit"
+  class="bg-secondary text-on-secondary px-6 py-3 rounded-lg text-label-caps font-bold hover:scale-105 active:scale-95 transition-all">Import</button>
 </div>
 </form>
 </div>

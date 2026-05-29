@@ -211,6 +211,36 @@ export function setTrackEditorError(doc, msg) {
   if (el) el.textContent = msg;
 }
 
+// ---- Track import modal ----
+
+// Step 1 of adding a track. Resets fields, populates the genre select, reveals
+// the modal. On a successful import the caller hands off to openTrackEditor.
+export function openTrackImporter(doc, genres) {
+  populateGenreSelect(doc, genres, 'import-genre');
+  const url = doc.getElementById('import-url');
+  if (url) url.value = '';
+  const itunes = doc.getElementById('import-itunes-id');
+  if (itunes) itunes.value = '';
+  setImportStatus(doc, '');
+  const overlay = doc.getElementById('track-import');
+  if (overlay) overlay.removeAttribute('hidden');
+}
+
+export function closeTrackImporter(doc) {
+  const overlay = doc.getElementById('track-import');
+  if (overlay) overlay.setAttribute('hidden', '');
+}
+
+export function readTrackImporter(doc) {
+  const out = {
+    url: (doc.getElementById('import-url')?.value ?? '').trim(),
+    genreSlug: doc.getElementById('import-genre')?.value ?? '',
+  };
+  const raw = doc.getElementById('import-itunes-id')?.value;
+  if (raw) out.itunesIdOverride = Number(raw);
+  return out;
+}
+
 // ---- Genre editor modal ----
 
 function setHidden(el, hidden) {

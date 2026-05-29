@@ -79,6 +79,9 @@ const {
   closeTrackEditor,
   readTrackEditor,
   setTrackEditorError,
+  openTrackImporter,
+  closeTrackImporter,
+  readTrackImporter,
   openGenreEditor,
   openGenreCreator,
   closeGenreEditor,
@@ -367,6 +370,67 @@ test('admin.html ships the track editor modal hidden with fields and buttons', (
   assert.ok(doc.getElementById('track-edit-save'), 'has save button');
   assert.ok(doc.getElementById('track-edit-delete'), 'has delete button');
   assert.ok(doc.getElementById('track-edit-cancel'), 'has cancel button');
+});
+
+test('Song Library view has an Add Track button and no inline import form', () => {
+  const doc = adminDoc();
+  const view = doc.getElementById('catalogue-view');
+  assert.ok(view.querySelector('#track-add-btn'), 'has Add Track button');
+  assert.equal(doc.getElementById('import-form'), null, 'inline import form removed');
+});
+
+test('admin.html ships the track import modal hidden with fields and buttons', () => {
+  const doc = adminDoc();
+  const overlay = doc.getElementById('track-import');
+  assert.ok(overlay, 'modal overlay #track-import exists');
+  assert.equal(overlay.hasAttribute('hidden'), true, 'modal starts hidden');
+  assert.ok(doc.getElementById('track-import-form'), 'has form');
+  assert.ok(doc.getElementById('import-url'), 'has url input');
+  assert.ok(doc.getElementById('import-genre'), 'has genre select');
+  assert.ok(doc.getElementById('import-itunes-id'), 'has itunes id input');
+  assert.ok(doc.getElementById('track-import-submit'), 'has import button');
+  assert.ok(doc.getElementById('track-import-cancel'), 'has cancel button');
+});
+
+test('openTrackImporter populates genres, clears fields and reveals the modal', () => {
+  const doc = adminDoc();
+  doc.getElementById('import-url').value = 'stale';
+  doc.getElementById('import-itunes-id').value = '999';
+  openTrackImporter(doc, [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }]);
+  assert.equal(doc.getElementById('track-import').hasAttribute('hidden'), false);
+  assert.equal(doc.getElementById('import-url').value, '');
+  assert.equal(doc.getElementById('import-itunes-id').value, '');
+  // genre select got options (placeholder + 2).
+  assert.equal(doc.getElementById('import-genre').children.length, 3);
+});
+
+test('closeTrackImporter hides the modal again', () => {
+  const doc = adminDoc();
+  openTrackImporter(doc, [{ slug: 'rock', name: 'Rock' }]);
+  closeTrackImporter(doc);
+  assert.equal(doc.getElementById('track-import').hasAttribute('hidden'), true);
+});
+
+test('readTrackImporter returns url, genre and optional iTunes id', () => {
+  const doc = adminDoc();
+  openTrackImporter(doc, [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }]);
+  doc.getElementById('import-url').value = '  https://open.spotify.com/track/x  ';
+  doc.getElementById('import-genre').value = 'pop';
+  doc.getElementById('import-itunes-id').value = '12345';
+  assert.deepEqual(readTrackImporter(doc), {
+    url: 'https://open.spotify.com/track/x',
+    genreSlug: 'pop',
+    itunesIdOverride: 12345,
+  });
+});
+
+test('readTrackImporter omits iTunes id when blank', () => {
+  const doc = adminDoc();
+  openTrackImporter(doc, [{ slug: 'rock', name: 'Rock' }]);
+  doc.getElementById('import-url').value = 'https://music.apple.com/x';
+  doc.getElementById('import-genre').value = 'rock';
+  const out = readTrackImporter(doc);
+  assert.equal(out.itunesIdOverride, undefined);
 });
 
 test('openTrackEditor fills fields from the track and reveals the modal', () => {
