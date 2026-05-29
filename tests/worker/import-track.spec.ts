@@ -129,6 +129,91 @@ describe('importer/import-track', () => {
     }
   });
 
+  function embedHtml(entity: unknown): string {
+    const data = { props: { pageProps: { state: { data: { entity } } } } };
+    return `<!doctype html><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(data)}</script></body>`;
+  }
+
+  it('imports a Spotify URL via the embed page (preview straight from Spotify, no iTunes id)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      routedFetch([
+        {
+          match: (u) => u.includes('open.spotify.com/embed/track'),
+          respond: () => new Response(embedHtml({
+            title: 'Sweet Child o\' Mine',
+            artists: [{ name: 'Guns N\' Roses' }],
+            releaseDate: { isoString: '1987-08-21T00:00:00Z' },
+            audioPreview: { url: 'https://p.scdn.co/mp3-preview/scom' },
+            duration: 356_000,
+          }), { status: 200 }),
+        },
+        {
+          match: (u) => u.includes('p.scdn.co/mp3-preview/scom'),
+          respond: () => audioResponse(PREVIEW_PAYLOAD),
+        },
+      ]),
+    );
+
+    const out = await importTrack(testEnv, {
+      url: 'https://open.spotify.com/track/7snQQk1zcKl8gZ92AnueZW',
+      genreSlug: 'rock',
+    });
+
+    expect('id' in out).toBe(true);
+    if ('id' in out) {
+      expect(out.artist).toBe('Guns N\' Roses');
+      expect(out.year).toBe(1987);
+      const row = await getTrack(testEnv.CATALOG, out.id);
+      expect(row?.itunes_id).toBeNull();
+      expect(row?.preview_url).toBe('https://p.scdn.co/mp3-preview/scom');
+    }
+  });
+
+  it('falls back to the iTunes match when the embed yields no preview', async () => {
+    vi.stubGlobal(
+      'fetch',
+      routedFetch([
+        {
+          // Embed reachable but missing the preview -> resolver must fall back.
+          match: (u) => u.includes('open.spotify.com/embed/track'),
+          respond: () => new Response(embedHtml({
+            title: 'Sweet Child o\' Mine',
+            artists: [{ name: 'Guns N\' Roses' }],
+            releaseDate: { isoString: '1987-08-21T00:00:00Z' },
+          }), { status: 200 }),
+        },
+        {
+          match: (u) => u.includes('accounts.spotify.com/api/token'),
+          respond: () => jsonResponse({ access_token: 'tok123', token_type: 'Bearer' }),
+        },
+        {
+          match: (u) => u.includes('api.spotify.com/v1/tracks'),
+          respond: () => jsonResponse({ name: "Sweet Child o' Mine", artists: [{ name: "Guns N' Roses" }] }),
+        },
+        {
+          match: (u) => u.includes('itunes.apple.com/search'),
+          respond: () => jsonResponse(itunesTrackJson),
+        },
+        {
+          match: (u) => u.includes('audio-ssl.itunes.apple.com/preview.m4a'),
+          respond: () => audioResponse(PREVIEW_PAYLOAD),
+        },
+      ]),
+    );
+
+    const out = await importTrack(testEnv, {
+      url: 'https://open.spotify.com/track/7snQQk1zcKl8gZ92AnueZW',
+      genreSlug: 'rock',
+    });
+
+    expect('id' in out).toBe(true);
+    if ('id' in out) {
+      const row = await getTrack(testEnv.CATALOG, out.id);
+      expect(row?.itunes_id).toBe(716135809); // came from the iTunes fallback
+    }
+  });
+
   it('imports a Spotify URL with a unique iTunes match', async () => {
     vi.stubGlobal(
       'fetch',

@@ -45,6 +45,77 @@ export function parseSpotifyUrl(url: string): { providerId: string } | null {
   return { providerId: id };
 }
 
+export interface SpotifyEmbedTrack {
+  artist: string;
+  title: string;
+  year: number;
+  previewUrl: string;
+  durationMs: number | null;
+}
+
+const EMBED_BASE = 'https://open.spotify.com/embed/track/';
+
+interface EmbedEntity {
+  title?: unknown;
+  artists?: Array<{ name?: unknown }>;
+  releaseDate?: { isoString?: unknown };
+  audioPreview?: { url?: unknown };
+  duration?: unknown;
+}
+
+// Pulls track metadata + the 30s preview straight from Spotify's embed page,
+// which still ships an `audioPreview.url` (p.scdn.co) even though the Web API
+// stopped returning preview_url. No auth needed. Unofficial: returns null on
+// any shape change so the caller can fall back to the iTunes match path.
+export async function fetchSpotifyEmbedTrack(url: string): Promise<SpotifyEmbedTrack | null> {
+  const parsed = parseSpotifyUrl(url);
+  if (!parsed) return null;
+
+  let html: string;
+  try {
+    const res = await fetch(`${EMBED_BASE}${parsed.providerId}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; GuessTheMelody/1.0)' },
+    });
+    if (!res.ok) return null;
+    html = await res.text();
+  } catch {
+    return null;
+  }
+
+  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m || !m[1]) return null;
+
+  let entity: EmbedEntity | undefined;
+  try {
+    const parsedJson = JSON.parse(m[1]) as {
+      props?: { pageProps?: { state?: { data?: { entity?: EmbedEntity } } } };
+    };
+    entity = parsedJson.props?.pageProps?.state?.data?.entity;
+  } catch {
+    return null;
+  }
+  if (!entity) return null;
+
+  const title = typeof entity.title === 'string' ? entity.title : '';
+  const artist =
+    Array.isArray(entity.artists) && typeof entity.artists[0]?.name === 'string'
+      ? entity.artists[0].name
+      : '';
+  const previewUrl =
+    typeof entity.audioPreview?.url === 'string' ? entity.audioPreview.url : '';
+  if (!title || !artist || !previewUrl) return null;
+
+  let year = 0;
+  const iso = entity.releaseDate?.isoString;
+  if (typeof iso === 'string') {
+    const y = new Date(iso).getUTCFullYear();
+    if (Number.isFinite(y)) year = y;
+  }
+  const durationMs = typeof entity.duration === 'number' ? entity.duration : null;
+
+  return { artist, title, year, previewUrl, durationMs };
+}
+
 async function getAccessToken(clientId: string, clientSecret: string): Promise<string> {
   const res = await fetch(TOKEN_URL, {
     method: 'POST',

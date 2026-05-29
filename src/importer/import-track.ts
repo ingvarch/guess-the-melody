@@ -14,7 +14,12 @@ import {
   yearFromItunes,
   type ItunesTrack,
 } from './itunes';
-import { matchItunesForSpotify, parseSpotifyUrl, type MatchCandidate } from './spotify';
+import {
+  fetchSpotifyEmbedTrack,
+  matchItunesForSpotify,
+  parseSpotifyUrl,
+  type MatchCandidate,
+} from './spotify';
 import { deletePreviewFromR2, downloadPreviewToR2 } from './r2';
 
 export type ImportError =
@@ -31,11 +36,35 @@ export interface ImportSuccess {
   year: number;
 }
 
+// Provider-agnostic resolved track. itunesId is null for Spotify embed imports
+// (no iTunes row exists); dedupe then leans on the (artist, title, year) index.
+interface ResolvedTrack {
+  itunesId: number | null;
+  artist: string;
+  title: string;
+  year: number;
+  previewUrl: string;
+  durationMs: number | null;
+  artworkUrl: string | null;
+}
+
 type ResolveResult =
-  | { kind: 'ok'; track: ItunesTrack }
+  | { kind: 'ok'; track: ResolvedTrack }
   | { kind: 'err'; err: ImportError };
 
-async function resolveItunes(
+function itunesToResolved(t: ItunesTrack): ResolvedTrack {
+  return {
+    itunesId: t.trackId,
+    artist: t.artistName,
+    title: t.trackName,
+    year: yearFromItunes(t),
+    previewUrl: t.previewUrl,
+    durationMs: t.trackTimeMillis ?? null,
+    artworkUrl: t.artworkUrl100 ?? null,
+  };
+}
+
+async function resolveTrack(
   env: Env,
   opts: {
     url: string;
@@ -50,7 +79,7 @@ async function resolveItunes(
         err: { code: 'no_preview', message: 'iTunes id override yielded no usable track' },
       };
     }
-    return { kind: 'ok', track: t };
+    return { kind: 'ok', track: itunesToResolved(t) };
   }
 
   const itunes = parseItunesUrl(opts.url);
@@ -62,11 +91,30 @@ async function resolveItunes(
         err: { code: 'no_preview', message: 'iTunes lookup returned no usable track' },
       };
     }
-    return { kind: 'ok', track: t };
+    return { kind: 'ok', track: itunesToResolved(t) };
   }
 
   const spotify = parseSpotifyUrl(opts.url);
   if (spotify) {
+    // Preferred path: pull the preview straight from Spotify's embed page.
+    const embed = await fetchSpotifyEmbedTrack(opts.url).catch(() => null);
+    if (embed) {
+      return {
+        kind: 'ok',
+        track: {
+          itunesId: null,
+          artist: embed.artist,
+          title: embed.title,
+          year: embed.year,
+          previewUrl: embed.previewUrl,
+          durationMs: embed.durationMs,
+          artworkUrl: null,
+        },
+      };
+    }
+
+    // Fallback: the embed broke or had no preview — match against iTunes
+    // (official, but plays the iTunes preview). itunesIdOverride still refines.
     let match;
     try {
       match = await matchItunesForSpotify(
@@ -78,7 +126,7 @@ async function resolveItunes(
       const msg = e instanceof Error ? e.message : 'spotify metadata fetch failed';
       return { kind: 'err', err: { code: 'no_preview', message: `spotify: ${msg}` } };
     }
-    if (match.kind === 'unique') return { kind: 'ok', track: match.track };
+    if (match.kind === 'unique') return { kind: 'ok', track: itunesToResolved(match.track) };
     if (match.kind === 'ambiguous') {
       return {
         kind: 'err',
@@ -119,29 +167,32 @@ export async function importTrack(
   const genre = await getGenre(env.CATALOG, opts.genreSlug);
   if (!genre) return { code: 'unknown_genre', message: 'Неизвестный жанр' };
 
-  // 2. Resolve URL → ItunesTrack (or a typed error).
-  const resolved = await resolveItunes(env, {
+  // 2. Resolve URL → ResolvedTrack (or a typed error). Spotify URLs prefer the
+  // embed preview and fall back to an iTunes match.
+  const resolved = await resolveTrack(env, {
     url: opts.url,
     ...(opts.itunesIdOverride !== undefined ? { itunesIdOverride: opts.itunesIdOverride } : {}),
   });
   if (resolved.kind === 'err') return resolved.err;
   const t = resolved.track;
 
-  // 3. Dedupe by iTunes id before any R2 work.
-  const existing = await getTrackByItunesId(env.CATALOG, t.trackId);
-  if (existing) {
-    return {
-      code: 'duplicate',
-      message: `Трек уже есть в каталоге: ${existing.artist} – ${existing.title}`,
-      existingId: existing.id,
-    };
+  // 3. Dedupe by iTunes id before any R2 work (only when we have one — Spotify
+  // embed imports carry no itunes_id, so they dedupe on the insert below).
+  if (t.itunesId !== null) {
+    const existing = await getTrackByItunesId(env.CATALOG, t.itunesId);
+    if (existing) {
+      return {
+        code: 'duplicate',
+        message: `Трек уже есть в каталоге: ${existing.artist} – ${existing.title}`,
+        existingId: existing.id,
+      };
+    }
   }
 
-  // 4. Validate release year before any R2 work. yearFromItunes returns 0
-  // for malformed/missing releaseDate; the plausible-year window catches that.
-  const year = yearFromItunes(t);
-  if (!isPlausibleYear(year)) {
-    return { code: 'no_preview', message: 'iTunes track missing or invalid release year' };
+  // 4. Validate release year before any R2 work. A 0/malformed year is caught
+  // by the plausible-year window.
+  if (!isPlausibleYear(t.year)) {
+    return { code: 'no_preview', message: 'track missing or invalid release year' };
   }
 
   // 5. Generate internal id, download preview, insert row. On D1 unique-
@@ -162,15 +213,15 @@ export async function importTrack(
     await insertTrack(env.CATALOG, {
       id,
       genre_slug: opts.genreSlug,
-      artist: t.artistName,
-      title: t.trackName,
-      year,
-      itunes_id: t.trackId,
+      artist: t.artist,
+      title: t.title,
+      year: t.year,
+      itunes_id: t.itunesId,
       source_url: opts.url,
       preview_url: t.previewUrl,
       r2_key: r2Key,
-      duration_ms: t.trackTimeMillis ?? null,
-      artwork_url: t.artworkUrl100 ?? null,
+      duration_ms: t.durationMs,
+      artwork_url: t.artworkUrl,
       added_at: Date.now(),
     });
   } catch (err) {
@@ -182,10 +233,9 @@ export async function importTrack(
       /* leak orphan R2 object; original error wins */
     }
     if (isUniqueConstraintError(err)) {
-      // Try to surface the colliding row's id. If we collided on itunes_id,
-      // getTrackByItunesId will find it; otherwise (artist, title, year)
-      // dedupe — no easy lookup, so omit existingId precision.
-      const dupe = await getTrackByItunesId(env.CATALOG, t.trackId);
+      // Surface the colliding row's id when we collided on itunes_id; the
+      // (artist, title, year) index has no easy reverse lookup, so omit it.
+      const dupe = t.itunesId !== null ? await getTrackByItunesId(env.CATALOG, t.itunesId) : null;
       const msg = dupe
         ? `Трек уже есть в каталоге: ${dupe.artist} – ${dupe.title}`
         : 'Трек уже есть в каталоге';
@@ -194,5 +244,5 @@ export async function importTrack(
     throw err;
   }
 
-  return { id, artist: t.artistName, title: t.trackName, year };
+  return { id, artist: t.artist, title: t.title, year: t.year };
 }

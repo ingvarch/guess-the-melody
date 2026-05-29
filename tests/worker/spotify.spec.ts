@@ -2,6 +2,7 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  fetchSpotifyEmbedTrack,
   matchItunesForSpotify,
   metadataFromSpotify,
   parseSpotifyUrl,
@@ -63,6 +64,61 @@ describe('importer/spotify', () => {
 
     it('returns null for a non-track Spotify URL', () => {
       expect(parseSpotifyUrl('https://open.spotify.com/album/abc')).toBeNull();
+    });
+  });
+
+  describe('fetchSpotifyEmbedTrack', () => {
+    function embedHtml(entity: unknown): string {
+      const data = { props: { pageProps: { state: { data: { entity } } } } };
+      return `<!doctype html><html><body><script id="__NEXT_DATA__" type="application/json">${JSON.stringify(data)}</script></body></html>`;
+    }
+    const fullEntity = {
+      title: 'Never Gonna Give You Up',
+      artists: [{ name: 'Rick Astley' }],
+      releaseDate: { isoString: '1987-11-12T00:00:00Z' },
+      audioPreview: { url: 'https://p.scdn.co/mp3-preview/abc123' },
+      duration: 213_000,
+    };
+
+    it('parses artist, title, year, preview and duration from the embed page', async () => {
+      vi.stubGlobal('fetch', mockFetch({
+        'open.spotify.com/embed/track': () => new Response(embedHtml(fullEntity), { status: 200 }),
+      }));
+      const out = await fetchSpotifyEmbedTrack('https://open.spotify.com/track/abc');
+      expect(out).toEqual({
+        artist: 'Rick Astley',
+        title: 'Never Gonna Give You Up',
+        year: 1987,
+        previewUrl: 'https://p.scdn.co/mp3-preview/abc123',
+        durationMs: 213_000,
+      });
+    });
+
+    it('returns null when the embed has no audioPreview', async () => {
+      const noPreview = { ...fullEntity, audioPreview: undefined };
+      vi.stubGlobal('fetch', mockFetch({
+        'open.spotify.com/embed/track': () => new Response(embedHtml(noPreview), { status: 200 }),
+      }));
+      expect(await fetchSpotifyEmbedTrack('https://open.spotify.com/track/abc')).toBeNull();
+    });
+
+    it('returns null when __NEXT_DATA__ is absent', async () => {
+      vi.stubGlobal('fetch', mockFetch({
+        'open.spotify.com/embed/track': () => new Response('<html><body>nope</body></html>', { status: 200 }),
+      }));
+      expect(await fetchSpotifyEmbedTrack('https://open.spotify.com/track/abc')).toBeNull();
+    });
+
+    it('returns null on a non-2xx embed response', async () => {
+      vi.stubGlobal('fetch', mockFetch({
+        'open.spotify.com/embed/track': () => new Response('', { status: 404 }),
+      }));
+      expect(await fetchSpotifyEmbedTrack('https://open.spotify.com/track/abc')).toBeNull();
+    });
+
+    it('returns null for a non-Spotify URL without fetching', async () => {
+      vi.stubGlobal('fetch', vi.fn(async () => { throw new Error('must not fetch'); }));
+      expect(await fetchSpotifyEmbedTrack('https://music.apple.com/x')).toBeNull();
     });
   });
 
