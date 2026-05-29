@@ -286,16 +286,16 @@
 </div>
 <!-- Genres table -->
 <div class="glass-card rounded-xl overflow-hidden">
-<table class="admin-table w-full">
+<table class="w-full text-left border-collapse">
 <thead class="bg-surface-container-high">
 <tr>
-<th class="font-label-caps text-label-caps text-on-surface-variant">Slug</th>
-<th class="font-label-caps text-label-caps text-on-surface-variant">Name</th>
-<th class="font-label-caps text-label-caps text-on-surface-variant">Emoji</th>
-<th class="font-label-caps text-label-caps text-on-surface-variant">Order</th>
-<th class="font-label-caps text-label-caps text-on-surface-variant">Tracks</th>
-<th class="font-label-caps text-label-caps text-on-surface-variant">Status</th>
-<th class="font-label-caps text-label-caps text-on-surface-variant"></th>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Slug</th>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Name</th>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Emoji</th>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Order</th>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Tracks</th>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Status</th>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Actions</th>
 </tr>
 </thead>
 <tbody id="genres-body" class="divide-y divide-outline-variant/10"></tbody>
@@ -339,6 +339,50 @@
 <button id="track-edit-delete" type="button"
   class="px-4 py-3 rounded-lg border border-error/40 text-error hover:bg-error/10 transition-colors font-label-caps text-label-caps">Delete</button>
 <button id="track-edit-save" type="submit"
+  class="bg-primary text-on-primary px-6 py-3 rounded-lg text-label-caps font-bold hover:scale-105 active:scale-95 transition-all">Save</button>
+</div>
+</form>
+</div>
+</div>
+<!-- Genre Editor Modal: dimmed backdrop + centered glass card. Hidden by default. -->
+<div id="genre-editor" hidden class="fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile">
+<div id="genre-editor-backdrop" class="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
+<div role="dialog" aria-modal="true" aria-labelledby="genre-editor-title" class="glass-card relative z-10 w-full max-w-md rounded-xl p-6 space-y-5 shadow-2xl">
+<div class="flex items-center justify-between gap-3">
+<h3 id="genre-editor-title" class="font-headline-lg text-headline-lg-mobile text-on-surface">Edit Genre</h3>
+<button id="genre-edit-cancel" type="button" aria-label="Закрыть" class="text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<form id="genre-editor-form" class="space-y-4">
+<div class="space-y-1.5">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Slug</span>
+<p id="genre-edit-slug" class="font-label-mono text-label-mono text-on-surface-variant px-1 py-2"></p>
+</div>
+<label class="block space-y-1.5">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Name</span>
+<input id="genre-edit-name" type="text" required maxlength="40"
+  class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-body-md text-body-md"/>
+</label>
+<label class="block space-y-1.5">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Emoji</span>
+<input id="genre-edit-emoji" type="text" maxlength="8"
+  class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-center"/>
+</label>
+<label class="block space-y-1.5">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Order</span>
+<input id="genre-edit-sort" type="number" required
+  class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all num"/>
+</label>
+<p id="genre-edit-error" role="alert" aria-live="polite" class="text-error font-label-mono text-label-mono min-h-[1.25rem]"></p>
+<div class="flex items-center justify-between gap-3 pt-1 flex-wrap">
+<div class="flex gap-3">
+<button id="genre-edit-delete" type="button"
+  class="px-4 py-3 rounded-lg border border-error/40 text-error hover:bg-error/10 transition-colors font-label-caps text-label-caps">Delete</button>
+<button id="genre-edit-archive" type="button"
+  class="px-4 py-3 rounded-lg border border-outline-variant text-on-surface-variant hover:text-secondary hover:border-secondary transition-colors font-label-caps text-label-caps">В архив</button>
+</div>
+<button id="genre-edit-save" type="submit"
   class="bg-primary text-on-primary px-6 py-3 rounded-lg text-label-caps font-bold hover:scale-105 active:scale-95 transition-all">Save</button>
 </div>
 </form>

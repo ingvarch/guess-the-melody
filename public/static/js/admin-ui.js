@@ -4,93 +4,62 @@ function clearChildren(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
+// Read-only rows in Song Library style; editing happens in the genre modal.
+// Pure DOM — the edit click is delegated in main-admin.
 export function renderGenresTable(doc, genres, opts = {}) {
-  const { counts = {}, callbacks } = opts;
+  const { counts = {} } = opts;
   const tbody = doc.getElementById('genres-body');
   if (!tbody) return;
   clearChildren(tbody);
 
   for (const g of genres) {
     const tr = doc.createElement('tr');
+    tr.dataset.slug = g.slug;
 
     const slugTd = doc.createElement('td');
+    slugTd.className = 'px-6 py-4 font-label-mono text-label-mono';
     slugTd.textContent = g.slug;
 
     const nameTd = doc.createElement('td');
-    const nameInput = doc.createElement('input');
-    nameInput.type = 'text';
-    nameInput.value = g.name;
-    nameInput.dataset.field = 'name';
-    nameInput.dataset.slug = g.slug;
-    nameTd.append(nameInput);
+    nameTd.className = 'px-6 py-4';
+    nameTd.textContent = g.name;
 
     const emojiTd = doc.createElement('td');
-    const emojiInput = doc.createElement('input');
-    emojiInput.type = 'text';
-    emojiInput.value = g.emoji ?? '';
-    emojiInput.dataset.field = 'emoji';
-    emojiInput.dataset.slug = g.slug;
-    emojiTd.append(emojiInput);
+    emojiTd.className = 'px-6 py-4 text-center';
+    emojiTd.textContent = g.emoji ?? '';
 
     const sortTd = doc.createElement('td');
-    const sortInput = doc.createElement('input');
-    sortInput.type = 'number';
-    sortInput.value = String(g.sort_order);
-    sortInput.dataset.field = 'sort_order';
-    sortInput.dataset.slug = g.slug;
-    sortTd.append(sortInput);
+    sortTd.className = 'px-6 py-4 text-center num';
+    sortTd.textContent = String(g.sort_order);
 
     const countTd = doc.createElement('td');
     countTd.dataset.cell = 'count';
-    countTd.className = 'num';
+    countTd.className = 'px-6 py-4 text-center num';
     countTd.textContent = String(counts[g.slug] ?? 0);
 
     const statusTd = doc.createElement('td');
+    statusTd.className = 'px-6 py-4 text-center';
     const badge = doc.createElement('span');
     badge.className = g.archived ? 'badge badge--archived' : 'badge badge--active';
     badge.textContent = g.archived ? 'Архив' : 'Активен';
     statusTd.append(badge);
 
     const actionsTd = doc.createElement('td');
+    actionsTd.className = 'px-6 py-4 text-center';
+    const actions = doc.createElement('div');
+    actions.className = 'track-actions';
+    const editBtn = doc.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'icon-btn';
+    editBtn.dataset.action = 'edit';
+    editBtn.dataset.slug = g.slug;
+    editBtn.setAttribute('aria-label', 'Редактировать жанр');
+    editBtn.innerHTML = EDIT_ICON;
+    actions.append(editBtn);
+    actionsTd.append(actions);
 
-    const archiveBtn = doc.createElement('button');
-    archiveBtn.type = 'button';
-    archiveBtn.className = 'btn btn--ghost btn--sm';
-    archiveBtn.textContent = g.archived ? 'Восстановить' : 'В архив';
-    archiveBtn.dataset.action = g.archived ? 'unarchive' : 'archive';
-    archiveBtn.dataset.slug = g.slug;
-
-    const delBtn = doc.createElement('button');
-    delBtn.type = 'button';
-    delBtn.className = 'btn btn--ghost btn--sm';
-    delBtn.textContent = 'Удалить';
-    delBtn.dataset.action = 'delete-genre';
-    delBtn.dataset.slug = g.slug;
-
-    actionsTd.append(archiveBtn, delBtn);
     tr.append(slugTd, nameTd, emojiTd, sortTd, countTd, statusTd, actionsTd);
     tbody.append(tr);
-  }
-
-  if (callbacks) {
-    tbody.addEventListener('change', (e) => {
-      const input = e.target.closest('input[data-field]');
-      if (!input) return;
-      const slug = input.dataset.slug;
-      const field = input.dataset.field;
-      const value = input.value;
-      if (callbacks.onEdit) callbacks.onEdit(slug, field, value);
-    });
-
-    tbody.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-action]');
-      if (!btn) return;
-      const slug = btn.dataset.slug;
-      const action = btn.dataset.action;
-      if (action === 'archive' && callbacks.onArchive) callbacks.onArchive(slug, true);
-      if (action === 'unarchive' && callbacks.onArchive) callbacks.onArchive(slug, false);
-      if (action === 'delete-genre' && callbacks.onDelete) callbacks.onDelete(slug);
-    });
   }
 }
 
@@ -243,6 +212,53 @@ export function readTrackEditor(doc) {
 
 export function setTrackEditorError(doc, msg) {
   const el = doc.getElementById('track-edit-error');
+  if (el) el.textContent = msg;
+}
+
+// ---- Genre editor modal ----
+
+// Slug is immutable (the server ignores it), so it is shown read-only. The
+// archive button's label flips on the genre's current state.
+export function openGenreEditor(doc, genre) {
+  const slug = doc.getElementById('genre-edit-slug');
+  if (slug) slug.textContent = genre.slug;
+  const name = doc.getElementById('genre-edit-name');
+  if (name) name.value = genre.name ?? '';
+  const emoji = doc.getElementById('genre-edit-emoji');
+  if (emoji) emoji.value = genre.emoji ?? '';
+  const sort = doc.getElementById('genre-edit-sort');
+  if (sort) sort.value = String(genre.sort_order ?? '');
+  const archiveBtn = doc.getElementById('genre-edit-archive');
+  if (archiveBtn) archiveBtn.textContent = genre.archived ? 'Восстановить' : 'В архив';
+  const form = doc.getElementById('genre-editor-form');
+  if (form) {
+    form.dataset.slug = genre.slug;
+    form.dataset.archived = String(genre.archived ? 1 : 0);
+  }
+  setGenreEditorError(doc, '');
+  const overlay = doc.getElementById('genre-editor');
+  if (overlay) overlay.removeAttribute('hidden');
+}
+
+export function closeGenreEditor(doc) {
+  const overlay = doc.getElementById('genre-editor');
+  if (overlay) overlay.setAttribute('hidden', '');
+}
+
+export function readGenreEditor(doc) {
+  const form = doc.getElementById('genre-editor-form');
+  const emoji = (doc.getElementById('genre-edit-emoji')?.value ?? '').trim();
+  return {
+    slug: form?.dataset.slug ?? '',
+    name: (doc.getElementById('genre-edit-name')?.value ?? '').trim(),
+    emoji: emoji || null,
+    sortOrder: Number(doc.getElementById('genre-edit-sort')?.value),
+    archived: form?.dataset.archived === '1' ? 1 : 0,
+  };
+}
+
+export function setGenreEditorError(doc, msg) {
+  const el = doc.getElementById('genre-edit-error');
   if (el) el.textContent = msg;
 }
 

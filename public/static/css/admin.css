@@ -1,41 +1,8 @@
 /* Admin — Sonic Pulse. Most styling is Tailwind utilities in admin.html and
  * the Catalogue tab inside host.html. This stylesheet holds rules tied to the
- * DOM that admin-ui.js emits (genres table inputs, status badges, table cell
- * borders, play-button states) — Tailwind can't be applied to JS-generated
- * elements without changing admin-ui.js. */
-
-/* ---- Table cells emitted by admin-ui.js --------------------------------- */
-
-.admin-table th,
-.admin-table td {
-  padding: 0.625rem 0.75rem;
-  text-align: left;
-  border-bottom: 1px solid rgba(73, 68, 84, 0.3);
-  vertical-align: middle;
-  font-size: 0.9rem;
-}
-
-.admin-table tbody tr:last-child td { border-bottom: none; }
-
-.admin-table tbody tr:hover { background: rgba(208, 188, 255, 0.04); }
-
-/* Inputs inside genres-body rows (rendered by admin-ui.js). */
-.admin-table tbody input[type="text"],
-.admin-table tbody input[type="number"] {
-  background: #1c1b1d;
-  border: 1px solid rgba(73, 68, 84, 0.6);
-  border-radius: 8px;
-  padding: 0.4rem 0.6rem;
-  color: #e5e1e4;
-  width: 100%;
-  font-size: 0.9rem;
-}
-.admin-table tbody input[type="text"]:focus,
-.admin-table tbody input[type="number"]:focus {
-  outline: none;
-  border-color: #d0bcff;
-  box-shadow: 0 0 0 2px rgba(208, 188, 255, 0.3);
-}
+ * DOM that admin-ui.js emits (status badges, play/edit icon-button states) —
+ * Tailwind can't be applied to JS-generated elements without changing
+ * admin-ui.js. */
 
 /* ---- Status badges ------------------------------------------------------- */
 
@@ -58,41 +25,6 @@
   background: rgba(255, 176, 205, 0.15);
   color: #ffb0cd;
   border: 1px solid rgba(255, 176, 205, 0.35);
-}
-
-/* ---- Generic small button (emitted as .btn .btn--ghost .btn--sm) -------- */
-
-.btn,
-.btn--ghost,
-.btn--sm {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  font-family: "JetBrains Mono", monospace;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  transition: color 120ms, border-color 120ms, background 120ms, transform 120ms;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.btn--sm {
-  padding: 0.3rem 0.65rem;
-  font-size: 0.72rem;
-  border-radius: 8px;
-  border: 1px solid rgba(73, 68, 84, 0.6);
-  background: transparent;
-  color: #cbc3d7;
-  margin-right: 0.25rem;
-}
-
-@media (hover: hover) {
-  .btn--sm:hover {
-    color: #d0bcff;
-    border-color: #d0bcff;
-  }
 }
 
 /* Per-row Play button: small round icon, toggles to pause while playing. */

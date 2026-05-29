@@ -26,6 +26,10 @@ import {
   closeTrackEditor,
   readTrackEditor,
   setTrackEditorError,
+  openGenreEditor,
+  closeGenreEditor,
+  readGenreEditor,
+  setGenreEditorError,
 } from './admin-ui.js';
 
 let currentGenres = [];
@@ -47,42 +51,7 @@ async function refreshStats() {
 async function refreshGenres() {
   try {
     currentGenres = await getGenres(fetch);
-    renderGenresTable(document, currentGenres, {
-      counts: currentStats.perGenre,
-      callbacks: {
-        onEdit: async (slug, field, value) => {
-          const payload =
-            field === 'sort_order'
-              ? { sortOrder: Number(value) }
-              : { [field]: value };
-          try {
-            await updateGenre(fetch, slug, payload);
-            await refreshGenres();
-          } catch (e) {
-            setError(document, e.message);
-          }
-        },
-        onArchive: async (slug, archived) => {
-          try {
-            await updateGenre(fetch, slug, { archived });
-            await refreshStats();
-            await refreshGenres();
-          } catch (e) {
-            setError(document, e.message);
-          }
-        },
-        onDelete: async (slug) => {
-          if (!confirm(`Удалить жанр «${slug}»?`)) return;
-          try {
-            await deleteGenre(fetch, slug);
-            await refreshStats();
-            await refreshGenres();
-          } catch (e) {
-            setError(document, e.message);
-          }
-        },
-      },
-    });
+    renderGenresTable(document, currentGenres, { counts: currentStats.perGenre });
     populateGenreSelect(document, currentGenres.filter((g) => !g.archived), 'import-genre');
     populateGenreSelect(document, currentGenres, 'tracks-genre-filter');
   } catch (e) {
@@ -214,6 +183,66 @@ function wireTrackEditor() {
   });
 }
 
+function wireGenreEditor() {
+  const form = document.getElementById('genre-editor-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const { slug, name, emoji, sortOrder } = readGenreEditor(document);
+      if (!name || !Number.isFinite(sortOrder)) {
+        setGenreEditorError(document, 'Заполните название и порядок');
+        return;
+      }
+      try {
+        await updateGenre(fetch, slug, { name, emoji, sortOrder });
+        closeGenreEditor(document);
+        await refreshGenres();
+      } catch (err) {
+        setGenreEditorError(document, err.message);
+      }
+    });
+  }
+
+  const archiveBtn = document.getElementById('genre-edit-archive');
+  if (archiveBtn) {
+    archiveBtn.addEventListener('click', async () => {
+      const { slug, archived } = readGenreEditor(document);
+      try {
+        await updateGenre(fetch, slug, { archived: archived === 0 });
+        closeGenreEditor(document);
+        await refreshStats();
+        await refreshGenres();
+      } catch (err) {
+        setGenreEditorError(document, err.message);
+      }
+    });
+  }
+
+  const delBtn = document.getElementById('genre-edit-delete');
+  if (delBtn) {
+    delBtn.addEventListener('click', async () => {
+      const { slug } = readGenreEditor(document);
+      if (!confirm(`Удалить жанр «${slug}»?`)) return;
+      try {
+        await deleteGenre(fetch, slug);
+        closeGenreEditor(document);
+        await refreshStats();
+        await refreshGenres();
+      } catch (err) {
+        setGenreEditorError(document, err.message);
+      }
+    });
+  }
+
+  document.getElementById('genre-edit-cancel')?.addEventListener('click', () => closeGenreEditor(document));
+  document.getElementById('genre-editor-backdrop')?.addEventListener('click', () => closeGenreEditor(document));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('genre-editor')?.hasAttribute('hidden')) {
+      closeGenreEditor(document);
+    }
+  });
+}
+
 function wireForms() {
   // Import form.
   const importForm = document.getElementById('import-form');
@@ -266,6 +295,18 @@ function wireForms() {
       }
     });
   }
+
+  // Per-row genre Edit button — opens the editor modal.
+  const genresBody = document.getElementById('genres-body');
+  if (genresBody) {
+    genresBody.addEventListener('click', (e) => {
+      const editBtn = e.target.closest('button[data-action="edit"]');
+      if (!editBtn) return;
+      const genre = currentGenres.find((g) => g.slug === editBtn.dataset.slug);
+      if (genre) openGenreEditor(document, genre);
+    });
+  }
+  wireGenreEditor();
 
   // Tracks filter.
   const searchBtn = document.getElementById('tracks-search-btn');

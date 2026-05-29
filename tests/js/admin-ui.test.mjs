@@ -79,6 +79,10 @@ const {
   closeTrackEditor,
   readTrackEditor,
   setTrackEditorError,
+  openGenreEditor,
+  closeGenreEditor,
+  readGenreEditor,
+  setGenreEditorError,
 } = mod;
 
 test('renderSessions shows empty state when no sessions', () => {
@@ -125,7 +129,7 @@ test('renderSessions flags a fresh session as live', () => {
   assert.equal(cards[1].dataset.live, 'false');
 });
 
-test('renderGenresTable creates rows with inputs and buttons', () => {
+test('renderGenresTable creates read-only rows with an edit button', () => {
   const doc = makeDoc();
   const genres = [
     { slug: 'rock', name: 'Rock', emoji: null, sort_order: 10, archived: 0 },
@@ -135,8 +139,81 @@ test('renderGenresTable creates rows with inputs and buttons', () => {
   const rows = doc.querySelectorAll('#genres-body tr');
   assert.equal(rows.length, 2);
   assert.equal(rows[0].querySelector('td').textContent, 'rock');
-  assert.equal(rows[0].querySelector('input[data-field="name"]').value, 'Rock');
+  // Cells are plain text now (Song Library style), not editable inputs.
+  assert.equal(rows[0].querySelector('input[data-field="name"]'), null);
+  assert.ok(rows[0].textContent.includes('Rock'));
   assert.equal(rows[1].querySelector('.badge').textContent, 'Архив');
+  const editBtn = rows[0].querySelector('button[data-action="edit"]');
+  assert.ok(editBtn, 'row has an edit button');
+  assert.equal(editBtn.dataset.slug, 'rock');
+  assert.equal(editBtn.type, 'button');
+});
+
+test('renderGenresTable does not attach event listeners to tbody', () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock', emoji: null, sort_order: 10, archived: 0 }];
+  // Calling twice must not accumulate listeners — clicks are delegated in
+  // main-admin, the renderer is pure.
+  renderGenresTable(doc, genres);
+  renderGenresTable(doc, genres);
+  assert.ok(true);
+});
+
+test('admin.html ships the genre editor modal hidden with fields and buttons', () => {
+  const doc = adminDoc();
+  const overlay = doc.getElementById('genre-editor');
+  assert.ok(overlay, 'modal overlay #genre-editor exists');
+  assert.equal(overlay.hasAttribute('hidden'), true, 'modal starts hidden');
+  assert.ok(doc.getElementById('genre-editor-form'), 'has form');
+  assert.ok(doc.getElementById('genre-edit-name'), 'has name input');
+  assert.ok(doc.getElementById('genre-edit-emoji'), 'has emoji input');
+  assert.ok(doc.getElementById('genre-edit-sort'), 'has sort input');
+  assert.ok(doc.getElementById('genre-edit-save'), 'has save button');
+  assert.ok(doc.getElementById('genre-edit-archive'), 'has archive toggle');
+  assert.ok(doc.getElementById('genre-edit-delete'), 'has delete button');
+  assert.ok(doc.getElementById('genre-edit-cancel'), 'has cancel button');
+});
+
+test('openGenreEditor fills fields and labels the archive toggle by state', () => {
+  const doc = adminDoc();
+  openGenreEditor(doc, { slug: 'rock', name: 'Rock', emoji: '🎸', sort_order: 10, archived: 0 });
+  assert.equal(doc.getElementById('genre-editor').hasAttribute('hidden'), false);
+  assert.equal(doc.getElementById('genre-edit-name').value, 'Rock');
+  assert.equal(doc.getElementById('genre-edit-emoji').value, '🎸');
+  assert.equal(doc.getElementById('genre-edit-sort').value, '10');
+  assert.equal(doc.getElementById('genre-editor-form').dataset.slug, 'rock');
+  // Active genre -> archive action offered.
+  assert.match(doc.getElementById('genre-edit-archive').textContent, /В архив/);
+});
+
+test('openGenreEditor offers restore for an archived genre', () => {
+  const doc = adminDoc();
+  openGenreEditor(doc, { slug: 'pop', name: 'Pop', emoji: null, sort_order: 20, archived: 1 });
+  assert.match(doc.getElementById('genre-edit-archive').textContent, /Восстановить/);
+  assert.equal(doc.getElementById('genre-editor-form').dataset.archived, '1');
+});
+
+test('readGenreEditor returns field values; empty emoji becomes null', () => {
+  const doc = adminDoc();
+  openGenreEditor(doc, { slug: 'rock', name: 'Rock', emoji: '🎸', sort_order: 10, archived: 0 });
+  doc.getElementById('genre-edit-name').value = '  Rock & Roll  ';
+  doc.getElementById('genre-edit-emoji').value = '';
+  doc.getElementById('genre-edit-sort').value = '15';
+  const out = readGenreEditor(doc);
+  assert.deepEqual(out, { slug: 'rock', name: 'Rock & Roll', emoji: null, sortOrder: 15, archived: 0 });
+});
+
+test('closeGenreEditor hides the modal again', () => {
+  const doc = adminDoc();
+  openGenreEditor(doc, { slug: 'rock', name: 'Rock', emoji: null, sort_order: 10, archived: 0 });
+  closeGenreEditor(doc);
+  assert.equal(doc.getElementById('genre-editor').hasAttribute('hidden'), true);
+});
+
+test('setGenreEditorError writes into the modal error region', () => {
+  const doc = adminDoc();
+  setGenreEditorError(doc, 'Cannot delete: has tracks');
+  assert.equal(doc.getElementById('genre-edit-error').textContent, 'Cannot delete: has tracks');
 });
 
 test('renderGenresTable shows the per-genre track count', () => {
