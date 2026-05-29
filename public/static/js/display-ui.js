@@ -335,7 +335,7 @@ function wait(ms) {
 // to a stop on the chosen one. Deterministic given spinSeed so every viewer
 // (display + spectators) lands on the same sequence. Resolves with the headline
 // showing the selected genre's display name.
-export async function runSpin(doc, state, genres, { durationMs = 3200, settleMs = 1100, getPhase } = {}) {
+export async function runSpin(doc, state, genres, { durationMs = 3600, settleMs = 3000, getPhase } = {}) {
   const overlay = doc.getElementById('spin-card');
   const spinText = doc.getElementById('spin-card-genre');
   const headline = doc.getElementById('display-genre');
@@ -352,8 +352,12 @@ export async function runSpin(doc, state, genres, { durationMs = 3200, settleMs 
   setHidden(overlay, false);
 
   const prng = mulberry32(state.spinSeed || 1);
-  // Accelerate-then-decelerate cadence; each entry is a fraction of durationMs.
-  const cadence = [0.04, 0.04, 0.05, 0.06, 0.07, 0.09, 0.11, 0.14, 0.18, 0.22];
+  // Each entry is a fraction of durationMs: a burst of very fast flips up front,
+  // then a long deceleration so it eases to a stop on the chosen genre.
+  const cadence = [
+    0.015, 0.015, 0.02, 0.02, 0.025, 0.03, 0.04, 0.05,
+    0.07, 0.10, 0.14, 0.19, 0.26,
+  ];
   let prevIdx = -1;
   for (const frac of cadence) {
     if (!stillSpinning()) { close(); return; }
