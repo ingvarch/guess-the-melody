@@ -18,7 +18,6 @@ import {
   award,
   reveal,
   next,
-  endgame,
 } from './host-actions.js';
 import { attachWaveform } from './waveform.js';
 
@@ -147,11 +146,12 @@ function boot() {
       next(fetch, sessionId).catch(silentlyIgnore403);
     });
 
+    // Exit: leave the game and return to the landing page. The session keeps
+    // living server-side, so the URL still works if reopened.
     const endBtn = document.getElementById('endgame-btn');
     endBtn?.addEventListener('click', () => {
-      if (!confirm('End the game?')) return;
-      const reset = confirm('Reset team scores?');
-      endgame(fetch, sessionId, reset).catch(silentlyIgnore403);
+      if (!confirm('Leave the game?')) return;
+      window.location.href = '/';
     });
 
     // Award buttons delegated from scoreboard footer.
