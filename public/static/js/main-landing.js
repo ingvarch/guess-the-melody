@@ -18,6 +18,27 @@ export async function startGame({
   return data.sessionId;
 }
 
+// Fetches live catalogue counts and renders them into the landing stat block.
+// Fails silently: a missing endpoint or absent elements must not break the page.
+export async function loadStats({ fetchFn = fetch, doc = document } = {}) {
+  const tracksEl = doc.getElementById('stat-tracks');
+  const genresEl = doc.getElementById('stat-genres');
+  if (!tracksEl && !genresEl) return;
+  try {
+    const res = await fetchFn('/api/stats');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (tracksEl && typeof data.tracks === 'number') {
+      tracksEl.textContent = String(data.tracks);
+    }
+    if (genresEl && typeof data.genres === 'number') {
+      genresEl.textContent = String(data.genres);
+    }
+  } catch {
+    // Network/parse failure: leave placeholders as-is.
+  }
+}
+
 export function init(doc = document) {
   const btn = doc.getElementById('start');
   if (!btn) return;
@@ -41,4 +62,5 @@ export function init(doc = document) {
 // so importing the module from a test must remain a no-op here.
 if (typeof document !== 'undefined') {
   init();
+  loadStats();
 }

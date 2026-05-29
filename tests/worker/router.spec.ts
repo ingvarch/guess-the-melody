@@ -301,6 +301,31 @@ describe('Worker router', () => {
     expect(res.status).toBe(405);
   });
 
+  it('GET /api/stats returns live track and genre counts without auth', async () => {
+    await insertTrack(testEnv.CATALOG, {
+      id: 'tr-stats-1',
+      genre_slug: 'rock',
+      artist: 'A',
+      title: 'B',
+      year: 2001,
+      preview_url: 'https://example.com/p.m4a',
+      added_at: 1,
+    });
+    const res = await SELF.fetch('http://localhost/api/stats');
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    const body = (await res.json()) as { tracks: number; genres: number };
+    expect(body.tracks).toBe(1);
+    // genres count must match the live non-archived genre list.
+    const genres = (await (await SELF.fetch('http://localhost/api/genres')).json()) as unknown[];
+    expect(body.genres).toBe(genres.length);
+  });
+
+  it('POST /api/stats is not allowed (405)', async () => {
+    const res = await SELF.fetch('http://localhost/api/stats', { method: 'POST' });
+    expect(res.status).toBe(405);
+  });
+
   it('GET /admin/api/genres still works through the router (regression)', async () => {
     const res = await SELF.fetch('http://localhost/admin/api/genres', {
       headers: { authorization: 'Basic ' + btoa('admin:test-pw') },

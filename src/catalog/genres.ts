@@ -40,6 +40,13 @@ export async function listGenres(
   return result.results;
 }
 
+export async function countGenres(db: D1Database): Promise<number> {
+  const row = await db
+    .prepare('SELECT COUNT(*) AS c FROM genres WHERE archived = 0')
+    .first<{ c: number }>();
+  return row?.c ?? 0;
+}
+
 export async function getGenre(db: D1Database, slug: string): Promise<Genre | null> {
   const row = await db
     .prepare('SELECT slug, name, sort_order, archived FROM genres WHERE slug = ?')

@@ -6,6 +6,7 @@ import { env } from 'cloudflare:test';
 import type { Env } from '../../src/types';
 import {
   archiveGenre,
+  countGenres,
   createGenre,
   deleteGenre,
   getGenre,
@@ -62,6 +63,12 @@ describe('catalog/genres', () => {
     expect(allRows.map((g) => g.slug)).toEqual([...SEEDED_SLUGS]);
     const pop = allRows.find((g) => g.slug === 'pop');
     expect(pop?.archived).toBe(1);
+  });
+
+  it('countGenres counts only non-archived genres', async () => {
+    expect(await countGenres(testEnv.CATALOG)).toBe(4);
+    await archiveGenre(testEnv.CATALOG, 'pop', true);
+    expect(await countGenres(testEnv.CATALOG)).toBe(3);
   });
 
   it('getGenre returns the row or null', async () => {

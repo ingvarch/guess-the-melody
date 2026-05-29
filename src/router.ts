@@ -4,6 +4,7 @@
 // Path map (priority order):
 //   POST /api/session                    -- mint a new session + owner cookie
 //   GET  /api/genres                     -- public catalogue metadata
+//   GET  /api/stats                      -- public track + genre counts
 //   GET  /s/<id>/qr.svg                  -- Phase 13 placeholder (501)
 //   GET  /s/<id>/api/state               -- proxy DO GET /state
 //   POST /s/<id>/api/state               -- proxy DO POST /state (owner gate)
@@ -20,8 +21,8 @@
 // would still be stopped at the DO boundary.
 
 import { handleAdmin } from './admin/handlers';
-import { listGenres } from './catalog/genres';
-import { getTrack } from './catalog/tracks';
+import { countGenres, listGenres } from './catalog/genres';
+import { countTracks, getTrack } from './catalog/tracks';
 import { handleQr } from './qr';
 import {
   newOwnerToken,
@@ -65,6 +66,20 @@ async function handleGenresPublic(req: Request, env: Env): Promise<Response> {
   // by sort_order. Public metadata: no auth, no secrets exposed.
   const rows = await listGenres(env.CATALOG);
   return Response.json(rows);
+}
+
+async function handleStatsPublic(req: Request, env: Env): Promise<Response> {
+  if (req.method !== 'GET') {
+    return new Response('method not allowed', {
+      status: 405,
+      headers: { Allow: 'GET' },
+    });
+  }
+  const [tracks, genres] = await Promise.all([
+    countTracks(env.CATALOG),
+    countGenres(env.CATALOG),
+  ]);
+  return Response.json({ tracks, genres });
 }
 
 async function handleSessionCreate(req: Request, env: Env): Promise<Response> {
@@ -245,6 +260,10 @@ export async function route(
 
   if (path === '/api/genres') {
     return handleGenresPublic(req, env);
+  }
+
+  if (path === '/api/stats') {
+    return handleStatsPublic(req, env);
   }
 
   if (path === '/admin' || path.startsWith('/admin/')) {
