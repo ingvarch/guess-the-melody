@@ -265,22 +265,12 @@
 </section>
 <!-- Genres View -->
 <section hidden class="p-margin-mobile md:p-margin-desktop space-y-gutter" id="genres-view">
+<div class="flex items-start justify-between gap-4 flex-wrap">
 <div>
 <h3 class="font-display-sm text-display-sm text-primary">Genres</h3>
-<p class="font-body-md text-body-md text-on-surface-variant">Categories tracks are spun from. Edit names inline; archive to hide from new games without deleting.</p>
+<p class="font-body-md text-body-md text-on-surface-variant">Categories tracks are spun from. Edit or archive a genre from its editor — archiving hides it from new games without deleting.</p>
 </div>
-<!-- Add genre -->
-<div class="glass-card rounded-xl p-5 space-y-3">
-<h4 class="font-label-caps text-label-caps text-secondary tracking-widest">ADD GENRE</h4>
-<form id="add-genre-form" class="flex flex-col md:flex-row items-stretch gap-3">
-<input id="genre-slug" type="text" required maxlength="40" placeholder="slug (a-z, 0-9, -)" pattern="[a-z0-9-]+" title="a-z, 0-9, hyphen only"
-  class="bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 font-label-mono text-label-mono md:w-48"/>
-<input id="genre-name" type="text" required maxlength="40" placeholder="Display name"
-  class="flex-1 bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 font-body-md text-body-md"/>
-<input id="genre-sort" type="number" required value="100" placeholder="Order" aria-label="Sort order"
-  class="bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 num md:w-28"/>
-<button type="submit" class="bg-primary text-on-primary px-6 py-3 rounded-lg text-label-caps font-bold hover:scale-105 active:scale-95 transition-all whitespace-nowrap">ADD GENRE</button>
-</form>
+<button id="genre-add-btn" type="button" class="shrink-0 bg-primary text-on-primary px-5 py-3 rounded-lg text-label-caps font-bold hover:scale-105 active:scale-95 transition-all whitespace-nowrap">Add Genre</button>
 </div>
 <!-- Genres table -->
 <div class="glass-card rounded-xl overflow-hidden">
@@ -352,10 +342,11 @@
 </button>
 </div>
 <form id="genre-editor-form" class="space-y-4">
-<div class="space-y-1.5">
+<label class="block space-y-1.5">
 <span class="font-label-caps text-label-caps text-on-surface-variant">Slug</span>
-<p id="genre-edit-slug" class="font-label-mono text-label-mono text-on-surface-variant px-1 py-2"></p>
-</div>
+<input id="genre-edit-slug" type="text" required maxlength="40" pattern="[a-z0-9-]+" title="a-z, 0-9, hyphen only"
+  class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-label-mono text-label-mono read-only:opacity-60 read-only:cursor-not-allowed"/>
+</label>
 <label class="block space-y-1.5">
 <span class="font-label-caps text-label-caps text-on-surface-variant">Name</span>
 <input id="genre-edit-name" type="text" required maxlength="40"

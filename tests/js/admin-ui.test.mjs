@@ -80,6 +80,7 @@ const {
   readTrackEditor,
   setTrackEditorError,
   openGenreEditor,
+  openGenreCreator,
   closeGenreEditor,
   readGenreEditor,
   setGenreEditorError,
@@ -167,6 +168,7 @@ test('admin.html ships the genre editor modal hidden with fields and buttons', (
   assert.ok(overlay, 'modal overlay #genre-editor exists');
   assert.equal(overlay.hasAttribute('hidden'), true, 'modal starts hidden');
   assert.ok(doc.getElementById('genre-editor-form'), 'has form');
+  assert.ok(doc.getElementById('genre-edit-slug'), 'has slug input');
   assert.ok(doc.getElementById('genre-edit-name'), 'has name input');
   assert.ok(doc.getElementById('genre-edit-sort'), 'has sort input');
   assert.ok(doc.getElementById('genre-edit-save'), 'has save button');
@@ -175,15 +177,43 @@ test('admin.html ships the genre editor modal hidden with fields and buttons', (
   assert.ok(doc.getElementById('genre-edit-cancel'), 'has cancel button');
 });
 
-test('openGenreEditor fills fields and labels the archive toggle by state', () => {
+test('Genres view has an Add Genre button and no inline add form', () => {
+  const doc = adminDoc();
+  const view = doc.getElementById('genres-view');
+  assert.ok(view.querySelector('#genre-add-btn'), 'has Add Genre button');
+  assert.equal(doc.getElementById('add-genre-form'), null, 'inline add form removed');
+});
+
+test('openGenreEditor (edit mode) fills fields, locks slug, shows delete/archive', () => {
   const doc = adminDoc();
   openGenreEditor(doc, { slug: 'rock', name: 'Rock', sort_order: 10, archived: 0 });
+  const form = doc.getElementById('genre-editor-form');
   assert.equal(doc.getElementById('genre-editor').hasAttribute('hidden'), false);
+  assert.equal(form.dataset.mode, 'edit');
+  assert.equal(doc.getElementById('genre-edit-slug').value, 'rock');
+  assert.equal(doc.getElementById('genre-edit-slug').readOnly, true, 'slug locked in edit mode');
   assert.equal(doc.getElementById('genre-edit-name').value, 'Rock');
   assert.equal(doc.getElementById('genre-edit-sort').value, '10');
-  assert.equal(doc.getElementById('genre-editor-form').dataset.slug, 'rock');
-  // Active genre -> archive action offered.
+  assert.equal(form.dataset.slug, 'rock');
+  // Active genre -> archive action offered; delete + archive available.
   assert.match(doc.getElementById('genre-edit-archive').textContent, /В архив/);
+  assert.equal(doc.getElementById('genre-edit-archive').hasAttribute('hidden'), false);
+  assert.equal(doc.getElementById('genre-edit-delete').hasAttribute('hidden'), false);
+});
+
+test('openGenreCreator (create mode) clears fields, unlocks slug, hides delete/archive', () => {
+  const doc = adminDoc();
+  // Open an edit first to prove create resets state.
+  openGenreEditor(doc, { slug: 'rock', name: 'Rock', sort_order: 10, archived: 0 });
+  openGenreCreator(doc);
+  const form = doc.getElementById('genre-editor-form');
+  assert.equal(doc.getElementById('genre-editor').hasAttribute('hidden'), false);
+  assert.equal(form.dataset.mode, 'create');
+  assert.equal(doc.getElementById('genre-edit-slug').value, '');
+  assert.equal(doc.getElementById('genre-edit-slug').readOnly, false, 'slug editable in create mode');
+  assert.equal(doc.getElementById('genre-edit-name').value, '');
+  assert.equal(doc.getElementById('genre-edit-delete').hasAttribute('hidden'), true, 'no delete when creating');
+  assert.equal(doc.getElementById('genre-edit-archive').hasAttribute('hidden'), true, 'no archive when creating');
 });
 
 test('openGenreEditor offers restore for an archived genre', () => {
@@ -193,13 +223,23 @@ test('openGenreEditor offers restore for an archived genre', () => {
   assert.equal(doc.getElementById('genre-editor-form').dataset.archived, '1');
 });
 
-test('readGenreEditor returns field values with a numeric sort order', () => {
+test('readGenreEditor returns field values, slug and mode', () => {
   const doc = adminDoc();
   openGenreEditor(doc, { slug: 'rock', name: 'Rock', sort_order: 10, archived: 0 });
   doc.getElementById('genre-edit-name').value = '  Rock & Roll  ';
   doc.getElementById('genre-edit-sort').value = '15';
   const out = readGenreEditor(doc);
-  assert.deepEqual(out, { slug: 'rock', name: 'Rock & Roll', sortOrder: 15, archived: 0 });
+  assert.deepEqual(out, { mode: 'edit', slug: 'rock', name: 'Rock & Roll', sortOrder: 15, archived: 0 });
+});
+
+test('readGenreEditor reads a freshly typed slug in create mode', () => {
+  const doc = adminDoc();
+  openGenreCreator(doc);
+  doc.getElementById('genre-edit-slug').value = '  jazz  ';
+  doc.getElementById('genre-edit-name').value = 'Jazz';
+  doc.getElementById('genre-edit-sort').value = '50';
+  const out = readGenreEditor(doc);
+  assert.deepEqual(out, { mode: 'create', slug: 'jazz', name: 'Jazz', sortOrder: 50, archived: 0 });
 });
 
 test('closeGenreEditor hides the modal again', () => {

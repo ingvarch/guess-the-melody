@@ -213,21 +213,56 @@ export function setTrackEditorError(doc, msg) {
 
 // ---- Genre editor modal ----
 
-// Slug is immutable (the server ignores it), so it is shown read-only. The
-// archive button's label flips on the genre's current state.
+function setHidden(el, hidden) {
+  if (!el) return;
+  if (hidden) el.setAttribute('hidden', '');
+  else el.removeAttribute('hidden');
+}
+
+// Edit mode: slug is immutable (server ignores it) so the field is locked.
+// Delete + Archive apply to the existing row; the archive label flips on state.
 export function openGenreEditor(doc, genre) {
   const slug = doc.getElementById('genre-edit-slug');
-  if (slug) slug.textContent = genre.slug;
+  if (slug) { slug.value = genre.slug; slug.readOnly = true; }
   const name = doc.getElementById('genre-edit-name');
   if (name) name.value = genre.name ?? '';
   const sort = doc.getElementById('genre-edit-sort');
   if (sort) sort.value = String(genre.sort_order ?? '');
   const archiveBtn = doc.getElementById('genre-edit-archive');
   if (archiveBtn) archiveBtn.textContent = genre.archived ? 'Восстановить' : 'В архив';
+  setHidden(doc.getElementById('genre-edit-archive'), false);
+  setHidden(doc.getElementById('genre-edit-delete'), false);
+  const title = doc.getElementById('genre-editor-title');
+  if (title) title.textContent = 'Edit Genre';
   const form = doc.getElementById('genre-editor-form');
   if (form) {
+    form.dataset.mode = 'edit';
     form.dataset.slug = genre.slug;
     form.dataset.archived = String(genre.archived ? 1 : 0);
+  }
+  setGenreEditorError(doc, '');
+  const overlay = doc.getElementById('genre-editor');
+  if (overlay) overlay.removeAttribute('hidden');
+}
+
+// Create mode: same modal, empty fields, editable slug. Delete + Archive make
+// no sense for a row that does not exist yet, so they are hidden.
+export function openGenreCreator(doc) {
+  const slug = doc.getElementById('genre-edit-slug');
+  if (slug) { slug.value = ''; slug.readOnly = false; }
+  const name = doc.getElementById('genre-edit-name');
+  if (name) name.value = '';
+  const sort = doc.getElementById('genre-edit-sort');
+  if (sort) sort.value = '100';
+  setHidden(doc.getElementById('genre-edit-archive'), true);
+  setHidden(doc.getElementById('genre-edit-delete'), true);
+  const title = doc.getElementById('genre-editor-title');
+  if (title) title.textContent = 'Add Genre';
+  const form = doc.getElementById('genre-editor-form');
+  if (form) {
+    form.dataset.mode = 'create';
+    form.dataset.slug = '';
+    form.dataset.archived = '0';
   }
   setGenreEditorError(doc, '');
   const overlay = doc.getElementById('genre-editor');
@@ -242,7 +277,8 @@ export function closeGenreEditor(doc) {
 export function readGenreEditor(doc) {
   const form = doc.getElementById('genre-editor-form');
   return {
-    slug: form?.dataset.slug ?? '',
+    mode: form?.dataset.mode === 'create' ? 'create' : 'edit',
+    slug: (doc.getElementById('genre-edit-slug')?.value ?? '').trim(),
     name: (doc.getElementById('genre-edit-name')?.value ?? '').trim(),
     sortOrder: Number(doc.getElementById('genre-edit-sort')?.value),
     archived: form?.dataset.archived === '1' ? 1 : 0,

@@ -27,6 +27,7 @@ import {
   readTrackEditor,
   setTrackEditorError,
   openGenreEditor,
+  openGenreCreator,
   closeGenreEditor,
   readGenreEditor,
   setGenreEditorError,
@@ -188,14 +189,23 @@ function wireGenreEditor() {
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const { slug, name, sortOrder } = readGenreEditor(document);
+      const { mode, slug, name, sortOrder } = readGenreEditor(document);
       if (!name || !Number.isFinite(sortOrder)) {
         setGenreEditorError(document, 'Заполните название и порядок');
         return;
       }
+      if (mode === 'create' && !/^[a-z0-9-]+$/.test(slug)) {
+        setGenreEditorError(document, 'Slug: только a-z, 0-9 и дефис');
+        return;
+      }
       try {
-        await updateGenre(fetch, slug, { name, sortOrder });
+        if (mode === 'create') {
+          await createGenre(fetch, { slug, name, sortOrder });
+        } else {
+          await updateGenre(fetch, slug, { name, sortOrder });
+        }
         closeGenreEditor(document);
+        await refreshStats();
         await refreshGenres();
       } catch (err) {
         setGenreEditorError(document, err.message);
@@ -273,28 +283,10 @@ function wireForms() {
     });
   }
 
-  // Add genre form.
-  const genreForm = document.getElementById('add-genre-form');
-  if (genreForm) {
-    genreForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const slug = document.getElementById('genre-slug')?.value.trim();
-      const name = document.getElementById('genre-name')?.value.trim();
-      const sortOrder = Number(document.getElementById('genre-sort')?.value);
-      if (!slug || !name || !Number.isFinite(sortOrder)) return;
-      try {
-        await createGenre(fetch, { slug, name, sortOrder });
-        document.getElementById('genre-slug').value = '';
-        document.getElementById('genre-name').value = '';
-        await refreshStats();
-        await refreshGenres();
-      } catch (e) {
-        setError(document, e.message);
-      }
-    });
-  }
+  // Add Genre button — opens the shared editor modal in create mode.
+  document.getElementById('genre-add-btn')?.addEventListener('click', () => openGenreCreator(document));
 
-  // Per-row genre Edit button — opens the editor modal.
+  // Per-row genre Edit button — opens the editor modal in edit mode.
   const genresBody = document.getElementById('genres-body');
   if (genresBody) {
     genresBody.addEventListener('click', (e) => {
