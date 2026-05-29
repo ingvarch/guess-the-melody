@@ -67,6 +67,12 @@ export async function getSessions(fetchFn) {
   return res.json();
 }
 
+export async function getStats(fetchFn) {
+  const res = await fetchFn('/admin/api/stats');
+  if (!res.ok) throw new Error(`getStats: ${res.status}`);
+  return res.json();
+}
+
 export async function importTrack(fetchFn, payload) {
   const res = await fetchFn('/admin/api/import', {
     method: 'POST',

@@ -5,6 +5,8 @@ import { env } from 'cloudflare:test';
 import type { Env } from '../../src/types';
 import { archiveGenre } from '../../src/catalog/genres';
 import {
+  countTracks,
+  countTracksByGenre,
   deleteTrack,
   getTrack,
   getTrackByItunesId,
@@ -225,5 +227,26 @@ describe('catalog/tracks', () => {
 
     const picked = await pickRandomTrack(testEnv.CATALOG, { genreSlug: 'rock' });
     expect(picked).toBeNull();
+  });
+
+  it('countTracks returns the total row count', async () => {
+    expect(await countTracks(testEnv.CATALOG)).toBe(0);
+    await insertTrack(testEnv.CATALOG, track({ id: 't1' }));
+    await insertTrack(testEnv.CATALOG, track({ id: 't2', genre_slug: 'pop', title: 'B' }));
+    await insertTrack(testEnv.CATALOG, track({ id: 't3', genre_slug: 'pop', title: 'C' }));
+    expect(await countTracks(testEnv.CATALOG)).toBe(3);
+  });
+
+  it('countTracksByGenre groups counts per genre slug', async () => {
+    await insertTrack(testEnv.CATALOG, track({ id: 't1', genre_slug: 'rock', title: 'A' }));
+    await insertTrack(testEnv.CATALOG, track({ id: 't2', genre_slug: 'pop', title: 'B' }));
+    await insertTrack(testEnv.CATALOG, track({ id: 't3', genre_slug: 'pop', title: 'C' }));
+
+    const byGenre = await countTracksByGenre(testEnv.CATALOG);
+    expect(byGenre).toEqual({ rock: 1, pop: 2 });
+  });
+
+  it('countTracksByGenre returns an empty map when there are no tracks', async () => {
+    expect(await countTracksByGenre(testEnv.CATALOG)).toEqual({});
   });
 });

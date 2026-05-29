@@ -26,11 +26,14 @@ function makeDoc() {
     <div id="error"></div>
     <div id="sessions-list"></div>
     <p id="sessions-empty" hidden></p>
+    <span id="stat-total-tracks"></span>
+    <span id="stat-total-genres"></span>
+    <span id="stat-active-genres"></span>
   `;
   return doc;
 }
 
-function tracksHeadCells() {
+function adminHeadCells(tbodyId) {
   const html = readFileSync(
     fileURLToPath(new URL('../../public/admin.html', import.meta.url)),
     'utf8',
@@ -39,7 +42,7 @@ function tracksHeadCells() {
   win.SyntaxError = SyntaxError;
   win.Error = Error;
   win.document.body.innerHTML = html;
-  const table = win.document.getElementById('tracks-body').closest('table');
+  const table = win.document.getElementById(tbodyId).closest('table');
   return Array.from(table.querySelectorAll('thead th'));
 }
 
@@ -59,6 +62,7 @@ const {
   setError,
   renderSessions,
   setPlayButtonState,
+  renderStats,
 } = mod;
 
 test('renderSessions shows empty state when no sessions', () => {
@@ -117,6 +121,56 @@ test('renderGenresTable creates rows with inputs and buttons', () => {
   assert.equal(rows[0].querySelector('td').textContent, 'rock');
   assert.equal(rows[0].querySelector('input[data-field="name"]').value, 'Rock');
   assert.equal(rows[1].querySelector('.badge').textContent, 'Архив');
+});
+
+test('renderGenresTable shows the per-genre track count', () => {
+  const doc = makeDoc();
+  const genres = [
+    { slug: 'rock', name: 'Rock', emoji: null, sort_order: 10, archived: 0 },
+    { slug: 'pop', name: 'Pop', emoji: null, sort_order: 20, archived: 0 },
+  ];
+  renderGenresTable(doc, genres, { counts: { rock: 42 } });
+  const rows = doc.querySelectorAll('#genres-body tr');
+  const rockCount = rows[0].querySelector('[data-cell="count"]');
+  const popCount = rows[1].querySelector('[data-cell="count"]');
+  assert.ok(rockCount, 'row has a track-count cell');
+  assert.equal(rockCount.textContent, '42');
+  assert.equal(popCount.textContent, '0', 'missing slug counts as 0');
+});
+
+test('genres table header column count matches rendered row cells', () => {
+  const ths = adminHeadCells('genres-body');
+  const doc = makeDoc();
+  renderGenresTable(
+    doc,
+    [{ slug: 'rock', name: 'Rock', emoji: null, sort_order: 10, archived: 0 }],
+    { counts: { rock: 7 } },
+  );
+  const tds = doc.querySelectorAll('#genres-body tr td');
+  assert.equal(ths.length, tds.length, 'genres thead <th> count must equal row <td> count');
+  const labels = ths.map((th) => th.textContent.trim());
+  assert.ok(labels.includes('Tracks'), `genres header must include "Tracks", got ${JSON.stringify(labels)}`);
+});
+
+test('admin.html links the local base and admin stylesheets', () => {
+  // The redesign shipped only the Tailwind CDN + fonts; the JS-rendered
+  // genres table, badges and play button get their styling from admin.css,
+  // so it must be linked or those elements fall back to ugly UA defaults
+  // (white inputs).
+  const html = readFileSync(
+    fileURLToPath(new URL('../../public/admin.html', import.meta.url)),
+    'utf8',
+  );
+  assert.match(html, /<link[^>]+href="\/static\/css\/base\.css"/, 'must link base.css');
+  assert.match(html, /<link[^>]+href="\/static\/css\/admin\.css"/, 'must link admin.css');
+});
+
+test('renderStats fills the stat tiles from the stats payload', () => {
+  const doc = makeDoc();
+  renderStats(doc, { totalTracks: 128, totalGenres: 12, activeGenres: 10, perGenre: {} });
+  assert.equal(doc.getElementById('stat-total-tracks').textContent, '128');
+  assert.equal(doc.getElementById('stat-total-genres').textContent, '12');
+  assert.equal(doc.getElementById('stat-active-genres').textContent, '10');
 });
 
 test('populateGenreSelect fills options and preserves value', () => {
@@ -186,7 +240,7 @@ test('tracks table header column count matches rendered row cells', () => {
   // The static <thead> in admin.html must line up with renderTracksTable's
   // <td> output, or every column shifts (regression: artist/title split
   // without updating the header).
-  const ths = tracksHeadCells();
+  const ths = adminHeadCells('tracks-body');
 
   const doc = makeDoc();
   renderTracksTable(doc, [
@@ -205,7 +259,7 @@ test('tracks table header column count matches rendered row cells', () => {
 test('tracks columns share horizontal alignment + padding between header and body', () => {
   // Content drifts when a <th> centers but its <td> defaults to left (or the
   // td lacks the header's px-6 padding). Lock alignment + padding per column.
-  const ths = tracksHeadCells();
+  const ths = adminHeadCells('tracks-body');
   const doc = makeDoc();
   renderTracksTable(doc, [
     { id: 't1', genre_slug: 'rock', artist: 'Queen', title: 'Rhapsody', year: 1975 },
@@ -220,7 +274,7 @@ test('tracks columns share horizontal alignment + padding between header and bod
 });
 
 test('checkbox, year and actions columns are centered in both header and body', () => {
-  const ths = tracksHeadCells();
+  const ths = adminHeadCells('tracks-body');
   const labels = ths.map((th) => th.textContent.trim());
   const doc = makeDoc();
   renderTracksTable(doc, [

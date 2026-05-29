@@ -13,6 +13,7 @@ const {
   deleteTrack,
   importTrack,
   getSessions,
+  getStats,
 } = mod;
 
 function captureFetch(response = okResponse()) {
@@ -44,6 +45,14 @@ test('getSessions: GET /admin/api/sessions', async () => {
   const result = await getSessions(fetchFn);
   assert.equal(calls[0].url, '/admin/api/sessions');
   assert.deepEqual(result, [{ id: 'ABC' }]);
+});
+
+test('getStats: GET /admin/api/stats', async () => {
+  const stats = { totalTracks: 5, totalGenres: 3, activeGenres: 2, perGenre: { rock: 5 } };
+  const { fetchFn, calls } = captureFetch(okResponse(stats));
+  const result = await getStats(fetchFn);
+  assert.equal(calls[0].url, '/admin/api/stats');
+  assert.deepEqual(result, stats);
 });
 
 test('createGenre: POST with JSON body', async () => {

@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { env, SELF } from 'cloudflare:test';
 import type { Env } from '../../src/types';
 import { insertTrack } from '../../src/catalog/tracks';
+import { archiveGenre } from '../../src/catalog/genres';
 import { upsertSession } from '../../src/catalog/sessions';
 
 const testEnv = env as unknown as Env;
@@ -112,6 +113,42 @@ describe('admin handlers', () => {
     expect(rows.map((r) => r.id)).toEqual(['newer', 'older']);
     expect(rows[0]!.phase).toBe('playing');
     expect(rows[0]!.teams).toEqual([{ name: 'Cats', score: 7 }]);
+  });
+
+  it('GET /admin/api/stats without auth returns 401', async () => {
+    const res = await SELF.fetch('http://localhost/admin/api/stats');
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /admin/api/stats returns totals, active count and per-genre counts', async () => {
+    await insertTrack(testEnv.CATALOG, {
+      id: 's1', genre_slug: 'rock', artist: 'A', title: 'T1', year: 2000,
+      preview_url: 'https://e/1.m4a', added_at: 1,
+    });
+    await insertTrack(testEnv.CATALOG, {
+      id: 's2', genre_slug: 'rock', artist: 'B', title: 'T2', year: 2001,
+      preview_url: 'https://e/2.m4a', added_at: 2,
+    });
+    await insertTrack(testEnv.CATALOG, {
+      id: 's3', genre_slug: 'pop', artist: 'C', title: 'T3', year: 2002,
+      preview_url: 'https://e/3.m4a', added_at: 3,
+    });
+    await archiveGenre(testEnv.CATALOG, 'soundtrack', true);
+
+    const res = await SELF.fetch('http://localhost/admin/api/stats', {
+      headers: { authorization: authHeader() },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      totalTracks: number;
+      totalGenres: number;
+      activeGenres: number;
+      perGenre: Record<string, number>;
+    };
+    expect(body.totalTracks).toBe(3);
+    expect(body.totalGenres).toBe(4);
+    expect(body.activeGenres).toBe(3);
+    expect(body.perGenre).toEqual({ rock: 2, pop: 1 });
   });
 
   it('GET /admin/api/genres without auth returns 401', async () => {

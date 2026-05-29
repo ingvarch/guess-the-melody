@@ -9,6 +9,7 @@ import {
   deleteTrack,
   importTrack,
   getSessions,
+  getStats,
 } from './admin-api.js';
 import {
   renderGenresTable,
@@ -19,45 +20,61 @@ import {
   setError,
   renderSessions,
   setPlayButtonState,
+  renderStats,
 } from './admin-ui.js';
 
 let currentGenres = [];
+let currentStats = { perGenre: {} };
 let tracksOffset = 0;
 const TRACKS_LIMIT = 25;
 let currentTracksFilter = { genreSlug: '', search: '' };
+
+async function refreshStats() {
+  try {
+    currentStats = await getStats(fetch);
+    renderStats(document, currentStats);
+  } catch (e) {
+    setError(document, e.message);
+  }
+}
 
 async function refreshGenres() {
   try {
     currentGenres = await getGenres(fetch);
     renderGenresTable(document, currentGenres, {
-      onEdit: async (slug, field, value) => {
-        const payload =
-          field === 'sort_order'
-            ? { sortOrder: Number(value) }
-            : { [field]: value };
-        try {
-          await updateGenre(fetch, slug, payload);
-          await refreshGenres();
-        } catch (e) {
-          setError(document, e.message);
-        }
-      },
-      onArchive: async (slug, archived) => {
-        try {
-          await updateGenre(fetch, slug, { archived });
-          await refreshGenres();
-        } catch (e) {
-          setError(document, e.message);
-        }
-      },
-      onDelete: async (slug) => {
-        if (!confirm(`Удалить жанр «${slug}»?`)) return;
-        try {
-          await deleteGenre(fetch, slug);
-          await refreshGenres();
-        } catch (e) {
-          setError(document, e.message);
-        }
+      counts: currentStats.perGenre,
+      callbacks: {
+        onEdit: async (slug, field, value) => {
+          const payload =
+            field === 'sort_order'
+              ? { sortOrder: Number(value) }
+              : { [field]: value };
+          try {
+            await updateGenre(fetch, slug, payload);
+            await refreshGenres();
+          } catch (e) {
+            setError(document, e.message);
+          }
+        },
+        onArchive: async (slug, archived) => {
+          try {
+            await updateGenre(fetch, slug, { archived });
+            await refreshStats();
+            await refreshGenres();
+          } catch (e) {
+            setError(document, e.message);
+          }
+        },
+        onDelete: async (slug) => {
+          if (!confirm(`Удалить жанр «${slug}»?`)) return;
+          try {
+            await deleteGenre(fetch, slug);
+            await refreshStats();
+            await refreshGenres();
+          } catch (e) {
+            setError(document, e.message);
+          }
+        },
       },
     });
     populateGenreSelect(document, currentGenres.filter((g) => !g.archived), 'import-genre');
@@ -163,7 +180,9 @@ function wireForms() {
         setImportStatus(document, 'Готово!');
         document.getElementById('import-url').value = '';
         document.getElementById('import-itunes-id').value = '';
+        await refreshStats();
         await refreshTracks(0);
+        await refreshGenres();
       } catch (e) {
         setImportStatus(document, e.message, true);
       }
@@ -185,6 +204,7 @@ function wireForms() {
         document.getElementById('genre-slug').value = '';
         document.getElementById('genre-name').value = '';
         document.getElementById('genre-emoji').value = '';
+        await refreshStats();
         await refreshGenres();
       } catch (e) {
         setError(document, e.message);
@@ -252,7 +272,9 @@ function wireForms() {
         for (const id of selected) {
           await deleteTrack(fetch, id);
         }
+        await refreshStats();
         await refreshTracks(tracksOffset);
+        await refreshGenres();
       } catch (e) {
         setError(document, e.message);
       }
@@ -275,45 +297,57 @@ async function refreshSessions() {
   }
 }
 
-function setActiveNav(activeBtn, inactiveBtn) {
-  activeBtn?.classList.add(...NAV_ACTIVE);
-  activeBtn?.classList.remove('text-on-surface-variant');
-  inactiveBtn?.classList.remove(...NAV_ACTIVE);
-  inactiveBtn?.classList.add('text-on-surface-variant');
+const VIEWS = {
+  live: { section: 'live-view', nav: 'nav-live', title: 'Live Games' },
+  library: { section: 'catalogue-view', nav: 'nav-library', title: 'Song Library' },
+  genres: { section: 'genres-view', nav: 'nav-genres', title: 'Genres' },
+};
+
+function setActiveNav(activeNavId) {
+  for (const v of Object.values(VIEWS)) {
+    const btn = document.getElementById(v.nav);
+    if (!btn) continue;
+    if (v.nav === activeNavId) {
+      btn.classList.add(...NAV_ACTIVE);
+      btn.classList.remove('text-on-surface-variant');
+    } else {
+      btn.classList.remove(...NAV_ACTIVE);
+      btn.classList.add('text-on-surface-variant');
+    }
+  }
 }
 
 function showView(view) {
-  const live = document.getElementById('live-view');
-  const catalogue = document.getElementById('catalogue-view');
-  const title = document.getElementById('view-title');
-  const refreshBtn = document.getElementById('sessions-refresh-btn');
-  const navLive = document.getElementById('nav-live');
-  const navLibrary = document.getElementById('nav-library');
-  if (!live || !catalogue) return;
-
+  const cfg = VIEWS[view] ?? VIEWS.library;
   if (sessionsTimer) { clearInterval(sessionsTimer); sessionsTimer = null; }
 
+  for (const [key, v] of Object.entries(VIEWS)) {
+    const section = document.getElementById(v.section);
+    if (!section) continue;
+    if (key === view) section.removeAttribute('hidden');
+    else section.setAttribute('hidden', '');
+  }
+
+  const title = document.getElementById('view-title');
+  if (title) title.textContent = cfg.title;
+
+  const refreshBtn = document.getElementById('sessions-refresh-btn');
   if (view === 'live') {
-    live.removeAttribute('hidden');
-    catalogue.classList.add('hidden');
-    if (title) title.textContent = 'Live Game';
     refreshBtn?.removeAttribute('hidden');
-    setActiveNav(navLive, navLibrary);
     void refreshSessions();
     // Poll while the monitor is on screen; rows are advisory and update often.
     sessionsTimer = setInterval(refreshSessions, 5000);
   } else {
-    live.setAttribute('hidden', '');
-    catalogue.classList.remove('hidden');
-    if (title) title.textContent = 'Song Library';
     refreshBtn?.setAttribute('hidden', '');
-    setActiveNav(navLibrary, navLive);
   }
+
+  setActiveNav(cfg.nav);
 }
 
 function wireNav() {
   document.getElementById('nav-live')?.addEventListener('click', () => showView('live'));
   document.getElementById('nav-library')?.addEventListener('click', () => showView('library'));
+  document.getElementById('nav-genres')?.addEventListener('click', () => showView('genres'));
   document.getElementById('sessions-refresh-btn')?.addEventListener('click', () => void refreshSessions());
 }
 
@@ -323,10 +357,12 @@ async function boot() {
   // these fetches there would 401 and spam the shared #error region. The host
   // page carries a session-id meta tag; bail out when present.
   if (document.querySelector('meta[name="session-id"]')) return;
+  await refreshStats();
   await refreshGenres();
   await refreshTracks(0);
   wireForms();
   wireNav();
+  showView('library');
 }
 
 boot().catch((e) => setError(document, e.message));

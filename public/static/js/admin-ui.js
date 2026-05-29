@@ -4,7 +4,8 @@ function clearChildren(el) {
   while (el.firstChild) el.removeChild(el.firstChild);
 }
 
-export function renderGenresTable(doc, genres, callbacks) {
+export function renderGenresTable(doc, genres, opts = {}) {
+  const { counts = {}, callbacks } = opts;
   const tbody = doc.getElementById('genres-body');
   if (!tbody) return;
   clearChildren(tbody);
@@ -39,6 +40,11 @@ export function renderGenresTable(doc, genres, callbacks) {
     sortInput.dataset.slug = g.slug;
     sortTd.append(sortInput);
 
+    const countTd = doc.createElement('td');
+    countTd.dataset.cell = 'count';
+    countTd.className = 'num';
+    countTd.textContent = String(counts[g.slug] ?? 0);
+
     const statusTd = doc.createElement('td');
     const badge = doc.createElement('span');
     badge.className = g.archived ? 'badge badge--archived' : 'badge badge--active';
@@ -62,7 +68,7 @@ export function renderGenresTable(doc, genres, callbacks) {
     delBtn.dataset.slug = g.slug;
 
     actionsTd.append(archiveBtn, delBtn);
-    tr.append(slugTd, nameTd, emojiTd, sortTd, statusTd, actionsTd);
+    tr.append(slugTd, nameTd, emojiTd, sortTd, countTd, statusTd, actionsTd);
     tbody.append(tr);
   }
 
@@ -215,6 +221,16 @@ export function setImportStatus(doc, msg, isError = false) {
 export function setError(doc, msg) {
   const el = doc.getElementById('error');
   if (el) el.textContent = msg;
+}
+
+export function renderStats(doc, stats) {
+  const set = (id, value) => {
+    const el = doc.getElementById(id);
+    if (el) el.textContent = String(value);
+  };
+  set('stat-total-tracks', stats.totalTracks ?? 0);
+  set('stat-total-genres', stats.totalGenres ?? 0);
+  set('stat-active-genres', stats.activeGenres ?? 0);
 }
 
 const LIVE_WINDOW_MS = 60_000;

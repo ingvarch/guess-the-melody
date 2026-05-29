@@ -115,6 +115,24 @@ export async function listTracks(
   return result.results;
 }
 
+export async function countTracks(db: D1Database): Promise<number> {
+  const row = await db
+    .prepare('SELECT COUNT(*) AS c FROM tracks')
+    .first<{ c: number }>();
+  return row?.c ?? 0;
+}
+
+export async function countTracksByGenre(
+  db: D1Database,
+): Promise<Record<string, number>> {
+  const result = await db
+    .prepare('SELECT genre_slug, COUNT(*) AS c FROM tracks GROUP BY genre_slug')
+    .all<{ genre_slug: string; c: number }>();
+  const out: Record<string, number> = {};
+  for (const r of result.results) out[r.genre_slug] = r.c;
+  return out;
+}
+
 export async function deleteTrack(db: D1Database, id: string): Promise<boolean> {
   const result = await db.prepare('DELETE FROM tracks WHERE id = ?').bind(id).run();
   return (result.meta.changes ?? 0) > 0;

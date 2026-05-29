@@ -8,6 +8,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&amp;family=Sora:wght@700;800&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="/static/css/base.css" rel="stylesheet"/>
+<link href="/static/css/admin.css" rel="stylesheet"/>
 <style>
         /* The HTML `hidden` attribute must always win over Tailwind display
            utilities (.flex/.grid/etc share equal specificity and the CDN sheet
@@ -137,11 +139,15 @@
 <nav class="flex-1 space-y-1 px-4">
 <button id="nav-live" type="button" class="w-full text-left flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/30 transition-colors duration-200">
 <span class="material-symbols-outlined">play_circle</span>
-<span>Live Game</span>
+<span>Live Games</span>
 </button>
 <button id="nav-library" type="button" class="w-full text-left flex items-center gap-3 px-4 py-3 text-secondary bg-secondary-container/10 border-r-4 border-secondary transition-colors duration-200">
 <span class="material-symbols-outlined">library_music</span>
 <span>Song Library</span>
+</button>
+<button id="nav-genres" type="button" class="w-full text-left flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant/30 transition-colors duration-200">
+<span class="material-symbols-outlined">category</span>
+<span>Genres</span>
 </button>
 </nav>
 <div class="px-6 mt-auto">
@@ -178,18 +184,30 @@
 <section hidden class="p-margin-mobile md:p-margin-desktop space-y-gutter" id="live-view">
 <div class="flex items-center justify-between gap-4 flex-wrap">
 <div>
-<h3 class="font-display-sm text-display-sm text-primary">Live Game</h3>
+<h3 class="font-display-sm text-display-sm text-primary">Live Games</h3>
 <p class="font-body-md text-body-md text-on-surface-variant">Games in progress across all sessions. Read-only — open a console to run one.</p>
 </div>
 </div>
 <p id="sessions-empty" hidden class="glass-card rounded-xl p-8 text-center font-body-md text-on-surface-variant">No games in progress. Start one from the <a class="text-primary hover:underline" href="/">home page</a>.</p>
 <div id="sessions-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-gutter"></div>
 </section>
-<!-- Catalogue View (Initially Hidden) -->
-<section class="p-margin-mobile md:p-margin-desktop space-y-gutter" id="catalogue-view">
-<div class="flex flex-col lg:flex-row gap-gutter">
-<!-- Data Table Container -->
-<div class="flex-1 space-y-6">
+<!-- Song Library View -->
+<section hidden class="p-margin-mobile md:p-margin-desktop space-y-gutter" id="catalogue-view">
+<!-- Library stats: live counts pulled from /admin/api/stats. -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-gutter">
+<div class="glass-card rounded-xl p-5 flex flex-col gap-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Tracks</span>
+<span id="stat-total-tracks" class="font-display-sm text-display-sm text-primary num leading-none">—</span>
+</div>
+<div class="glass-card rounded-xl p-5 flex flex-col gap-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Genres</span>
+<span id="stat-total-genres" class="font-display-sm text-display-sm text-secondary num leading-none">—</span>
+</div>
+<div class="glass-card rounded-xl p-5 flex flex-col gap-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Active Genres</span>
+<span id="stat-active-genres" class="font-display-sm text-display-sm text-tertiary num leading-none">—</span>
+</div>
+</div>
 <!-- Add Track: a dedicated card so importing never gets confused with searching. -->
 <div class="glass-card rounded-xl p-5 space-y-3">
 <div class="flex items-center justify-between gap-3 flex-wrap">
@@ -243,59 +261,46 @@
 </table>
 </div>
 <div id="tracks-pagination" class="flex flex-wrap gap-1"></div>
+<audio id="admin-audio" preload="none"></audio>
+</section>
+<!-- Genres View -->
+<section hidden class="p-margin-mobile md:p-margin-desktop space-y-gutter" id="genres-view">
+<div>
+<h3 class="font-display-sm text-display-sm text-primary">Genres</h3>
+<p class="font-body-md text-body-md text-on-surface-variant">Categories tracks are spun from. Edit names inline; archive to hide from new games without deleting.</p>
 </div>
-<!-- Catalogue Sidebar -->
-<div class="lg:w-80 space-y-6">
-<div class="glass-card p-6 rounded-xl space-y-4">
-<h4 class="font-label-caps text-label-caps">LIBRARY STATS</h4>
-<div class="flex justify-between items-center">
-<span class="text-on-surface-variant text-sm">Total Tracks</span>
-<span class="font-label-mono text-primary font-bold">—</span>
-</div>
-<div class="flex justify-between items-center">
-<span class="text-on-surface-variant text-sm">Genres</span>
-<span class="font-label-mono text-secondary font-bold">—</span>
-</div>
-<div class="h-1 bg-surface-container-highest w-full rounded-full">
-<div class="h-full bg-primary w-3/4 rounded-full shadow-[0_0_10px_rgba(208,188,255,0.5)]"></div>
-</div>
-</div>
-<!-- Genres editor -->
-<section class="glass-card p-6 rounded-xl space-y-4">
-<h4 class="font-label-caps text-label-caps">GENRES</h4>
-<form id="add-genre-form" class="flex flex-wrap gap-2 items-center">
-<input id="genre-slug" type="text" required maxlength="40" placeholder="slug" pattern="[a-z0-9-]+" title="a-z, 0-9, hyphen only"
-  class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1.5 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 w-24 font-label-mono text-xs">
-<input id="genre-name" type="text" required maxlength="40" placeholder="Name"
-  class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1.5 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 flex-1 min-w-[80px] text-xs">
+<!-- Add genre -->
+<div class="glass-card rounded-xl p-5 space-y-3">
+<h4 class="font-label-caps text-label-caps text-secondary tracking-widest">ADD GENRE</h4>
+<form id="add-genre-form" class="flex flex-col md:flex-row items-stretch gap-3">
+<input id="genre-slug" type="text" required maxlength="40" placeholder="slug (a-z, 0-9, -)" pattern="[a-z0-9-]+" title="a-z, 0-9, hyphen only"
+  class="bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 font-label-mono text-label-mono md:w-48"/>
+<input id="genre-name" type="text" required maxlength="40" placeholder="Display name"
+  class="flex-1 bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 font-body-md text-body-md"/>
 <input id="genre-emoji" type="text" maxlength="8" placeholder="Emoji"
-  class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1.5 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 w-16 text-xs">
-<input id="genre-sort" type="number" required value="100" placeholder="Order"
-  class="bg-surface-container-low border border-outline-variant rounded-lg px-2 py-1.5 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 w-16 num text-xs">
-<button type="submit"
-  class="px-3 py-1.5 rounded bg-primary text-on-primary font-label-caps text-label-caps hover:scale-105 active:scale-95 transition-all">
-  +
-</button>
+  class="bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 text-center md:w-24"/>
+<input id="genre-sort" type="number" required value="100" placeholder="Order" aria-label="Sort order"
+  class="bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 num md:w-28"/>
+<button type="submit" class="bg-primary text-on-primary px-6 py-3 rounded-lg text-label-caps font-bold hover:scale-105 active:scale-95 transition-all whitespace-nowrap">ADD GENRE</button>
 </form>
-<div class="overflow-x-auto">
-<table class="w-full text-left border-collapse text-xs">
+</div>
+<!-- Genres table -->
+<div class="glass-card rounded-xl overflow-hidden">
+<table class="admin-table w-full">
 <thead class="bg-surface-container-high">
 <tr>
-<th class="px-2 py-2 font-label-caps text-on-surface-variant">Slug</th>
-<th class="px-2 py-2 font-label-caps text-on-surface-variant">Name</th>
-<th class="px-2 py-2 font-label-caps text-on-surface-variant">Emoji</th>
-<th class="px-2 py-2 font-label-caps text-on-surface-variant">#</th>
-<th class="px-2 py-2 font-label-caps text-on-surface-variant">Status</th>
-<th class="px-2 py-2"></th>
+<th class="font-label-caps text-label-caps text-on-surface-variant">Slug</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant">Name</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant">Emoji</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant">Order</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant">Tracks</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant">Status</th>
+<th class="font-label-caps text-label-caps text-on-surface-variant"></th>
 </tr>
 </thead>
 <tbody id="genres-body" class="divide-y divide-outline-variant/10"></tbody>
 </table>
 </div>
-</section>
-</div>
-</div>
-<audio id="admin-audio" preload="none"></audio>
 </section>
 </main>
 <!-- Footer (Shared Component) -->

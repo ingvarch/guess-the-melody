@@ -19,7 +19,13 @@ import {
   listGenres,
   updateGenre,
 } from '../catalog/genres';
-import { deleteTrack, getTrack, listTracks } from '../catalog/tracks';
+import {
+  countTracks,
+  countTracksByGenre,
+  deleteTrack,
+  getTrack,
+  listTracks,
+} from '../catalog/tracks';
 import { listSessions } from '../catalog/sessions';
 import { importTrack } from '../importer/import-track';
 import type { Env } from '../types';
@@ -206,6 +212,21 @@ function parseTeams(json: string): { name: string; score: number }[] {
   }
 }
 
+async function handleStats(req: Request, env: Env): Promise<Response> {
+  if (req.method !== 'GET') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const genres = await listGenres(env.CATALOG, { includeArchived: true });
+  const totalTracks = await countTracks(env.CATALOG);
+  const perGenre = await countTracksByGenre(env.CATALOG);
+  return json({
+    totalTracks,
+    totalGenres: genres.length,
+    activeGenres: genres.filter((g) => g.archived === 0).length,
+    perGenre,
+  });
+}
+
 async function handleSessions(req: Request, env: Env): Promise<Response> {
   if (req.method !== 'GET') {
     return new Response('method not allowed', { status: 405 });
@@ -324,6 +345,9 @@ export async function handleAdmin(
   }
   if (path === '/admin/api/sessions') {
     return handleSessions(req, env);
+  }
+  if (path === '/admin/api/stats') {
+    return handleStats(req, env);
   }
 
   return new Response('not found', { status: 404 });
