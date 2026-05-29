@@ -10,6 +10,7 @@ const {
   updateGenre,
   deleteGenre,
   getTracks,
+  updateTrack,
   deleteTrack,
   importTrack,
   getSessions,
@@ -97,6 +98,20 @@ test('getTracks: omits empty params', async () => {
   const { fetchFn, calls } = captureFetch(okResponse([]));
   await getTracks(fetchFn, {});
   assert.equal(calls[0].url, '/admin/api/tracks');
+});
+
+test('updateTrack: PATCH with JSON body', async () => {
+  const { fetchFn, calls } = captureFetch(okResponse({ id: 'tr-1', artist: 'Queen' }));
+  await updateTrack(fetchFn, 'tr-1', { artist: 'Queen', year: 1975 });
+  assert.equal(calls[0].url, '/admin/api/tracks/tr-1');
+  assert.equal(calls[0].opts.method, 'PATCH');
+  assert.equal(calls[0].opts.headers['content-type'], 'application/json');
+  assert.deepEqual(JSON.parse(calls[0].opts.body), { artist: 'Queen', year: 1975 });
+});
+
+test('updateTrack: throws with server error text', async () => {
+  const fetchFn = async () => new Response(JSON.stringify({ error: 'duplicate' }), { status: 409 });
+  await assert.rejects(() => updateTrack(fetchFn, 'tr-1', { artist: 'X' }), /duplicate/);
 });
 
 test('deleteTrack: DELETE by id', async () => {

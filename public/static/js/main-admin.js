@@ -6,6 +6,7 @@ import {
   updateGenre,
   deleteGenre,
   getTracks,
+  updateTrack,
   deleteTrack,
   importTrack,
   getSessions,
@@ -21,9 +22,14 @@ import {
   renderSessions,
   setPlayButtonState,
   renderStats,
+  openTrackEditor,
+  closeTrackEditor,
+  readTrackEditor,
+  setTrackEditorError,
 } from './admin-ui.js';
 
 let currentGenres = [];
+let currentTracks = [];
 let currentStats = { perGenre: {} };
 let tracksOffset = 0;
 const TRACKS_LIMIT = 25;
@@ -92,6 +98,7 @@ async function refreshTracks(offset = 0) {
       limit: TRACKS_LIMIT,
       offset,
     });
+    currentTracks = tracks;
     renderTracksTable(document, tracks);
     updateBulkDeleteVisibility();
     // Approximate total for pagination (heuristic: if we got a full page, there are more).
@@ -157,6 +164,54 @@ function markPlaying(btn) {
 
 function markStopped(btn) {
   setPlayButtonState(btn, false);
+}
+
+function wireTrackEditor() {
+  const form = document.getElementById('track-editor-form');
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const { id, genreSlug, artist, title, year } = readTrackEditor(document);
+      if (!artist || !title || !Number.isFinite(year)) {
+        setTrackEditorError(document, 'Заполните все поля');
+        return;
+      }
+      try {
+        await updateTrack(fetch, id, { genreSlug, artist, title, year });
+        closeTrackEditor(document);
+        await refreshStats();
+        await refreshTracks(tracksOffset);
+        await refreshGenres();
+      } catch (err) {
+        setTrackEditorError(document, err.message);
+      }
+    });
+  }
+
+  const delBtn = document.getElementById('track-edit-delete');
+  if (delBtn) {
+    delBtn.addEventListener('click', async () => {
+      const { id, artist, title } = readTrackEditor(document);
+      if (!confirm(`Удалить трек «${artist} – ${title}»?`)) return;
+      try {
+        await deleteTrack(fetch, id);
+        closeTrackEditor(document);
+        await refreshStats();
+        await refreshTracks(tracksOffset);
+        await refreshGenres();
+      } catch (err) {
+        setTrackEditorError(document, err.message);
+      }
+    });
+  }
+
+  document.getElementById('track-edit-cancel')?.addEventListener('click', () => closeTrackEditor(document));
+  document.getElementById('track-editor-backdrop')?.addEventListener('click', () => closeTrackEditor(document));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('track-editor')?.hasAttribute('hidden')) {
+      closeTrackEditor(document);
+    }
+  });
 }
 
 function wireForms() {
@@ -250,14 +305,21 @@ function wireForms() {
     });
   }
 
-  // Per-row Play button. Single shared audio element; clicking another row's
-  // button stops whatever is currently playing.
+  // Per-row Play button (single shared audio element; clicking another row's
+  // button stops the current one) and Edit button (opens the editor modal).
   if (tracksBody) {
     tracksBody.addEventListener('click', (e) => {
-      const btn = e.target.closest('button[data-action="play"]');
-      if (btn) togglePlay(btn);
+      const playBtn = e.target.closest('button[data-action="play"]');
+      if (playBtn) { togglePlay(playBtn); return; }
+      const editBtn = e.target.closest('button[data-action="edit"]');
+      if (editBtn) {
+        const track = currentTracks.find((t) => t.id === editBtn.dataset.id);
+        if (track) openTrackEditor(document, track, currentGenres);
+      }
     });
   }
+
+  wireTrackEditor();
 
   // Bulk delete.
   const bulkDeleteBtn = document.getElementById('bulk-delete-btn');

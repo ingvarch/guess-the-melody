@@ -35,6 +35,19 @@ export interface InsertTrack {
   added_at: number;
 }
 
+export interface UpdateTrack {
+  genre_slug?: string;
+  artist?: string;
+  title?: string;
+  year?: number;
+}
+
+// Shared release-year sanity window: 1900..currentYear+2. Used by the importer
+// (rejecting malformed iTunes dates) and by the admin edit handler.
+export function isPlausibleYear(year: number, now: Date = new Date()): boolean {
+  return Number.isInteger(year) && year >= 1900 && year <= now.getUTCFullYear() + 2;
+}
+
 export interface ListTracksOpts {
   genreSlug?: string;
   search?: string;
@@ -131,6 +144,43 @@ export async function countTracksByGenre(
   const out: Record<string, number> = {};
   for (const r of result.results) out[r.genre_slug] = r.c;
   return out;
+}
+
+// Patches only the supplied columns. Returns false when nothing was provided
+// or the id matched no row. Throws the raw UNIQUE-constraint error when the new
+// (artist, title, year) collides with another track — the admin handler maps it
+// to a 409.
+export async function updateTrack(
+  db: D1Database,
+  id: string,
+  patch: UpdateTrack,
+): Promise<boolean> {
+  const sets: string[] = [];
+  const binds: (string | number)[] = [];
+  if (patch.genre_slug !== undefined) {
+    sets.push('genre_slug = ?');
+    binds.push(patch.genre_slug);
+  }
+  if (patch.artist !== undefined) {
+    sets.push('artist = ?');
+    binds.push(patch.artist);
+  }
+  if (patch.title !== undefined) {
+    sets.push('title = ?');
+    binds.push(patch.title);
+  }
+  if (patch.year !== undefined) {
+    sets.push('year = ?');
+    binds.push(patch.year);
+  }
+  if (sets.length === 0) return false;
+
+  binds.push(id);
+  const result = await db
+    .prepare(`UPDATE tracks SET ${sets.join(', ')} WHERE id = ?`)
+    .bind(...binds)
+    .run();
+  return (result.meta.changes ?? 0) > 0;
 }
 
 export async function deleteTrack(db: D1Database, id: string): Promise<boolean> {

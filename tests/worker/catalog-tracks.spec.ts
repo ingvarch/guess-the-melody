@@ -11,8 +11,10 @@ import {
   getTrack,
   getTrackByItunesId,
   insertTrack,
+  isPlausibleYear,
   listTracks,
   pickRandomTrack,
+  updateTrack,
   type InsertTrack,
 } from '../../src/catalog/tracks';
 
@@ -171,6 +173,71 @@ describe('catalog/tracks', () => {
     // must not error. The effective LIMIT clause is min(1000, 200) = 200.
     const huge = await listTracks(testEnv.CATALOG, { limit: 1000 });
     expect(huge).toHaveLength(5);
+  });
+
+  it('updateTrack changes only the provided fields and returns true', async () => {
+    await insertTrack(testEnv.CATALOG, track({ id: 't1' }));
+    const changed = await updateTrack(testEnv.CATALOG, 't1', {
+      genre_slug: 'pop',
+      artist: 'The Beatles (Remastered)',
+    });
+    expect(changed).toBe(true);
+    const got = await getTrack(testEnv.CATALOG, 't1');
+    expect(got?.genre_slug).toBe('pop');
+    expect(got?.artist).toBe('The Beatles (Remastered)');
+    // Untouched fields stay put.
+    expect(got?.title).toBe('Hey Jude');
+    expect(got?.year).toBe(1968);
+  });
+
+  it('updateTrack can change title and year', async () => {
+    await insertTrack(testEnv.CATALOG, track({ id: 't1' }));
+    await updateTrack(testEnv.CATALOG, 't1', { title: 'Let It Be', year: 1970 });
+    const got = await getTrack(testEnv.CATALOG, 't1');
+    expect(got?.title).toBe('Let It Be');
+    expect(got?.year).toBe(1970);
+  });
+
+  it('updateTrack with no fields is a no-op returning false', async () => {
+    await insertTrack(testEnv.CATALOG, track({ id: 't1' }));
+    expect(await updateTrack(testEnv.CATALOG, 't1', {})).toBe(false);
+  });
+
+  it('updateTrack returns false for a missing id', async () => {
+    expect(await updateTrack(testEnv.CATALOG, 'nope', { artist: 'X' })).toBe(false);
+  });
+
+  it('updateTrack to the row own values does not raise the dedupe constraint', async () => {
+    await insertTrack(testEnv.CATALOG, track({ id: 't1' }));
+    // Changing only the genre leaves (artist, title, year) identical — must not
+    // collide with itself.
+    expect(await updateTrack(testEnv.CATALOG, 't1', { genre_slug: 'pop' })).toBe(true);
+  });
+
+  it('updateTrack throws when it would duplicate another row (artist, title, year)', async () => {
+    await insertTrack(testEnv.CATALOG, track({ id: 't1' }));
+    await insertTrack(
+      testEnv.CATALOG,
+      track({ id: 't2', artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975 }),
+    );
+    // Edit t2 to collide with t1's (artist, title, year).
+    await expect(
+      updateTrack(testEnv.CATALOG, 't2', {
+        artist: 'The Beatles',
+        title: 'Hey Jude',
+        year: 1968,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('isPlausibleYear accepts the 1900..now+2 window and rejects outside it', () => {
+    const now = new Date('2026-01-01T00:00:00Z');
+    expect(isPlausibleYear(1900, now)).toBe(true);
+    expect(isPlausibleYear(2026, now)).toBe(true);
+    expect(isPlausibleYear(2028, now)).toBe(true);
+    expect(isPlausibleYear(1899, now)).toBe(false);
+    expect(isPlausibleYear(2029, now)).toBe(false);
+    expect(isPlausibleYear(1968.5, now)).toBe(false);
   });
 
   it('deleteTrack returns true on success and false on missing id', async () => {

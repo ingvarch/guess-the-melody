@@ -377,6 +377,119 @@ describe('admin handlers', () => {
     expect(obj).toBeNull();
   });
 
+  it('PATCH /admin/api/tracks/:id updates artist, title, year and genre', async () => {
+    await insertTrack(testEnv.CATALOG, {
+      id: 't-edit-1', genre_slug: 'rock', artist: 'A', title: 'T', year: 2000,
+      preview_url: 'https://example.com/e.m4a', added_at: 1,
+    });
+    const res = await SELF.fetch('http://localhost/admin/api/tracks/t-edit-1', {
+      method: 'PATCH',
+      headers: { authorization: authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify({ artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975, genreSlug: 'pop' }),
+    });
+    expect(res.status).toBe(200);
+    const updated = (await res.json()) as { artist: string; title: string; year: number; genre_slug: string };
+    expect(updated.artist).toBe('Queen');
+    expect(updated.title).toBe('Bohemian Rhapsody');
+    expect(updated.year).toBe(1975);
+    expect(updated.genre_slug).toBe('pop');
+  });
+
+  it('PATCH /admin/api/tracks/:id without auth returns 401', async () => {
+    const res = await SELF.fetch('http://localhost/admin/api/tracks/whatever', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ artist: 'X' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('PATCH /admin/api/tracks/:id returns 404 when missing', async () => {
+    const res = await SELF.fetch('http://localhost/admin/api/tracks/nope', {
+      method: 'PATCH',
+      headers: { authorization: authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify({ artist: 'X' }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('PATCH /admin/api/tracks/:id returns 400 for an unknown genre', async () => {
+    await insertTrack(testEnv.CATALOG, {
+      id: 't-edit-g', genre_slug: 'rock', artist: 'A', title: 'T', year: 2000,
+      preview_url: 'https://example.com/g.m4a', added_at: 1,
+    });
+    const res = await SELF.fetch('http://localhost/admin/api/tracks/t-edit-g', {
+      method: 'PATCH',
+      headers: { authorization: authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify({ genreSlug: 'does-not-exist' }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('unknown_genre');
+  });
+
+  it('PATCH /admin/api/tracks/:id returns 400 for an out-of-range year', async () => {
+    await insertTrack(testEnv.CATALOG, {
+      id: 't-edit-y', genre_slug: 'rock', artist: 'A', title: 'T', year: 2000,
+      preview_url: 'https://example.com/y.m4a', added_at: 1,
+    });
+    const res = await SELF.fetch('http://localhost/admin/api/tracks/t-edit-y', {
+      method: 'PATCH',
+      headers: { authorization: authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify({ year: 1700 }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('bad_year');
+  });
+
+  it('PATCH /admin/api/tracks/:id returns 400 for an empty artist', async () => {
+    await insertTrack(testEnv.CATALOG, {
+      id: 't-edit-a', genre_slug: 'rock', artist: 'A', title: 'T', year: 2000,
+      preview_url: 'https://example.com/a.m4a', added_at: 1,
+    });
+    const res = await SELF.fetch('http://localhost/admin/api/tracks/t-edit-a', {
+      method: 'PATCH',
+      headers: { authorization: authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify({ artist: '   ' }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('bad_field');
+  });
+
+  it('PATCH /admin/api/tracks/:id returns 409 when it collides with another row', async () => {
+    await insertTrack(testEnv.CATALOG, {
+      id: 't-keep', genre_slug: 'rock', artist: 'Queen', title: 'Yesterday', year: 1965,
+      preview_url: 'https://example.com/k.m4a', added_at: 1,
+    });
+    await insertTrack(testEnv.CATALOG, {
+      id: 't-move', genre_slug: 'rock', artist: 'Beatles', title: 'Help', year: 1965,
+      preview_url: 'https://example.com/m.m4a', added_at: 2,
+    });
+    const res = await SELF.fetch('http://localhost/admin/api/tracks/t-move', {
+      method: 'PATCH',
+      headers: { authorization: authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify({ artist: 'Queen', title: 'Yesterday', year: 1965 }),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('duplicate');
+  });
+
+  it('PATCH /admin/api/tracks/:id returns 400 on malformed JSON', async () => {
+    await insertTrack(testEnv.CATALOG, {
+      id: 't-edit-j', genre_slug: 'rock', artist: 'A', title: 'T', year: 2000,
+      preview_url: 'https://example.com/j.m4a', added_at: 1,
+    });
+    const res = await SELF.fetch('http://localhost/admin/api/tracks/t-edit-j', {
+      method: 'PATCH',
+      headers: { authorization: authHeader(), 'content-type': 'application/json' },
+      body: '{not json',
+    });
+    expect(res.status).toBe(400);
+  });
+
   it('DELETE /admin/api/tracks/:id returns 404 when missing', async () => {
     const res = await SELF.fetch('http://localhost/admin/api/tracks/never-here', {
       method: 'DELETE',

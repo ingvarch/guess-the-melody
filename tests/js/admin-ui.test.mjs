@@ -52,6 +52,18 @@ function alignOf(el) {
   return 'left';
 }
 
+function adminDoc() {
+  const html = readFileSync(
+    fileURLToPath(new URL('../../public/admin.html', import.meta.url)),
+    'utf8',
+  );
+  const win = new Window();
+  win.SyntaxError = SyntaxError;
+  win.Error = Error;
+  win.document.body.innerHTML = html;
+  return win.document;
+}
+
 const mod = await import('../../public/static/js/admin-ui.js');
 const {
   renderGenresTable,
@@ -63,6 +75,10 @@ const {
   renderSessions,
   setPlayButtonState,
   renderStats,
+  openTrackEditor,
+  closeTrackEditor,
+  readTrackEditor,
+  setTrackEditorError,
 } = mod;
 
 test('renderSessions shows empty state when no sessions', () => {
@@ -208,6 +224,67 @@ test('renderTracksTable adds a Play button per row', () => {
   assert.ok(playBtn, 'row must have play button');
   assert.equal(playBtn.dataset.id, 't1');
   assert.equal(playBtn.type, 'button');
+});
+
+test('renderTracksTable adds an Edit button per row', () => {
+  const doc = makeDoc();
+  renderTracksTable(doc, [
+    { id: 't1', genre_slug: 'rock', artist: 'A', title: 'T1', year: 2000 },
+  ]);
+  const editBtn = doc.querySelector('#tracks-body tr[data-id="t1"] button[data-action="edit"]');
+  assert.ok(editBtn, 'row must have edit button');
+  assert.equal(editBtn.dataset.id, 't1');
+  assert.equal(editBtn.type, 'button');
+  assert.ok(editBtn.getAttribute('aria-label'), 'edit button keeps an aria-label');
+});
+
+test('admin.html ships the track editor modal hidden with fields and buttons', () => {
+  const doc = adminDoc();
+  const overlay = doc.getElementById('track-editor');
+  assert.ok(overlay, 'modal overlay #track-editor exists');
+  assert.equal(overlay.hasAttribute('hidden'), true, 'modal starts hidden');
+  assert.ok(doc.getElementById('track-editor-form'), 'has form');
+  assert.ok(doc.getElementById('track-edit-genre'), 'has genre select');
+  assert.ok(doc.getElementById('track-edit-artist'), 'has artist input');
+  assert.ok(doc.getElementById('track-edit-title'), 'has title input');
+  assert.ok(doc.getElementById('track-edit-year'), 'has year input');
+  assert.ok(doc.getElementById('track-edit-save'), 'has save button');
+  assert.ok(doc.getElementById('track-edit-delete'), 'has delete button');
+  assert.ok(doc.getElementById('track-edit-cancel'), 'has cancel button');
+});
+
+test('openTrackEditor fills fields from the track and reveals the modal', () => {
+  const doc = adminDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }];
+  openTrackEditor(doc, { id: 't9', genre_slug: 'pop', artist: 'Queen', title: 'Rhapsody', year: 1975 }, genres);
+  assert.equal(doc.getElementById('track-editor').hasAttribute('hidden'), false);
+  assert.equal(doc.getElementById('track-edit-genre').value, 'pop');
+  assert.equal(doc.getElementById('track-edit-artist').value, 'Queen');
+  assert.equal(doc.getElementById('track-edit-title').value, 'Rhapsody');
+  assert.equal(doc.getElementById('track-edit-year').value, '1975');
+  assert.equal(doc.getElementById('track-editor-form').dataset.id, 't9');
+});
+
+test('readTrackEditor returns the current field values with a numeric year', () => {
+  const doc = adminDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }];
+  openTrackEditor(doc, { id: 't9', genre_slug: 'pop', artist: 'Queen', title: 'Rhapsody', year: 1975 }, genres);
+  doc.getElementById('track-edit-artist').value = '  Freddie  ';
+  const out = readTrackEditor(doc);
+  assert.deepEqual(out, { id: 't9', genreSlug: 'pop', artist: 'Freddie', title: 'Rhapsody', year: 1975 });
+});
+
+test('closeTrackEditor hides the modal again', () => {
+  const doc = adminDoc();
+  openTrackEditor(doc, { id: 't9', genre_slug: 'pop', artist: 'Q', title: 'R', year: 1975 }, [{ slug: 'pop', name: 'Pop' }]);
+  closeTrackEditor(doc);
+  assert.equal(doc.getElementById('track-editor').hasAttribute('hidden'), true);
+});
+
+test('setTrackEditorError writes into the modal error region', () => {
+  const doc = adminDoc();
+  setTrackEditorError(doc, 'Duplicate track');
+  assert.equal(doc.getElementById('track-edit-error').textContent, 'Duplicate track');
 });
 
 test('renderTracksTable preserves checkbox checked state across re-renders', () => {

@@ -128,6 +128,8 @@ const PLAY_ICON =
   '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>';
 const PAUSE_ICON =
   '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>';
+const EDIT_ICON =
+  '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>';
 
 // Single source of truth for the per-row play button's look. Used by the
 // renderer (initial, stopped) and by main-admin's playback glue on toggle.
@@ -175,19 +177,73 @@ export function renderTracksTable(doc, tracks) {
     yearTd.className = 'px-6 py-4 text-center num';
     yearTd.textContent = String(t.year);
 
-    const playTd = doc.createElement('td');
-    playTd.className = 'px-6 py-4 text-center';
+    const actionsTd = doc.createElement('td');
+    actionsTd.className = 'px-6 py-4 text-center';
+    const actions = doc.createElement('div');
+    actions.className = 'track-actions';
     const playBtn = doc.createElement('button');
     playBtn.type = 'button';
     playBtn.className = 'play-btn';
     playBtn.dataset.action = 'play';
     playBtn.dataset.id = t.id;
     setPlayButtonState(playBtn, false);
-    playTd.append(playBtn);
+    const editBtn = doc.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'icon-btn';
+    editBtn.dataset.action = 'edit';
+    editBtn.dataset.id = t.id;
+    editBtn.setAttribute('aria-label', 'Редактировать трек');
+    editBtn.innerHTML = EDIT_ICON;
+    actions.append(playBtn, editBtn);
+    actionsTd.append(actions);
 
-    tr.append(cbTd, genreTd, artistTd, titleTd, yearTd, playTd);
+    tr.append(cbTd, genreTd, artistTd, titleTd, yearTd, actionsTd);
     tbody.append(tr);
   }
+}
+
+// ---- Track editor modal ----
+
+// Fills the modal fields from a track and reveals it. `genres` populates the
+// genre select; the track's current genre is pre-selected.
+export function openTrackEditor(doc, track, genres) {
+  populateGenreSelect(doc, genres, 'track-edit-genre');
+  const genre = doc.getElementById('track-edit-genre');
+  if (genre) genre.value = track.genre_slug;
+  const artist = doc.getElementById('track-edit-artist');
+  if (artist) artist.value = track.artist ?? '';
+  const title = doc.getElementById('track-edit-title');
+  if (title) title.value = track.title ?? '';
+  const year = doc.getElementById('track-edit-year');
+  if (year) year.value = String(track.year ?? '');
+  const form = doc.getElementById('track-editor-form');
+  if (form) form.dataset.id = track.id;
+  setTrackEditorError(doc, '');
+  const overlay = doc.getElementById('track-editor');
+  if (overlay) overlay.removeAttribute('hidden');
+}
+
+export function closeTrackEditor(doc) {
+  const overlay = doc.getElementById('track-editor');
+  if (overlay) overlay.setAttribute('hidden', '');
+}
+
+// Reads the current field values back out. `year` is numeric; `artist`/`title`
+// are trimmed. The caller decides what to send (server patches by key).
+export function readTrackEditor(doc) {
+  const form = doc.getElementById('track-editor-form');
+  return {
+    id: form?.dataset.id ?? '',
+    genreSlug: doc.getElementById('track-edit-genre')?.value ?? '',
+    artist: (doc.getElementById('track-edit-artist')?.value ?? '').trim(),
+    title: (doc.getElementById('track-edit-title')?.value ?? '').trim(),
+    year: Number(doc.getElementById('track-edit-year')?.value),
+  };
+}
+
+export function setTrackEditorError(doc, msg) {
+  const el = doc.getElementById('track-edit-error');
+  if (el) el.textContent = msg;
 }
 
 export function renderPagination(doc, { offset, limit, total, onPage }) {

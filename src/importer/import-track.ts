@@ -6,7 +6,7 @@
 
 import { randomUrlSafe } from '../id';
 import { getGenre } from '../catalog/genres';
-import { getTrackByItunesId, insertTrack } from '../catalog/tracks';
+import { getTrackByItunesId, insertTrack, isPlausibleYear } from '../catalog/tracks';
 import type { Env } from '../types';
 import {
   lookupItunes,
@@ -140,8 +140,7 @@ export async function importTrack(
   // 4. Validate release year before any R2 work. yearFromItunes returns 0
   // for malformed/missing releaseDate; the plausible-year window catches that.
   const year = yearFromItunes(t);
-  const currentYear = new Date().getUTCFullYear();
-  if (year < 1900 || year > currentYear + 2) {
+  if (!isPlausibleYear(year)) {
     return { code: 'no_preview', message: 'iTunes track missing or invalid release year' };
   }
 

@@ -24,7 +24,10 @@ import {
   countTracksByGenre,
   deleteTrack,
   getTrack,
+  isPlausibleYear,
   listTracks,
+  updateTrack,
+  type UpdateTrack,
 } from '../catalog/tracks';
 import { listSessions } from '../catalog/sessions';
 import { importTrack } from '../importer/import-track';
@@ -157,11 +160,65 @@ async function handleTracksIndex(req: Request, env: Env): Promise<Response> {
   return json(rows);
 }
 
+async function handleTrackPatch(
+  req: Request,
+  env: Env,
+  id: string,
+): Promise<Response> {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: 'bad_json' }, 400);
+  }
+  if (typeof body !== 'object' || body === null) {
+    return json({ error: 'bad_body' }, 400);
+  }
+  const existing = await getTrack(env.CATALOG, id);
+  if (!existing) return json({ error: 'not_found' }, 404);
+
+  const b = body as Record<string, unknown>;
+  const patch: UpdateTrack = {};
+
+  if (b.genreSlug !== undefined) {
+    if (typeof b.genreSlug !== 'string') return json({ error: 'bad_field' }, 400);
+    const genre = await getGenre(env.CATALOG, b.genreSlug);
+    if (!genre) return json({ error: 'unknown_genre' }, 400);
+    patch.genre_slug = b.genreSlug;
+  }
+  for (const field of ['artist', 'title'] as const) {
+    if (b[field] !== undefined) {
+      if (typeof b[field] !== 'string' || (b[field] as string).trim().length === 0) {
+        return json({ error: 'bad_field' }, 400);
+      }
+      patch[field] = (b[field] as string).trim();
+    }
+  }
+  if (b.year !== undefined) {
+    if (typeof b.year !== 'number' || !isPlausibleYear(b.year)) {
+      return json({ error: 'bad_year' }, 400);
+    }
+    patch.year = b.year;
+  }
+
+  try {
+    await updateTrack(env.CATALOG, id, patch);
+  } catch (err) {
+    if (isUniqueConstraintError(err)) return json({ error: 'duplicate' }, 409);
+    throw err;
+  }
+  const updated = await getTrack(env.CATALOG, id);
+  return json(updated);
+}
+
 async function handleTrackById(
   req: Request,
   env: Env,
   id: string,
 ): Promise<Response> {
+  if (req.method === 'PATCH') {
+    return handleTrackPatch(req, env, id);
+  }
   if (req.method !== 'DELETE') {
     return new Response('method not allowed', { status: 405 });
   }

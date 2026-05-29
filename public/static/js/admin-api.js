@@ -54,6 +54,19 @@ export async function getTracks(fetchFn, opts = {}) {
   return res.json();
 }
 
+export async function updateTrack(fetchFn, id, payload) {
+  const res = await fetchFn(`/admin/api/tracks/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `updateTrack: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function deleteTrack(fetchFn, id) {
   const res = await fetchFn(`/admin/api/tracks/${encodeURIComponent(id)}`, {
     method: 'DELETE',
