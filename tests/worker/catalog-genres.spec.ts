@@ -27,16 +27,16 @@ async function resetCatalog(): Promise<void> {
   ).run();
   await testEnv.CATALOG.batch([
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Rock',       emoji=NULL, sort_order=10, archived=0 WHERE slug='rock'`,
+      `UPDATE genres SET name='Rock',       sort_order=10, archived=0 WHERE slug='rock'`,
     ),
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Pop',        emoji=NULL, sort_order=20, archived=0 WHERE slug='pop'`,
+      `UPDATE genres SET name='Pop',        sort_order=20, archived=0 WHERE slug='pop'`,
     ),
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Hip-Hop',    emoji=NULL, sort_order=30, archived=0 WHERE slug='hip-hop'`,
+      `UPDATE genres SET name='Hip-Hop',    sort_order=30, archived=0 WHERE slug='hip-hop'`,
     ),
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Soundtrack', emoji=NULL, sort_order=40, archived=0 WHERE slug='soundtrack'`,
+      `UPDATE genres SET name='Soundtrack', sort_order=40, archived=0 WHERE slug='soundtrack'`,
     ),
   ]);
 }
@@ -76,7 +76,6 @@ describe('catalog/genres', () => {
     await createGenre(testEnv.CATALOG, {
       slug: 'jazz',
       name: 'Jazz',
-      emoji: null,
       sortOrder: 50,
     });
     const jazz = await getGenre(testEnv.CATALOG, 'jazz');
@@ -84,10 +83,9 @@ describe('catalog/genres', () => {
   });
 
   it('updateGenre mutates only the supplied fields', async () => {
-    await updateGenre(testEnv.CATALOG, 'rock', { name: 'Rock & Roll', emoji: 'guitar' });
+    await updateGenre(testEnv.CATALOG, 'rock', { name: 'Rock & Roll' });
     const row = await getGenre(testEnv.CATALOG, 'rock');
     expect(row?.name).toBe('Rock & Roll');
-    expect(row?.emoji).toBe('guitar');
     expect(row?.sort_order).toBe(10); // unchanged
   });
 
@@ -114,7 +112,6 @@ describe('catalog/genres', () => {
     await createGenre(testEnv.CATALOG, {
       slug: 'temp',
       name: 'Temp',
-      emoji: null,
       sortOrder: 99,
     });
     const result = await deleteGenre(testEnv.CATALOG, 'temp');

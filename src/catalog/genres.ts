@@ -8,7 +8,6 @@
 export interface Genre {
   slug: string;
   name: string;
-  emoji: string | null;
   sort_order: number;
   archived: number;
 }
@@ -16,13 +15,11 @@ export interface Genre {
 export interface CreateGenre {
   slug: string;
   name: string;
-  emoji?: string | null;
   sortOrder: number;
 }
 
 export interface UpdateGenre {
   name?: string;
-  emoji?: string | null;
   sort_order?: number;
   archived?: number;
 }
@@ -37,15 +34,15 @@ export async function listGenres(
   opts?: { includeArchived?: boolean },
 ): Promise<Genre[]> {
   const sql = opts?.includeArchived
-    ? 'SELECT slug, name, emoji, sort_order, archived FROM genres ORDER BY sort_order, slug'
-    : 'SELECT slug, name, emoji, sort_order, archived FROM genres WHERE archived = 0 ORDER BY sort_order, slug';
+    ? 'SELECT slug, name, sort_order, archived FROM genres ORDER BY sort_order, slug'
+    : 'SELECT slug, name, sort_order, archived FROM genres WHERE archived = 0 ORDER BY sort_order, slug';
   const result = await db.prepare(sql).all<Genre>();
   return result.results;
 }
 
 export async function getGenre(db: D1Database, slug: string): Promise<Genre | null> {
   const row = await db
-    .prepare('SELECT slug, name, emoji, sort_order, archived FROM genres WHERE slug = ?')
+    .prepare('SELECT slug, name, sort_order, archived FROM genres WHERE slug = ?')
     .bind(slug)
     .first<Genre>();
   return row;
@@ -53,8 +50,8 @@ export async function getGenre(db: D1Database, slug: string): Promise<Genre | nu
 
 export async function createGenre(db: D1Database, g: CreateGenre): Promise<void> {
   await db
-    .prepare('INSERT INTO genres (slug, name, emoji, sort_order) VALUES (?, ?, ?, ?)')
-    .bind(g.slug, g.name, g.emoji ?? null, g.sortOrder)
+    .prepare('INSERT INTO genres (slug, name, sort_order) VALUES (?, ?, ?)')
+    .bind(g.slug, g.name, g.sortOrder)
     .run();
 }
 
@@ -69,10 +66,6 @@ export async function updateGenre(
   if (patch.name !== undefined) {
     sets.push('name = ?');
     values.push(patch.name);
-  }
-  if (patch.emoji !== undefined) {
-    sets.push('emoji = ?');
-    values.push(patch.emoji);
   }
   if (patch.sort_order !== undefined) {
     sets.push('sort_order = ?');

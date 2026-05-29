@@ -74,15 +74,10 @@ async function handleGenresIndex(req: Request, env: Env): Promise<Response> {
     if (!SLUG_RE.test(b.slug)) {
       return json({ error: 'bad_slug' }, 400);
     }
-    if (b.emoji !== undefined && b.emoji !== null && typeof b.emoji !== 'string') {
-      return json({ error: 'bad_emoji' }, 400);
-    }
-    const emoji = b.emoji === undefined ? undefined : (b.emoji as string | null);
     try {
       await createGenre(env.CATALOG, {
         slug: b.slug,
         name: b.name,
-        ...(emoji !== undefined ? { emoji } : {}),
         sortOrder: b.sortOrder,
       });
     } catch (err) {
@@ -116,9 +111,6 @@ async function handleGenreBySlug(
     const b = body as Record<string, unknown>;
     const patch: Parameters<typeof updateGenre>[2] = {};
     if (typeof b.name === 'string') patch.name = b.name;
-    if (b.emoji === null || typeof b.emoji === 'string') {
-      patch.emoji = b.emoji as string | null;
-    }
     if (typeof b.sortOrder === 'number') patch.sort_order = b.sortOrder;
     if (typeof b.archived === 'boolean') patch.archived = b.archived ? 1 : 0;
 

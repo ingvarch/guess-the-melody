@@ -27,16 +27,16 @@ async function resetCatalog(): Promise<void> {
   ).run();
   await testEnv.CATALOG.batch([
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Rock',       emoji=NULL, sort_order=10, archived=0 WHERE slug='rock'`,
+      `UPDATE genres SET name='Rock',       sort_order=10, archived=0 WHERE slug='rock'`,
     ),
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Pop',        emoji=NULL, sort_order=20, archived=0 WHERE slug='pop'`,
+      `UPDATE genres SET name='Pop',        sort_order=20, archived=0 WHERE slug='pop'`,
     ),
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Hip-Hop',    emoji=NULL, sort_order=30, archived=0 WHERE slug='hip-hop'`,
+      `UPDATE genres SET name='Hip-Hop',    sort_order=30, archived=0 WHERE slug='hip-hop'`,
     ),
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Soundtrack', emoji=NULL, sort_order=40, archived=0 WHERE slug='soundtrack'`,
+      `UPDATE genres SET name='Soundtrack', sort_order=40, archived=0 WHERE slug='soundtrack'`,
     ),
   ]);
 }

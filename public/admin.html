@@ -277,8 +277,6 @@
   class="bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 font-label-mono text-label-mono md:w-48"/>
 <input id="genre-name" type="text" required maxlength="40" placeholder="Display name"
   class="flex-1 bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 font-body-md text-body-md"/>
-<input id="genre-emoji" type="text" maxlength="8" placeholder="Emoji"
-  class="bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 text-center md:w-24"/>
 <input id="genre-sort" type="number" required value="100" placeholder="Order" aria-label="Sort order"
   class="bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/50 num md:w-28"/>
 <button type="submit" class="bg-primary text-on-primary px-6 py-3 rounded-lg text-label-caps font-bold hover:scale-105 active:scale-95 transition-all whitespace-nowrap">ADD GENRE</button>
@@ -289,10 +287,9 @@
 <table class="w-full text-left border-collapse">
 <thead class="bg-surface-container-high">
 <tr>
+<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Order</th>
 <th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Slug</th>
 <th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant">Name</th>
-<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Emoji</th>
-<th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Order</th>
 <th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Tracks</th>
 <th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Status</th>
 <th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center">Actions</th>
@@ -363,11 +360,6 @@
 <span class="font-label-caps text-label-caps text-on-surface-variant">Name</span>
 <input id="genre-edit-name" type="text" required maxlength="40"
   class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all font-body-md text-body-md"/>
-</label>
-<label class="block space-y-1.5">
-<span class="font-label-caps text-label-caps text-on-surface-variant">Emoji</span>
-<input id="genre-edit-emoji" type="text" maxlength="8"
-  class="w-full bg-surface-container-low border border-outline-variant rounded-lg px-4 py-3 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-center"/>
 </label>
 <label class="block space-y-1.5">
 <span class="font-label-caps text-label-caps text-on-surface-variant">Order</span>

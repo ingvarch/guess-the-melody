@@ -16,6 +16,10 @@ export function renderGenresTable(doc, genres, opts = {}) {
     const tr = doc.createElement('tr');
     tr.dataset.slug = g.slug;
 
+    const sortTd = doc.createElement('td');
+    sortTd.className = 'px-6 py-4 text-center num';
+    sortTd.textContent = String(g.sort_order);
+
     const slugTd = doc.createElement('td');
     slugTd.className = 'px-6 py-4 font-label-mono text-label-mono';
     slugTd.textContent = g.slug;
@@ -23,14 +27,6 @@ export function renderGenresTable(doc, genres, opts = {}) {
     const nameTd = doc.createElement('td');
     nameTd.className = 'px-6 py-4';
     nameTd.textContent = g.name;
-
-    const emojiTd = doc.createElement('td');
-    emojiTd.className = 'px-6 py-4 text-center';
-    emojiTd.textContent = g.emoji ?? '';
-
-    const sortTd = doc.createElement('td');
-    sortTd.className = 'px-6 py-4 text-center num';
-    sortTd.textContent = String(g.sort_order);
 
     const countTd = doc.createElement('td');
     countTd.dataset.cell = 'count';
@@ -58,7 +54,7 @@ export function renderGenresTable(doc, genres, opts = {}) {
     actions.append(editBtn);
     actionsTd.append(actions);
 
-    tr.append(slugTd, nameTd, emojiTd, sortTd, countTd, statusTd, actionsTd);
+    tr.append(sortTd, slugTd, nameTd, countTd, statusTd, actionsTd);
     tbody.append(tr);
   }
 }
@@ -77,7 +73,7 @@ export function populateGenreSelect(doc, genres, selectId) {
   for (const g of genres) {
     const opt = doc.createElement('option');
     opt.value = g.slug;
-    opt.textContent = `${g.emoji ?? ''} ${g.name}`.trim();
+    opt.textContent = g.name;
     select.append(opt);
   }
   if (current && genres.some((g) => g.slug === current)) {
@@ -224,8 +220,6 @@ export function openGenreEditor(doc, genre) {
   if (slug) slug.textContent = genre.slug;
   const name = doc.getElementById('genre-edit-name');
   if (name) name.value = genre.name ?? '';
-  const emoji = doc.getElementById('genre-edit-emoji');
-  if (emoji) emoji.value = genre.emoji ?? '';
   const sort = doc.getElementById('genre-edit-sort');
   if (sort) sort.value = String(genre.sort_order ?? '');
   const archiveBtn = doc.getElementById('genre-edit-archive');
@@ -247,11 +241,9 @@ export function closeGenreEditor(doc) {
 
 export function readGenreEditor(doc) {
   const form = doc.getElementById('genre-editor-form');
-  const emoji = (doc.getElementById('genre-edit-emoji')?.value ?? '').trim();
   return {
     slug: form?.dataset.slug ?? '',
     name: (doc.getElementById('genre-edit-name')?.value ?? '').trim(),
-    emoji: emoji || null,
     sortOrder: Number(doc.getElementById('genre-edit-sort')?.value),
     archived: form?.dataset.archived === '1' ? 1 : 0,
   };

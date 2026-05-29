@@ -23,16 +23,16 @@ async function resetCatalog(): Promise<void> {
   ).run();
   await testEnv.CATALOG.batch([
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Rock', emoji=NULL, sort_order=10, archived=0 WHERE slug='rock'`,
+      `UPDATE genres SET name='Rock', sort_order=10, archived=0 WHERE slug='rock'`,
     ),
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Pop', emoji=NULL, sort_order=20, archived=0 WHERE slug='pop'`,
+      `UPDATE genres SET name='Pop', sort_order=20, archived=0 WHERE slug='pop'`,
     ),
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Hip-Hop', emoji=NULL, sort_order=30, archived=0 WHERE slug='hip-hop'`,
+      `UPDATE genres SET name='Hip-Hop', sort_order=30, archived=0 WHERE slug='hip-hop'`,
     ),
     testEnv.CATALOG.prepare(
-      `UPDATE genres SET name='Soundtrack', emoji=NULL, sort_order=40, archived=0 WHERE slug='soundtrack'`,
+      `UPDATE genres SET name='Soundtrack', sort_order=40, archived=0 WHERE slug='soundtrack'`,
     ),
   ]);
   const list = await testEnv.AUDIO.list();
@@ -213,17 +213,6 @@ describe('admin handlers', () => {
     expect(res.status).toBe(400);
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe('bad_slug');
-  });
-
-  it('POST /admin/api/genres with non-string emoji returns 400 bad_emoji', async () => {
-    const res = await SELF.fetch('http://localhost/admin/api/genres', {
-      method: 'POST',
-      headers: { authorization: authHeader(), 'content-type': 'application/json' },
-      body: JSON.stringify({ slug: 'jazz', name: 'Jazz', sortOrder: 99, emoji: 42 }),
-    });
-    expect(res.status).toBe(400);
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toBe('bad_emoji');
   });
 
   it('POST /admin/api/genres with missing fields returns 400', async () => {

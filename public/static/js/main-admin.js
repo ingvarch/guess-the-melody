@@ -188,13 +188,13 @@ function wireGenreEditor() {
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const { slug, name, emoji, sortOrder } = readGenreEditor(document);
+      const { slug, name, sortOrder } = readGenreEditor(document);
       if (!name || !Number.isFinite(sortOrder)) {
         setGenreEditorError(document, 'Заполните название и порядок');
         return;
       }
       try {
-        await updateGenre(fetch, slug, { name, emoji, sortOrder });
+        await updateGenre(fetch, slug, { name, sortOrder });
         closeGenreEditor(document);
         await refreshGenres();
       } catch (err) {
@@ -280,14 +280,12 @@ function wireForms() {
       e.preventDefault();
       const slug = document.getElementById('genre-slug')?.value.trim();
       const name = document.getElementById('genre-name')?.value.trim();
-      const emoji = document.getElementById('genre-emoji')?.value.trim() || null;
       const sortOrder = Number(document.getElementById('genre-sort')?.value);
       if (!slug || !name || !Number.isFinite(sortOrder)) return;
       try {
-        await createGenre(fetch, { slug, name, emoji, sortOrder });
+        await createGenre(fetch, { slug, name, sortOrder });
         document.getElementById('genre-slug').value = '';
         document.getElementById('genre-name').value = '';
-        document.getElementById('genre-emoji').value = '';
         await refreshStats();
         await refreshGenres();
       } catch (e) {
