@@ -40,9 +40,30 @@ export function parseItunesUrl(url: string): { trackId: number } | null {
   return { trackId: n };
 }
 
+// iTunes throttles ~20 req/min/IP and answers bursts with 429. Back off and
+// retry (honouring Retry-After) rather than failing the import. 503 too.
+const RETRY_STATUSES = new Set([429, 503]);
+const MAX_RETRIES = 4;
+const BASE_DELAY_MS = 500;
+
+function retryDelayMs(res: Response, attempt: number): number {
+  const ra = res.headers.get('retry-after');
+  if (ra !== null) {
+    const secs = Number.parseInt(ra, 10);
+    if (Number.isFinite(secs)) return Math.max(0, secs) * 1000;
+  }
+  return BASE_DELAY_MS * 2 ** attempt;
+}
+
 async function fetchItunes(url: string): Promise<ItunesResponse> {
-  const res = await fetch(url);
-  if (!res.ok) {
+  let res: Response;
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch(url);
+    if (res.ok) break;
+    if (RETRY_STATUSES.has(res.status) && attempt < MAX_RETRIES) {
+      await new Promise((resolve) => setTimeout(resolve, retryDelayMs(res, attempt)));
+      continue;
+    }
     throw new Error(`iTunes request failed: ${res.status}`);
   }
   // iTunes returns text/javascript with a JSON body; res.json() handles it.

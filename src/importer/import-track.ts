@@ -86,7 +86,18 @@ async function resolveTrack(
   }
 
   if (opts.query !== undefined) {
-    const t = await resolveQueryToItunes(parseQueryLine(opts.query), opts.country);
+    let t;
+    try {
+      t = await resolveQueryToItunes(parseQueryLine(opts.query), opts.country);
+    } catch (e) {
+      return {
+        kind: 'err',
+        err: {
+          code: 'no_preview',
+          message: e instanceof Error ? e.message : 'iTunes search failed',
+        },
+      };
+    }
     if (!t) {
       return {
         kind: 'err',

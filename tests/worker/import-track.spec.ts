@@ -368,6 +368,27 @@ describe('importer/import-track', () => {
     expect(searchUrl).toContain('country=US');
   });
 
+  it('returns no_preview (not a thrown 500) when iTunes stays rate-limited', async () => {
+    vi.stubGlobal(
+      'fetch',
+      routedFetch([
+        {
+          match: (u) => u.includes('itunes.apple.com/search'),
+          respond: () =>
+            new Response('rate limited', { status: 429, headers: { 'retry-after': '0' } }),
+        },
+      ]),
+    );
+
+    const out = await importTrack(testEnv, {
+      query: 'Кино — Группа крови',
+      genreSlug: 'rock',
+      country: 'RU',
+    });
+
+    expect('code' in out && out.code === 'no_preview').toBe(true);
+  });
+
   it('returns no_preview when a query matches nothing on iTunes', async () => {
     vi.stubGlobal(
       'fetch',

@@ -124,6 +124,35 @@ describe('importer/itunes', () => {
       await expect(searchItunes({ term: 'foo' })).rejects.toThrow();
     });
 
+    it('retries on 429 (honouring Retry-After) then succeeds', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response('rate limited', { status: 429, headers: { 'retry-after': '0' } }),
+        )
+        .mockResolvedValueOnce(
+          jsonResponse({ resultCount: 1, results: [makeTrack({ trackId: 7 })] }),
+        );
+      vi.stubGlobal('fetch', mockFetch);
+
+      const out = await searchItunes({ term: 'foo' });
+      expect(out.map((t) => t.trackId)).toEqual([7]);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('gives up after exhausting retries on repeated 429', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValue(
+          new Response('rate limited', { status: 429, headers: { 'retry-after': '0' } }),
+        );
+      vi.stubGlobal('fetch', mockFetch);
+
+      await expect(searchItunes({ term: 'foo' })).rejects.toThrow(/429/);
+      // 1 initial attempt + retries.
+      expect(mockFetch.mock.calls.length).toBeGreaterThan(1);
+    });
+
     it('throws on malformed JSON', async () => {
       vi.stubGlobal(
         'fetch',

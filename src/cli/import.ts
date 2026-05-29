@@ -13,6 +13,7 @@ export interface CliArgs {
   itunesIdOverride?: number;
   file?: string;
   country?: string;
+  delayMs?: number;
 }
 
 export interface ImportSuccess {
@@ -31,14 +32,16 @@ export interface ImportFailure {
 
 export type ImportResult = ImportSuccess | ImportFailure;
 
-const KNOWN_FLAGS = new Set(['--genre', '--itunes-id', '--file', '--country']);
+const KNOWN_FLAGS = new Set(['--genre', '--itunes-id', '--file', '--country', '--delay']);
 const POSITIVE_INT_RE = /^[1-9][0-9]*$/;
+const NON_NEGATIVE_INT_RE = /^[0-9]+$/;
 
 export function parseArgs(argv: string[]): CliArgs {
   let genre: string | undefined;
   let itunesIdOverride: number | undefined;
   let file: string | undefined;
   let country: string | undefined;
+  let delayMs: number | undefined;
   const urls: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
@@ -49,6 +52,13 @@ export function parseArgs(argv: string[]): CliArgs {
     } else if (a === '--country') {
       if (country !== undefined) throw new Error('duplicate --country');
       country = argv[++i];
+    } else if (a === '--delay') {
+      if (delayMs !== undefined) throw new Error('duplicate --delay');
+      const raw = argv[++i];
+      if (raw === undefined || !NON_NEGATIVE_INT_RE.test(raw)) {
+        throw new Error(`--delay requires a non-negative integer (ms), got: ${raw}`);
+      }
+      delayMs = Number.parseInt(raw, 10);
     } else if (a === '--itunes-id') {
       if (itunesIdOverride !== undefined) throw new Error('duplicate --itunes-id');
       const raw = argv[++i];
@@ -77,6 +87,7 @@ export function parseArgs(argv: string[]): CliArgs {
   if (itunesIdOverride !== undefined) out.itunesIdOverride = itunesIdOverride;
   if (file !== undefined) out.file = file;
   if (country !== undefined) out.country = country;
+  if (delayMs !== undefined) out.delayMs = delayMs;
   return out;
 }
 
@@ -178,9 +189,16 @@ export async function main(deps?: { fetchFn?: typeof fetch }): Promise<number> {
   if (args.itunesIdOverride !== undefined) importOpts.itunesIdOverride = args.itunesIdOverride;
   if (args.country !== undefined) importOpts.country = args.country;
 
+  // Pace requests to stay under iTunes' ~20 req/min throttle. The server also
+  // backs off on 429, but pacing avoids most retries in the first place.
+  const delayMs = args.delayMs ?? 500;
+
   let failures = 0;
-  for (const line of urls) {
-    const result = await importOne(fetchFn, baseUrl, password, args.genre, line, importOpts);
+  for (let i = 0; i < urls.length; i++) {
+    if (i > 0 && delayMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    const result = await importOne(fetchFn, baseUrl, password, args.genre, urls[i]!, importOpts);
     process.stdout.write(`${formatResult(result)}\n`);
     if (!result.ok) failures += 1;
   }

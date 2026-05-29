@@ -43,6 +43,23 @@ test('parseArgs: duplicate --country throws', () => {
   );
 });
 
+test('parseArgs: --delay parses a non-negative integer', () => {
+  const out = parseArgs(['--genre', 'rock', '--delay', '750', '--file', 'l.txt']);
+  assert.equal(out.delayMs, 750);
+});
+
+test('parseArgs: --delay 0 is allowed', () => {
+  const out = parseArgs(['--genre', 'rock', '--delay', '0', '--file', 'l.txt']);
+  assert.equal(out.delayMs, 0);
+});
+
+test('parseArgs: --delay with non-numeric throws', () => {
+  assert.throws(
+    () => parseArgs(['--genre', 'rock', '--delay', 'abc', '--file', 'l.txt']),
+    /delay/i,
+  );
+});
+
 test('parseArgs: missing --genre throws', () => {
   assert.throws(() => parseArgs(['https://music.apple.com/x?i=1']), /genre/i);
 });
