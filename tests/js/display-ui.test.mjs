@@ -158,13 +158,32 @@ test('runSpin bails (and leaves the overlay hidden) when the round advances to p
 });
 
 test('render: spinning headline says "Picking Genre..." only for auto spin', () => {
+  const genres = [{ slug: 'russian-rock', name: 'Русский рок' }];
   const auto = makeDoc();
-  render(auto, { state: makeState({ phase: 'spinning', selectedGenre: 'pop', genrePicked: false }), genres: [], sessionId: 's' });
+  render(auto, { state: makeState({ phase: 'spinning', selectedGenre: 'russian-rock', genrePicked: false }), genres, sessionId: 's' });
   assert.equal(auto.getElementById('display-genre').textContent, 'Picking Genre...');
 
   const picked = makeDoc();
-  render(picked, { state: makeState({ phase: 'spinning', selectedGenre: 'pop', genrePicked: true }), genres: [], sessionId: 's' });
-  assert.equal(picked.getElementById('display-genre').textContent, 'pop');
+  render(picked, { state: makeState({ phase: 'spinning', selectedGenre: 'russian-rock', genrePicked: true }), genres, sessionId: 's' });
+  assert.equal(picked.getElementById('display-genre').textContent, 'Русский рок');
+});
+
+test('render: playing/revealed headline shows the genre name, not the slug', () => {
+  const genres = [{ slug: 'russian-rock', name: 'Русский рок' }];
+
+  const playing = makeDoc();
+  render(playing, { state: makeState({ phase: 'playing', selectedGenre: 'russian-rock', currentTrack: { id: 'x', genre: 'russian-rock' }, audioStartTimestamp: Date.now() }), genres, sessionId: 's' });
+  assert.equal(playing.getElementById('display-genre').textContent, 'Русский рок');
+
+  const revealed = makeDoc();
+  render(revealed, { state: makeState({ phase: 'revealed', selectedGenre: 'russian-rock', revealedTrack: { artist: 'A', title: 'T', year: 2000 } }), genres, sessionId: 's' });
+  assert.equal(revealed.getElementById('display-genre').textContent, 'Русский рок');
+});
+
+test('render: genre headline falls back to the slug when name is unknown', () => {
+  const playing = makeDoc();
+  render(playing, { state: makeState({ phase: 'playing', selectedGenre: 'russian-rock', currentTrack: { id: 'x', genre: 'russian-rock' }, audioStartTimestamp: Date.now() }), genres: [], sessionId: 's' });
+  assert.equal(playing.getElementById('display-genre').textContent, 'russian-rock');
 });
 
 test('runSpin in genrePicked mode confirms the chosen genre without cycling', async () => {

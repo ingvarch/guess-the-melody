@@ -223,7 +223,12 @@ export function renderPlaybackControls(doc, state) {
   setHidden(doc.getElementById('next-btn'), !revealed);
 }
 
-function renderPhaseLabel(doc, state) {
+function genreName(genres, slug) {
+  if (!slug) return '—';
+  return genres.find((g) => g.slug === slug)?.name ?? slug;
+}
+
+function renderPhaseLabel(doc, state, genres) {
   const label = doc.getElementById('phase-label');
   const genre = doc.getElementById('display-genre');
   if (!label || !genre) return;
@@ -232,13 +237,13 @@ function renderPhaseLabel(doc, state) {
     genre.textContent = 'Press SPIN to start';
   } else if (state.phase === 'spinning') {
     label.textContent = `ROUND ${state.playedTrackIds.length + 1}`;
-    genre.textContent = state.genrePicked ? (state.selectedGenre ?? '—') : 'Picking Genre...';
+    genre.textContent = state.genrePicked ? genreName(genres, state.selectedGenre) : 'Picking Genre...';
   } else if (state.phase === 'playing') {
     label.textContent = isClipEnded(state) ? "TIME'S UP" : 'NOW PLAYING';
-    genre.textContent = state.selectedGenre ?? '—';
+    genre.textContent = genreName(genres, state.selectedGenre);
   } else if (state.phase === 'revealed') {
     label.textContent = 'REVEAL';
-    genre.textContent = state.selectedGenre ?? '—';
+    genre.textContent = genreName(genres, state.selectedGenre);
   }
 }
 
@@ -307,7 +312,7 @@ export function render(doc, view) {
   const codeEl = doc.getElementById('session-code');
   if (codeEl) codeEl.textContent = sessionId;
 
-  renderPhaseLabel(doc, state);
+  renderPhaseLabel(doc, state, genres ?? []);
   renderScoreboard(doc, state);
   renderTeamsList(doc, state);
   renderGenres(doc, genres ?? [], state);
