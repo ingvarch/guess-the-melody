@@ -67,14 +67,56 @@ Durable Object class. Subsequent DO class changes require a new migration tag.
 
 ## Import tracks
 
-Use the admin web UI at `/admin` (basic auth with `ADMIN_PASSWORD`) or the CLI:
+The importer resolves a track to a 30-second iTunes preview, uploads it to R2,
+and inserts the row into D1. Use the admin web UI at `/admin` (basic auth with
+`ADMIN_PASSWORD`) or the CLI.
+
+The CLI posts to a running Worker. It reads two env vars:
+
+- `ADMIN_PASSWORD` (required) — admin basic-auth password.
+- `ADMIN_BASE_URL` (optional) — Worker base URL, default `http://localhost:8787`.
+
+A target can be either a track URL or free text:
+
+- A line starting with `http(s)://` is resolved directly (iTunes or Spotify URL).
+- Anything else is treated as an `Artist — Title` query, searched on iTunes, and
+  the best-scoring playable match is auto-picked.
 
 ```bash
-bun run src/cli/import.ts "https://music.apple.com/..." rock
+# single iTunes/Spotify URL
+bun run src/cli/import.ts --genre rock "https://music.apple.com/...?i=123"
+
+# free-text query
+bun run src/cli/import.ts --genre rock "Queen — Bohemian Rhapsody"
+
+# bulk from a file, one target per line (# comments and blanks skipped)
+bun run src/cli/import.ts --genre russian-rock --country RU --file lists/russian-rock.txt
 ```
 
-The importer fetches metadata and artwork from iTunes, downloads the 30-second
-preview, uploads it to R2, and inserts the track into D1.
+Flags:
+
+- `--genre <slug>` (required) — existing genre slug (see `db/migrations`).
+- `--file <path>` — read targets from a file.
+- `--country <XX>` — iTunes storefront for search (`RU` for Russian artists,
+  `US` for international). Omit to use the default store.
+- `--itunes-id <n>` — force a specific iTunes track id (single-URL use).
+- `--delay <ms>` — pause between requests, default `500`. iTunes throttles
+  (~20 req/min); the server also retries on 429 with backoff, but pacing avoids
+  most retries. Raise to `3000` if you still hit rate limits.
+
+Curated starter lists live in `lists/` (one `Artist — Title` per line):
+
+```bash
+bun run src/cli/import.ts --genre russian-rock --country RU --file lists/russian-rock.txt
+bun run src/cli/import.ts --genre russian-pop  --country RU --file lists/russian-pop.txt
+bun run src/cli/import.ts --genre rock         --country US --file lists/intl-rock.txt
+bun run src/cli/import.ts --genre pop          --country US --file lists/intl-pop.txt
+bun run src/cli/import.ts --genre hip-hop      --country US --file lists/hip-hop.txt
+```
+
+Each line prints `OK <id> Artist - Title (year)` or `ERR <code> ...`. Fix an
+`ERR no_preview` miss by editing the line or replacing it with the track's real
+`music.apple.com/...?i=<id>` URL.
 
 ## Project docs
 
