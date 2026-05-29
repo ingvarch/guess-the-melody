@@ -21,7 +21,6 @@ function makeDoc() {
     <button id="replay-btn" hidden></button>
     <button id="reveal-btn" hidden></button>
     <button id="next-btn" hidden></button>
-    <div id="current-track" hidden></div>
     <div id="reveal-card" hidden>
       <p class="reveal-card__artist"></p>
       <p class="reveal-card__title"></p>

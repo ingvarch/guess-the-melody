@@ -229,7 +229,6 @@ export function renderPlaybackControls(doc, state) {
   // someone guessed early, no reason to wait out the 30s.
   setHidden(doc.getElementById('reveal-btn'), !(playing && (ended || paused)));
   setHidden(doc.getElementById('next-btn'), !revealed);
-  setHidden(doc.getElementById('current-track'), !state.currentTrack || idle);
 }
 
 function renderPhaseLabel(doc, state) {
