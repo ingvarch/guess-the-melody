@@ -10,7 +10,7 @@ const CLIP_DURATION_SEC = 30;
 
 function isClipEnded(state) {
   if (state.phase !== 'playing' || state.audioStartTimestamp === null) return false;
-  return audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC) >= CLIP_DURATION_SEC;
+  return audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC, state.audioPausedTimestamp) >= CLIP_DURATION_SEC;
 }
 
 const TEAM_ICONS = ['rocket_launch', 'electric_bolt', 'auto_awesome', 'texture', 'bolt', 'flare', 'whatshot', 'star'];
@@ -200,6 +200,7 @@ export function renderPlaybackControls(doc, state) {
   const playing = state.phase === 'playing';
   const revealed = state.phase === 'revealed';
   const ended = isClipEnded(state);
+  const paused = state.audioPausedTimestamp != null;
 
   setHidden(doc.getElementById('idle-controls'), !idle);
 
@@ -207,7 +208,22 @@ export function renderPlaybackControls(doc, state) {
   if (spin) spin.disabled = !idle;
 
   setHidden(doc.getElementById('phase-controls'), idle);
-  setHidden(doc.getElementById('play-btn'), state.phase !== 'spinning');
+
+  // The play button doubles as a pause/resume toggle once the clip is running:
+  //   spinning            -> Play (start the clip)
+  //   playing, running    -> Pause
+  //   playing, paused     -> Play (resume)
+  //   playing, ended      -> hidden (Reveal/Replay take over)
+  const playBtn = doc.getElementById('play-btn');
+  const showPlayBtn = state.phase === 'spinning' || (playing && !ended);
+  setHidden(playBtn, !showPlayBtn);
+  if (playBtn) {
+    const showPause = playing && !paused && !ended;
+    const icon = playBtn.querySelector('.material-symbols-outlined');
+    if (icon) icon.textContent = showPause ? 'pause' : 'play_arrow';
+    playBtn.setAttribute('aria-label', showPause ? 'Pause' : 'Play');
+  }
+
   setHidden(doc.getElementById('replay-btn'), !(playing && ended));
   setHidden(doc.getElementById('reveal-btn'), !(playing && ended));
   setHidden(doc.getElementById('next-btn'), !revealed);
@@ -245,7 +261,8 @@ function syncAudioDisplay(doc, state, sessionId) {
     else audio.removeAttribute('src');
   }
 
-  if (state.phase === 'playing' && state.audioStartTimestamp !== null) {
+  const isPaused = state.audioPausedTimestamp != null;
+  if (state.phase === 'playing' && state.audioStartTimestamp !== null && !isPaused) {
     const wantTime = audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC);
     if (Math.abs((audio.currentTime ?? 0) - wantTime) > 0.5) {
       try { audio.currentTime = wantTime; } catch { /* not seekable yet */ }
@@ -255,6 +272,8 @@ function syncAudioDisplay(doc, state, sessionId) {
       if (p && typeof p.catch === 'function') p.catch(() => { /* user gesture required */ });
     }
   } else {
+    // Idle, revealed, or explicitly paused: stop playback. A paused clip holds
+    // its position so resume continues from the same spot.
     if (!audio.paused) audio.pause();
   }
 }
@@ -274,7 +293,7 @@ function renderRevealCard(doc, state) {
 export function renderClock(doc, state) {
   const scrubber = doc.getElementById('scrubber');
   const timeReadout = doc.getElementById('time-readout');
-  const cur = audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC);
+  const cur = audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC, state.audioPausedTimestamp);
   if (scrubber) scrubber.value = String(cur);
   if (timeReadout) {
     timeReadout.textContent = `${fmtTime(cur)} / ${fmtTime(CLIP_DURATION_SEC)}`;
@@ -282,7 +301,7 @@ export function renderClock(doc, state) {
 
   const audio = doc.getElementById('audio');
   if (audio && state.phase === 'playing' && state.audioStartTimestamp !== null) {
-    const wantTime = audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC);
+    const wantTime = audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC, state.audioPausedTimestamp);
     if (Math.abs((audio.currentTime ?? 0) - wantTime) > 0.5) {
       try { audio.currentTime = wantTime; } catch { /* not seekable yet */ }
     }

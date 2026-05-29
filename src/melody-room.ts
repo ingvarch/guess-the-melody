@@ -180,7 +180,13 @@ export class MelodyRoom extends DurableObject<Env> {
         spinSeed: seedBuf[0],
       };
     }
-    if (payload['action'] === 'play' || payload['action'] === 'replay') {
+    if (
+      payload['action'] === 'play' ||
+      payload['action'] === 'replay' ||
+      payload['action'] === 'pause' ||
+      payload['action'] === 'resume'
+    ) {
+      // The DO owns the clock; clients never supply a trustworthy `now`.
       return { ...payload, now: Date.now() };
     }
     if (payload['action'] === 'reveal') {

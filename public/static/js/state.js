@@ -8,6 +8,7 @@ export function initialState() {
     playedTrackIds: [],
     spinSeed: 0,
     audioStartTimestamp: null,
+    audioPausedTimestamp: null,
   };
 }
 

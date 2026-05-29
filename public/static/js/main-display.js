@@ -13,6 +13,8 @@ import {
   spin,
   play,
   replay,
+  pause,
+  resume,
   award,
   reveal,
   next,
@@ -118,7 +120,15 @@ function boot() {
 
     const playBtn = document.getElementById('play-btn');
     playBtn?.addEventListener('click', () => {
-      play(fetch, sessionId).catch(silentlyIgnore403);
+      // Context-aware: start the clip while spinning, otherwise toggle
+      // pause/resume during playback. The DO stamps the authoritative `now`.
+      const st = view.state;
+      if (st.phase === 'spinning') {
+        play(fetch, sessionId).catch(silentlyIgnore403);
+      } else if (st.phase === 'playing') {
+        const act = st.audioPausedTimestamp != null ? resume : pause;
+        act(fetch, sessionId).catch(silentlyIgnore403);
+      }
     });
 
     const replayBtn = document.getElementById('replay-btn');

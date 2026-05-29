@@ -4,6 +4,8 @@ const VALID_TRANSITIONS = {
   spin:    new Set(['idle']),
   play:    new Set(['spinning']),
   replay:  new Set(['playing']),
+  pause:   new Set(['playing']),
+  resume:  new Set(['playing']),
   reveal:  new Set(['playing']),
   next:    new Set(['playing', 'revealed']),
   award:   new Set(['playing', 'revealed']),
@@ -32,17 +34,38 @@ export function applyAction(state, payload) {
         revealedTrack: null,
         spinSeed: payload.spinSeed,
         audioStartTimestamp: null,
+        audioPausedTimestamp: null,
       };
     }
 
     case 'play': {
       expectPhase('play', state);
-      return { ...state, phase: 'playing', audioStartTimestamp: payload.now };
+      return { ...state, phase: 'playing', audioStartTimestamp: payload.now, audioPausedTimestamp: null };
     }
 
     case 'replay': {
       expectPhase('replay', state);
-      return { ...state, audioStartTimestamp: payload.now };
+      return { ...state, audioStartTimestamp: payload.now, audioPausedTimestamp: null };
+    }
+
+    case 'pause': {
+      expectPhase('pause', state);
+      // Idempotent: a second pause keeps the original instant.
+      if (state.audioPausedTimestamp != null) return state;
+      return { ...state, audioPausedTimestamp: payload.now };
+    }
+
+    case 'resume': {
+      expectPhase('resume', state);
+      if (state.audioPausedTimestamp == null) return state;
+      // Shift the start forward by however long we were paused so the clip
+      // continues from where it stopped (keeps every viewer in sync).
+      const pausedFor = payload.now - state.audioPausedTimestamp;
+      return {
+        ...state,
+        audioStartTimestamp: state.audioStartTimestamp + pausedFor,
+        audioPausedTimestamp: null,
+      };
     }
 
     case 'reveal': {
@@ -63,6 +86,7 @@ export function applyAction(state, payload) {
         revealedTrack: null,
         spinSeed: 0,
         audioStartTimestamp: null,
+        audioPausedTimestamp: null,
         playedTrackIds: played,
       };
     }

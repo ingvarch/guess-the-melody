@@ -389,6 +389,65 @@ describe('MelodyRoom DO', () => {
     expect(state.currentTrack).toBeNull();
   });
 
+  it('pause then resume keeps phase playing and shifts the start timestamp; now is server-stamped', async () => {
+    await seedTrack({ id: 'tr-pause', genre_slug: 'rock' });
+    const stub = roomStub('session-pause');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    const hdr = { 'X-Owner-Token': 'x' };
+
+    await stub.fetch(`${BASE}/state`, {
+      method: 'POST', headers: hdr,
+      body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
+    });
+    // Client passes now: 1, but the DO must overwrite it with its own clock.
+    const playRes = await stub.fetch(`${BASE}/state`, {
+      method: 'POST', headers: hdr,
+      body: JSON.stringify({ action: 'play', now: 1 }),
+    });
+    const played = (await playRes.json()) as RoomState;
+    expect(played.phase).toBe('playing');
+    expect(typeof played.audioStartTimestamp).toBe('number');
+    const startTs = played.audioStartTimestamp as number;
+    expect(startTs).toBeGreaterThan(1);
+    expect(played.audioPausedTimestamp ?? null).toBeNull();
+
+    const pauseRes = await stub.fetch(`${BASE}/state`, {
+      method: 'POST', headers: hdr,
+      body: JSON.stringify({ action: 'pause' }),
+    });
+    const paused = (await pauseRes.json()) as RoomState;
+    expect(paused.phase).toBe('playing');
+    expect(typeof paused.audioPausedTimestamp).toBe('number');
+    expect(paused.audioPausedTimestamp as number).toBeGreaterThanOrEqual(startTs);
+
+    const resumeRes = await stub.fetch(`${BASE}/state`, {
+      method: 'POST', headers: hdr,
+      body: JSON.stringify({ action: 'resume' }),
+    });
+    const resumed = (await resumeRes.json()) as RoomState;
+    expect(resumed.phase).toBe('playing');
+    expect(resumed.audioPausedTimestamp).toBeNull();
+    // start shifts forward by the paused duration, so it never goes backwards.
+    expect(resumed.audioStartTimestamp as number).toBeGreaterThanOrEqual(startTs);
+  });
+
+  it('pause from idle returns 409 invalid transition', async () => {
+    const stub = roomStub('session-pause-idle');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'pause' }),
+    });
+    expect(res.status).toBe(409);
+  });
+
   it('spin with no tracks in D1 returns 409 "no tracks available"', async () => {
     const stub = roomStub('session-spin-empty');
     await stub.fetch(`${BASE}/init`, {

@@ -16,7 +16,7 @@ function makeDoc() {
     <div id="idle-controls"></div>
     <button id="spin-btn"></button>
     <div id="phase-controls" hidden></div>
-    <button id="play-btn" hidden></button>
+    <button id="play-btn" hidden><span class="material-symbols-outlined">play_arrow</span></button>
     <button id="replay-btn" hidden></button>
     <button id="reveal-btn" hidden></button>
     <button id="next-btn" hidden></button>
@@ -81,6 +81,49 @@ test('playing and clip ended: reveal + repeat shown, next still hidden', () => {
   assert.ok(!hidden(doc, 'reveal-btn'), 'reveal shown after clip end');
   assert.ok(!hidden(doc, 'replay-btn'), 'repeat shown after clip end');
   assert.ok(hidden(doc, 'next-btn'), 'next still hidden before reveal');
+});
+
+test('playing and running: play-btn shows as a Pause control', () => {
+  const doc = makeDoc();
+  const state = makeState({
+    phase: 'playing',
+    currentTrack: { id: 'x', genre: 'rock' },
+    audioStartTimestamp: Date.now() - 5_000,
+    audioPausedTimestamp: null,
+  });
+  render(doc, { state, genres: [], sessionId: 's' });
+  const btn = doc.getElementById('play-btn');
+  assert.ok(!hidden(doc, 'play-btn'), 'play/pause button visible while playing');
+  assert.equal(btn.querySelector('.material-symbols-outlined').textContent, 'pause');
+  assert.equal(btn.getAttribute('aria-label'), 'Pause');
+});
+
+test('playing and paused: play-btn shows as a Play control, reveal/replay stay hidden', () => {
+  const doc = makeDoc();
+  const now = Date.now();
+  const state = makeState({
+    phase: 'playing',
+    currentTrack: { id: 'x', genre: 'rock' },
+    audioStartTimestamp: now - 5_000,
+    audioPausedTimestamp: now - 1_000, // paused 4s in
+  });
+  render(doc, { state, genres: [], sessionId: 's' });
+  const btn = doc.getElementById('play-btn');
+  assert.ok(!hidden(doc, 'play-btn'), 'resume button visible while paused');
+  assert.equal(btn.querySelector('.material-symbols-outlined').textContent, 'play_arrow');
+  assert.ok(hidden(doc, 'reveal-btn'), 'reveal hidden while paused mid-clip');
+  assert.ok(hidden(doc, 'replay-btn'), 'replay hidden while paused mid-clip');
+});
+
+test('playing and clip ended: play/pause button is hidden', () => {
+  const doc = makeDoc();
+  const state = makeState({
+    phase: 'playing',
+    currentTrack: { id: 'x', genre: 'rock' },
+    audioStartTimestamp: Date.now() - 31_000,
+  });
+  render(doc, { state, genres: [], sessionId: 's' });
+  assert.ok(hidden(doc, 'play-btn'), 'no play/pause once the clip has ended');
 });
 
 test('revealed: next shown, reveal + repeat hidden', () => {

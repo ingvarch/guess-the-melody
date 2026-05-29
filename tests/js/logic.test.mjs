@@ -90,6 +90,66 @@ test('replay: rejected outside playing', () => {
   assert.throws(() => applyAction(spinning, { action: 'replay', now: 1 }));
 });
 
+function playingAt(start) {
+  let s = applyAction(initialState(), {
+    action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 1,
+  });
+  return applyAction(s, { action: 'play', now: start });
+}
+
+test('pause: playing stores the pause timestamp, phase stays playing', () => {
+  const s = playingAt(1000);
+  const out = applyAction(s, { action: 'pause', now: 6000 });
+  assert.equal(out.phase, 'playing');
+  assert.equal(out.audioStartTimestamp, 1000);
+  assert.equal(out.audioPausedTimestamp, 6000);
+});
+
+test('pause: rejected outside playing', () => {
+  const idle = initialState();
+  assert.throws(() => applyAction(idle, { action: 'pause', now: 1 }));
+  const spinning = applyAction(idle, { action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 1 });
+  assert.throws(() => applyAction(spinning, { action: 'pause', now: 1 }));
+});
+
+test('pause: second pause keeps the original timestamp (idempotent)', () => {
+  let s = applyAction(playingAt(1000), { action: 'pause', now: 6000 });
+  s = applyAction(s, { action: 'pause', now: 9000 });
+  assert.equal(s.audioPausedTimestamp, 6000);
+});
+
+test('resume: shifts audioStartTimestamp by the paused duration and clears the pause', () => {
+  // played 5s (1000->6000), paused 3s (6000->9000): start shifts forward 3000.
+  let s = applyAction(playingAt(1000), { action: 'pause', now: 6000 });
+  const out = applyAction(s, { action: 'resume', now: 9000 });
+  assert.equal(out.phase, 'playing');
+  assert.equal(out.audioStartTimestamp, 4000);
+  assert.equal(out.audioPausedTimestamp, null);
+});
+
+test('resume: no-op when not paused', () => {
+  const s = playingAt(1000);
+  const out = applyAction(s, { action: 'resume', now: 9000 });
+  assert.equal(out.audioStartTimestamp, 1000);
+  assert.equal(out.audioPausedTimestamp, null);
+});
+
+test('resume: rejected outside playing', () => {
+  assert.throws(() => applyAction(initialState(), { action: 'resume', now: 1 }));
+});
+
+test('play clears any stale pause timestamp', () => {
+  const out = playingAt(2000);
+  assert.equal(out.audioPausedTimestamp, null);
+});
+
+test('next from a paused clip clears the pause timestamp', () => {
+  let s = applyAction(playingAt(1000), { action: 'pause', now: 6000 });
+  const out = applyAction(s, { action: 'next' });
+  assert.equal(out.phase, 'idle');
+  assert.equal(out.audioPausedTimestamp, null);
+});
+
 test('award: allowed in playing and revealed', () => {
   let s = applyAction(initialState(), {
     action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 1,

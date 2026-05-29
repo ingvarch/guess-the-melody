@@ -43,4 +43,5 @@ export interface RoomState {
   playedTrackIds: string[];
   spinSeed: number;
   audioStartTimestamp: number | null;
+  audioPausedTimestamp: number | null;
 }
