@@ -26,6 +26,23 @@ test('parseArgs: --genre rock --file path', () => {
   assert.deepEqual(out.urls, []);
 });
 
+test('parseArgs: --country RU is parsed', () => {
+  const out = parseArgs(['--genre', 'russian-rock', '--country', 'RU', '--file', 'l.txt']);
+  assert.equal(out.country, 'RU');
+});
+
+test('parseArgs: country undefined when not given', () => {
+  const out = parseArgs(['--genre', 'rock', '--file', 'l.txt']);
+  assert.equal(out.country, undefined);
+});
+
+test('parseArgs: duplicate --country throws', () => {
+  assert.throws(
+    () => parseArgs(['--genre', 'rock', '--country', 'RU', '--country', 'US', '--file', 'l.txt']),
+    /duplicate|--country/i,
+  );
+});
+
 test('parseArgs: missing --genre throws', () => {
   assert.throws(() => parseArgs(['https://music.apple.com/x?i=1']), /genre/i);
 });
@@ -196,6 +213,38 @@ test('importOne: includes itunesIdOverride when provided', async () => {
       headers: { 'content-type': 'application/json' },
     });
   };
-  await importOne(fetchFn, 'http://base', 'pw', 'rock', 'https://x', 999);
+  await importOne(fetchFn, 'http://base', 'pw', 'rock', 'https://x', { itunesIdOverride: 999 });
   assert.equal(captured.itunesIdOverride, 999);
+});
+
+test('importOne: sends a non-URL line as a query, not a url', async () => {
+  let captured;
+  const fetchFn = async (_url, init) => {
+    captured = JSON.parse(init.body);
+    return new Response(JSON.stringify({ id: 'i', artist: 'a', title: 't', year: 2000 }), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  await importOne(fetchFn, 'http://base', 'pw', 'russian-rock', 'Кино — Группа крови', {
+    country: 'RU',
+  });
+  assert.equal(captured.query, 'Кино — Группа крови');
+  assert.equal(captured.url, undefined);
+  assert.equal(captured.country, 'RU');
+  assert.equal(captured.genreSlug, 'russian-rock');
+});
+
+test('importOne: sends an http line as a url, not a query', async () => {
+  let captured;
+  const fetchFn = async (_url, init) => {
+    captured = JSON.parse(init.body);
+    return new Response(JSON.stringify({ id: 'i', artist: 'a', title: 't', year: 2000 }), {
+      status: 201,
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  await importOne(fetchFn, 'http://base', 'pw', 'rock', 'https://music.apple.com/x?i=1');
+  assert.equal(captured.url, 'https://music.apple.com/x?i=1');
+  assert.equal(captured.query, undefined);
 });

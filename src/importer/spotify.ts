@@ -6,6 +6,7 @@
 // an iTunes track via title+artist search, and we play the iTunes preview.
 
 import { searchItunes, type ItunesTrack } from './itunes';
+import { scoreMatch } from './match';
 
 export interface SpotifyTrackMeta {
   artist: string;
@@ -169,28 +170,6 @@ export async function metadataFromSpotify(
     throw new Error('Spotify API: could not extract artist/title');
   }
   return { artist, title };
-}
-
-function normalise(s: string): string {
-  return s.toLowerCase().trim();
-}
-
-// Score in [0, 100]. 100 = both exact (case-insensitive). 80 = both substring.
-// 50 = one side substring. <50 if neither substring => drop.
-function scoreMatch(spotify: SpotifyTrackMeta, t: ItunesTrack): number {
-  const sa = normalise(spotify.artist);
-  const st = normalise(spotify.title);
-  const ta = normalise(t.artistName);
-  const tt = normalise(t.trackName);
-
-  if (sa === ta && st === tt) return 100;
-
-  const artistSub = ta.includes(sa) || sa.includes(ta);
-  const titleSub = tt.includes(st) || st.includes(tt);
-
-  if (artistSub && titleSub) return 80;
-  if (artistSub || titleSub) return 50;
-  return 0;
 }
 
 function toCandidate(t: ItunesTrack, score: number): MatchCandidate {

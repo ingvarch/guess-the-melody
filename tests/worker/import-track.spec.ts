@@ -331,6 +331,62 @@ describe('importer/import-track', () => {
     expect('code' in out && out.code === 'no_preview').toBe(true);
   });
 
+  it('imports a free-text query: searches iTunes, auto-picks, writes row + R2', async () => {
+    let searchUrl = '';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: unknown) => {
+        const url = String(input);
+        if (url.includes('itunes.apple.com/search')) {
+          searchUrl = url;
+          return jsonResponse(itunesTrackJson);
+        }
+        if (url.includes('audio-ssl.itunes.apple.com/preview.m4a')) {
+          return audioResponse(PREVIEW_PAYLOAD);
+        }
+        throw new Error(`no route for ${url}`);
+      }),
+    );
+
+    const out = await importTrack(testEnv, {
+      query: "Guns N' Roses — Sweet Child o' Mine",
+      genreSlug: 'rock',
+      country: 'US',
+    });
+
+    expect('id' in out).toBe(true);
+    if ('id' in out) {
+      expect(out.artist).toBe("Guns N' Roses");
+      expect(out.title).toBe("Sweet Child o' Mine");
+      expect(out.year).toBe(1987);
+      const row = await getTrack(testEnv.CATALOG, out.id);
+      expect(row?.itunes_id).toBe(716135809);
+      expect(row?.source_url).toBeNull();
+      expect(row?.r2_key).toBe(`tracks/${out.id}.mp3`);
+    }
+    // country must reach the iTunes search.
+    expect(searchUrl).toContain('country=US');
+  });
+
+  it('returns no_preview when a query matches nothing on iTunes', async () => {
+    vi.stubGlobal(
+      'fetch',
+      routedFetch([
+        {
+          match: (u) => u.includes('itunes.apple.com/search'),
+          respond: () => jsonResponse({ resultCount: 0, results: [] }),
+        },
+      ]),
+    );
+
+    const out = await importTrack(testEnv, {
+      query: 'Nonexistent Artist — No Such Song',
+      genreSlug: 'rock',
+    });
+
+    expect('code' in out && out.code === 'no_preview').toBe(true);
+  });
+
   it('returns unknown_genre for a missing genre slug (before any HTTP work)', async () => {
     // No fetch stub: if the implementation makes any HTTP call here, the test fails.
     vi.stubGlobal(

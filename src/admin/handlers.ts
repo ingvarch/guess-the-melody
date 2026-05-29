@@ -321,7 +321,9 @@ async function handleImport(req: Request, env: Env): Promise<Response> {
     return json({ error: 'bad_body' }, 400);
   }
   const b = body as Record<string, unknown>;
-  if (typeof b.url !== 'string' || typeof b.genreSlug !== 'string') {
+  const hasUrl = typeof b.url === 'string';
+  const hasQuery = typeof b.query === 'string';
+  if (typeof b.genreSlug !== 'string' || (!hasUrl && !hasQuery)) {
     return json({ error: 'missing_fields' }, 400);
   }
   if (b.itunesIdOverride !== undefined) {
@@ -330,9 +332,11 @@ async function handleImport(req: Request, env: Env): Promise<Response> {
     }
   }
   const opts: Parameters<typeof importTrack>[1] = {
-    url: b.url,
     genreSlug: b.genreSlug,
   };
+  if (hasUrl) opts.url = b.url as string;
+  if (hasQuery) opts.query = b.query as string;
+  if (typeof b.country === 'string') opts.country = b.country;
   if (typeof b.itunesIdOverride === 'number') {
     opts.itunesIdOverride = b.itunesIdOverride;
   }

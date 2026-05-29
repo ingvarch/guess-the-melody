@@ -94,6 +94,28 @@ describe('importer/itunes', () => {
       expect(calledUrl).toContain('limit=10');
     });
 
+    it('appends country when provided', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(
+        jsonResponse({ resultCount: 0, results: [] }),
+      );
+      vi.stubGlobal('fetch', mockFetch);
+
+      await searchItunes({ term: 'кино', country: 'RU' });
+      const calledUrl = String(mockFetch.mock.calls[0]?.[0]);
+      expect(calledUrl).toContain('country=RU');
+    });
+
+    it('omits country when not provided', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(
+        jsonResponse({ resultCount: 0, results: [] }),
+      );
+      vi.stubGlobal('fetch', mockFetch);
+
+      await searchItunes({ term: 'foo' });
+      const calledUrl = String(mockFetch.mock.calls[0]?.[0]);
+      expect(calledUrl).not.toContain('country=');
+    });
+
     it('throws on non-2xx response', async () => {
       vi.stubGlobal(
         'fetch',

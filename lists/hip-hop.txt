@@ -1,0 +1,33 @@
+# Hip-hop — mostly international plus a few Russian staples. Imports into `hip-hop`.
+# International (US store):
+#   bun run import --genre hip-hop --country US --file lists/hip-hop.txt
+# Russian lines below match better against the RU store — split them into their
+# own file and run with --country RU if matches miss.
+Eminem — Lose Yourself
+Eminem — The Real Slim Shady
+Eminem — Without Me
+50 Cent — In da Club
+50 Cent — Candy Shop
+Dr. Dre — Still D.R.E.
+Snoop Dogg — Drop It Like It's Hot
+2Pac — California Love
+The Notorious B.I.G. — Juicy
+Jay-Z — Empire State of Mind
+Kanye West — Stronger
+Kanye West — Gold Digger
+Drake — Hotline Bling
+Drake — God's Plan
+Kendrick Lamar — HUMBLE.
+Kendrick Lamar — DNA.
+Cardi B — Bodak Yellow
+Post Malone — Rockstar
+Travis Scott — SICKO MODE
+Macklemore & Ryan Lewis — Thrift Shop
+Wiz Khalifa — See You Again
+OutKast — Hey Ya!
+Nelly — Hot in Herre
+Coolio — Gangsta's Paradise
+Баста — Сансара
+Баста — Выпускной (Медлячок)
+Каста — Сочиняй мечты
+Oxxxymiron — Город под подошвой

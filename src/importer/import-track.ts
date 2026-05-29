@@ -20,6 +20,7 @@ import {
   parseSpotifyUrl,
   type MatchCandidate,
 } from './spotify';
+import { parseQueryLine, resolveQueryToItunes } from './match';
 import { deletePreviewFromR2, downloadPreviewToR2 } from './r2';
 
 export type ImportError =
@@ -67,7 +68,9 @@ function itunesToResolved(t: ItunesTrack): ResolvedTrack {
 async function resolveTrack(
   env: Env,
   opts: {
-    url: string;
+    url?: string;
+    query?: string;
+    country?: string;
     itunesIdOverride?: number;
   },
 ): Promise<ResolveResult> {
@@ -80,6 +83,24 @@ async function resolveTrack(
       };
     }
     return { kind: 'ok', track: itunesToResolved(t) };
+  }
+
+  if (opts.query !== undefined) {
+    const t = await resolveQueryToItunes(parseQueryLine(opts.query), opts.country);
+    if (!t) {
+      return {
+        kind: 'err',
+        err: { code: 'no_preview', message: 'no iTunes match for query' },
+      };
+    }
+    return { kind: 'ok', track: itunesToResolved(t) };
+  }
+
+  if (opts.url === undefined) {
+    return {
+      kind: 'err',
+      err: { code: 'bad_url', message: 'no url, query, or itunes id provided' },
+    };
   }
 
   const itunes = parseItunesUrl(opts.url);
@@ -157,7 +178,9 @@ function isUniqueConstraintError(err: unknown): boolean {
 export async function importTrack(
   env: Env,
   opts: {
-    url: string;
+    url?: string;
+    query?: string;
+    country?: string;
     genreSlug: string;
     itunesIdOverride?: number;
   },
@@ -170,7 +193,9 @@ export async function importTrack(
   // 2. Resolve URL → ResolvedTrack (or a typed error). Spotify URLs prefer the
   // embed preview and fall back to an iTunes match.
   const resolved = await resolveTrack(env, {
-    url: opts.url,
+    ...(opts.url !== undefined ? { url: opts.url } : {}),
+    ...(opts.query !== undefined ? { query: opts.query } : {}),
+    ...(opts.country !== undefined ? { country: opts.country } : {}),
     ...(opts.itunesIdOverride !== undefined ? { itunesIdOverride: opts.itunesIdOverride } : {}),
   });
   if (resolved.kind === 'err') return resolved.err;
@@ -217,7 +242,7 @@ export async function importTrack(
       title: t.title,
       year: t.year,
       itunes_id: t.itunesId,
-      source_url: opts.url,
+      source_url: opts.url ?? null,
       preview_url: t.previewUrl,
       r2_key: r2Key,
       duration_ms: t.durationMs,

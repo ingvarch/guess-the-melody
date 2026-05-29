@@ -1,0 +1,52 @@
+# International pop — classics through modern. Imports into the generic `pop` genre.
+# bun run import --genre pop --country US --file lists/intl-pop.txt
+Michael Jackson — Billie Jean
+Michael Jackson — Beat It
+Madonna — Like a Prayer
+Whitney Houston — I Wanna Dance with Somebody
+Britney Spears — ...Baby One More Time
+Britney Spears — Toxic
+Backstreet Boys — I Want It That Way
+Spice Girls — Wannabe
+Christina Aguilera — Genie in a Bottle
+Justin Timberlake — Cry Me a River
+Beyoncé — Crazy in Love
+Beyoncé — Halo
+Rihanna — Umbrella
+Rihanna — Diamonds
+Lady Gaga — Poker Face
+Lady Gaga — Bad Romance
+Lady Gaga — Shallow
+Katy Perry — Firework
+Katy Perry — Roar
+The Black Eyed Peas — I Gotta Feeling
+Maroon 5 — Moves like Jagger
+Maroon 5 — Sugar
+Bruno Mars — Just the Way You Are
+Bruno Mars — Uptown Funk
+Adele — Rolling in the Deep
+Adele — Someone like You
+Adele — Hello
+Taylor Swift — Shake It Off
+Taylor Swift — Blank Space
+Ed Sheeran — Shape of You
+Ed Sheeran — Perfect
+Justin Bieber — Sorry
+Justin Bieber — Love Yourself
+The Weeknd — Blinding Lights
+The Weeknd — Can't Feel My Face
+Dua Lipa — New Rules
+Dua Lipa — Don't Start Now
+Ariana Grande — Thank U, Next
+Billie Eilish — Bad Guy
+Billie Eilish — Happier Than Ever
+Sia — Chandelier
+Pharrell Williams — Happy
+Lorde — Royals
+Shawn Mendes — Stitches
+Camila Cabello — Havana
+Lewis Capaldi — Someone You Loved
+Harry Styles — As It Was
+Miley Cyrus — Flowers
+ABBA — Dancing Queen
+ABBA — Mamma Mia

@@ -61,12 +61,14 @@ async function fetchItunes(url: string): Promise<ItunesResponse> {
 export async function searchItunes(opts: {
   term: string;
   limit?: number;
+  country?: string;
 }): Promise<ItunesTrack[]> {
   const params = new URLSearchParams({
     term: opts.term,
     entity: 'musicTrack',
     limit: String(opts.limit ?? 25),
   });
+  if (opts.country) params.set('country', opts.country);
   const data = await fetchItunes(`${ITUNES_BASE}/search?${params.toString()}`);
   return data.results.filter((r): r is ItunesTrack => typeof r.previewUrl === 'string' && r.previewUrl.length > 0);
 }

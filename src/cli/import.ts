@@ -12,6 +12,7 @@ export interface CliArgs {
   urls: string[];
   itunesIdOverride?: number;
   file?: string;
+  country?: string;
 }
 
 export interface ImportSuccess {
@@ -30,13 +31,14 @@ export interface ImportFailure {
 
 export type ImportResult = ImportSuccess | ImportFailure;
 
-const KNOWN_FLAGS = new Set(['--genre', '--itunes-id', '--file']);
+const KNOWN_FLAGS = new Set(['--genre', '--itunes-id', '--file', '--country']);
 const POSITIVE_INT_RE = /^[1-9][0-9]*$/;
 
 export function parseArgs(argv: string[]): CliArgs {
   let genre: string | undefined;
   let itunesIdOverride: number | undefined;
   let file: string | undefined;
+  let country: string | undefined;
   const urls: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
@@ -44,6 +46,9 @@ export function parseArgs(argv: string[]): CliArgs {
     if (a === '--genre') {
       if (genre !== undefined) throw new Error('duplicate --genre');
       genre = argv[++i];
+    } else if (a === '--country') {
+      if (country !== undefined) throw new Error('duplicate --country');
+      country = argv[++i];
     } else if (a === '--itunes-id') {
       if (itunesIdOverride !== undefined) throw new Error('duplicate --itunes-id');
       const raw = argv[++i];
@@ -71,6 +76,7 @@ export function parseArgs(argv: string[]): CliArgs {
   const out: CliArgs = { genre, urls };
   if (itunesIdOverride !== undefined) out.itunesIdOverride = itunesIdOverride;
   if (file !== undefined) out.file = file;
+  if (country !== undefined) out.country = country;
   return out;
 }
 
@@ -96,16 +102,22 @@ export function formatResult(r: ImportResult): string {
   return `ERR ${r.code} ${JSON.stringify(r.body)}`;
 }
 
+const HTTP_RE = /^https?:\/\//i;
+
 export async function importOne(
   fetchFn: typeof fetch,
   baseUrl: string,
   password: string,
   genre: string,
-  url: string,
-  itunesIdOverride?: number,
+  line: string,
+  opts?: { itunesIdOverride?: number; country?: string },
 ): Promise<ImportResult> {
-  const body: Record<string, unknown> = { url, genreSlug: genre };
-  if (itunesIdOverride !== undefined) body.itunesIdOverride = itunesIdOverride;
+  // A URL resolves directly; anything else is a free-text "Artist — Title" query.
+  const body: Record<string, unknown> = HTTP_RE.test(line)
+    ? { url: line, genreSlug: genre }
+    : { query: line, genreSlug: genre };
+  if (opts?.itunesIdOverride !== undefined) body.itunesIdOverride = opts.itunesIdOverride;
+  if (opts?.country !== undefined) body.country = opts.country;
 
   let res: Response;
   try {
@@ -162,16 +174,13 @@ export async function main(deps?: { fetchFn?: typeof fetch }): Promise<number> {
     ? [...(await readUrlsFile(args.file)), ...args.urls]
     : args.urls;
 
+  const importOpts: { itunesIdOverride?: number; country?: string } = {};
+  if (args.itunesIdOverride !== undefined) importOpts.itunesIdOverride = args.itunesIdOverride;
+  if (args.country !== undefined) importOpts.country = args.country;
+
   let failures = 0;
-  for (const url of urls) {
-    const result = await importOne(
-      fetchFn,
-      baseUrl,
-      password,
-      args.genre,
-      url,
-      args.itunesIdOverride,
-    );
+  for (const line of urls) {
+    const result = await importOne(fetchFn, baseUrl, password, args.genre, line, importOpts);
     process.stdout.write(`${formatResult(result)}\n`);
     if (!result.ok) failures += 1;
   }

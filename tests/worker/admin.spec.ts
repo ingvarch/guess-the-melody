@@ -627,6 +627,63 @@ describe('admin handlers', () => {
     expect(obj).not.toBeNull();
   });
 
+  it('POST /admin/api/import: free-text query path inserts a row', async () => {
+    vi.stubGlobal(
+      'fetch',
+      routedFetch([
+        {
+          match: (u) => u.includes('itunes.apple.com/search'),
+          respond: () =>
+            jsonResponse({
+              resultCount: 1,
+              results: [
+                {
+                  trackId: 555222,
+                  artistName: 'Кино',
+                  trackName: 'Группа крови',
+                  releaseDate: '1988-01-01',
+                  previewUrl: 'https://audio-ssl.itunes.apple.com/gk.m4a',
+                },
+              ],
+            }),
+        },
+        {
+          match: (u) => u.includes('audio-ssl.itunes.apple.com/gk.m4a'),
+          respond: () => audioResponse('gk-bytes'),
+        },
+      ]),
+    );
+
+    const res = await SELF.fetch('http://localhost/admin/api/import', {
+      method: 'POST',
+      headers: { authorization: authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify({
+        query: 'Кино — Группа крови',
+        genreSlug: 'rock',
+        country: 'RU',
+      }),
+    });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { artist: string; title: string; year: number };
+    expect(body.artist).toBe('Кино');
+    expect(body.title).toBe('Группа крови');
+    expect(body.year).toBe(1988);
+  });
+
+  it('POST /admin/api/import returns 400 when neither url nor query is given', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new Error('missing-fields path must not fetch');
+    }));
+    const res = await SELF.fetch('http://localhost/admin/api/import', {
+      method: 'POST',
+      headers: { authorization: authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify({ genreSlug: 'rock' }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('missing_fields');
+  });
+
   it('POST /admin/api/import returns 409 ambiguous on Spotify ambiguous match', async () => {
     vi.stubGlobal(
       'fetch',
