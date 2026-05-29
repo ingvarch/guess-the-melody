@@ -29,7 +29,7 @@ import {
   updateTrack,
   type UpdateTrack,
 } from '../catalog/tracks';
-import { listSessions } from '../catalog/sessions';
+import { deleteSession, listSessions } from '../catalog/sessions';
 import { importTrack } from '../importer/import-track';
 import type { Env } from '../types';
 
@@ -294,6 +294,19 @@ async function handleSessions(req: Request, env: Env): Promise<Response> {
   return json(out);
 }
 
+async function handleSessionById(
+  req: Request,
+  env: Env,
+  id: string,
+): Promise<Response> {
+  if (req.method !== 'DELETE') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  // Idempotent: deleting an already-gone row still reports success.
+  await deleteSession(env.CATALOG, id);
+  return new Response(null, { status: 204 });
+}
+
 async function handleImport(req: Request, env: Env): Promise<Response> {
   if (req.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
@@ -394,6 +407,10 @@ export async function handleAdmin(
   }
   if (path === '/admin/api/sessions') {
     return handleSessions(req, env);
+  }
+  const sessionMatch = /^\/admin\/api\/sessions\/([^/]+)$/.exec(path);
+  if (sessionMatch && sessionMatch[1]) {
+    return handleSessionById(req, env, decodeURIComponent(sessionMatch[1]));
   }
   if (path === '/admin/api/stats') {
     return handleStats(req, env);

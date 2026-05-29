@@ -14,6 +14,7 @@ const {
   deleteTrack,
   importTrack,
   getSessions,
+  deleteSession,
   getStats,
 } = mod;
 
@@ -46,6 +47,13 @@ test('getSessions: GET /admin/api/sessions', async () => {
   const result = await getSessions(fetchFn);
   assert.equal(calls[0].url, '/admin/api/sessions');
   assert.deepEqual(result, [{ id: 'ABC' }]);
+});
+
+test('deleteSession: DELETE /admin/api/sessions/:id', async () => {
+  const { fetchFn, calls } = captureFetch(new Response(null, { status: 204 }));
+  await deleteSession(fetchFn, 'ABC');
+  assert.equal(calls[0].url, '/admin/api/sessions/ABC');
+  assert.equal(calls[0].opts.method, 'DELETE');
 });
 
 test('getStats: GET /admin/api/stats', async () => {

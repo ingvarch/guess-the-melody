@@ -10,6 +10,7 @@ import {
   deleteTrack,
   importTrack,
   getSessions,
+  deleteSession,
   getStats,
 } from './admin-api.js';
 import {
@@ -476,6 +477,20 @@ function wireNav() {
     tab.addEventListener('click', () => showView(tab.dataset.view));
   }
   document.getElementById('sessions-refresh-btn')?.addEventListener('click', () => void refreshSessions());
+
+  // Delete a session from the Live registry. A live game re-registers on its
+  // next action; this clears stale/abandoned rows.
+  document.getElementById('sessions-list')?.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action="delete-session"]');
+    if (!btn) return;
+    if (!confirm(`Удалить сессию ${btn.dataset.id} из списка?`)) return;
+    try {
+      await deleteSession(fetch, btn.dataset.id);
+      await refreshSessions();
+    } catch (err) {
+      setError(document, err.message);
+    }
+  });
 }
 
 async function boot() {

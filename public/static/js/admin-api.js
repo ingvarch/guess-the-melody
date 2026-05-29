@@ -80,6 +80,13 @@ export async function getSessions(fetchFn) {
   return res.json();
 }
 
+export async function deleteSession(fetchFn, id) {
+  const res = await fetchFn(`/admin/api/sessions/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!res.ok) throw new Error(`deleteSession: ${res.status}`);
+}
+
 export async function getStats(fetchFn) {
   const res = await fetchFn('/admin/api/stats');
   if (!res.ok) throw new Error(`getStats: ${res.status}`);

@@ -58,6 +58,14 @@ export async function upsertSession(
     .run();
 }
 
+// Removes the advisory registry row. A still-live DO will re-add itself on its
+// next mutation; this is for clearing out stale/abandoned sessions from the
+// admin list. Returns whether a row was actually deleted.
+export async function deleteSession(db: D1Database, id: string): Promise<boolean> {
+  const result = await db.prepare('DELETE FROM sessions WHERE id = ?').bind(id).run();
+  return (result.meta.changes ?? 0) > 0;
+}
+
 export async function listSessions(
   db: D1Database,
   opts: { updatedAfter?: number; limit?: number } = {},

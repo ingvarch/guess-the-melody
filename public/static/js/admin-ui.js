@@ -482,7 +482,13 @@ export function renderSessions(doc, sessions, { now }) {
     dispLink.rel = 'noopener noreferrer';
     dispLink.className = 'px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant hover:text-secondary hover:border-secondary transition-all font-label-caps text-label-caps';
     dispLink.textContent = 'Open Display';
-    actions.append(hostLink, dispLink);
+    const delBtn = doc.createElement('button');
+    delBtn.type = 'button';
+    delBtn.dataset.action = 'delete-session';
+    delBtn.dataset.id = s.id;
+    delBtn.className = 'ml-auto px-3 py-1.5 rounded-lg border border-error/40 text-error hover:bg-error/10 transition-all font-label-caps text-label-caps';
+    delBtn.textContent = 'Delete';
+    actions.append(hostLink, dispLink, delBtn);
     card.append(actions);
 
     list.append(card);

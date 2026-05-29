@@ -96,6 +96,25 @@ describe('admin handlers', () => {
     expect(res.status).toBe(401);
   });
 
+  it('DELETE /admin/api/sessions/:id without auth returns 401', async () => {
+    const res = await SELF.fetch('http://localhost/admin/api/sessions/whatever', { method: 'DELETE' });
+    expect(res.status).toBe(401);
+  });
+
+  it('DELETE /admin/api/sessions/:id removes the registry row', async () => {
+    await testEnv.CATALOG.exec('DELETE FROM sessions');
+    await upsertSession(testEnv.CATALOG, {
+      id: 'doomed', now: Date.now(), phase: 'idle', selectedGenre: null, roundsPlayed: 0, teams: [],
+    });
+    const del = await SELF.fetch('http://localhost/admin/api/sessions/doomed', {
+      method: 'DELETE',
+      headers: { authorization: authHeader() },
+    });
+    expect(del.status).toBe(204);
+    const row = await testEnv.CATALOG.prepare('SELECT id FROM sessions WHERE id = ?').bind('doomed').first();
+    expect(row).toBeNull();
+  });
+
   it('GET /admin/api/sessions returns the registry newest-first', async () => {
     await testEnv.CATALOG.exec('DELETE FROM sessions');
     await upsertSession(testEnv.CATALOG, {

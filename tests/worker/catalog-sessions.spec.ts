@@ -3,7 +3,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:test';
 import type { Env } from '../../src/types';
-import { upsertSession, listSessions } from '../../src/catalog/sessions';
+import { upsertSession, listSessions, deleteSession } from '../../src/catalog/sessions';
 
 const testEnv = env as unknown as Env;
 
@@ -62,6 +62,15 @@ describe('sessions registry', () => {
     await upsertSession(testEnv.CATALOG, { id: 'new', now: 9_000, phase: 'idle', selectedGenre: null, roundsPlayed: 0, teams: [] });
     const rows = await listSessions(testEnv.CATALOG);
     expect(rows.map((r) => r.id)).toEqual(['new', 'old']);
+  });
+
+  it('deleteSession removes the row and reports whether anything was deleted', async () => {
+    await upsertSession(testEnv.CATALOG, {
+      id: 'kill', now: 1_000, phase: 'idle', selectedGenre: null, roundsPlayed: 0, teams: [],
+    });
+    expect(await deleteSession(testEnv.CATALOG, 'kill')).toBe(true);
+    expect(await listSessions(testEnv.CATALOG)).toHaveLength(0);
+    expect(await deleteSession(testEnv.CATALOG, 'kill')).toBe(false);
   });
 
   it('listSessions can filter out stale rows by updatedAfter', async () => {

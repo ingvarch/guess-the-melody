@@ -121,6 +121,17 @@ test('renderSessions renders a card per session with links and leaderboard', () 
   assert.deepEqual(names, ['Dogs', 'Cats']);
 });
 
+test('renderSessions adds a delete button per session card', () => {
+  const doc = makeDoc();
+  const now = 1_000_000;
+  renderSessions(doc, [
+    { id: 'ABC123', phase: 'idle', selectedGenre: null, roundsPlayed: 0, teamCount: 0, updatedAt: now, createdAt: now, teams: [] },
+  ], { now });
+  const btn = doc.querySelector('.session-card button[data-action="delete-session"]');
+  assert.ok(btn, 'card has a delete button');
+  assert.equal(btn.dataset.id, 'ABC123');
+});
+
 test('renderSessions flags a fresh session as live', () => {
   const doc = makeDoc();
   const now = 1_000_000;
