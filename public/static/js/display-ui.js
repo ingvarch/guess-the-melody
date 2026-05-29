@@ -335,7 +335,22 @@ function wait(ms) {
 // to a stop on the chosen one. Deterministic given spinSeed so every viewer
 // (display + spectators) lands on the same sequence. Resolves with the headline
 // showing the selected genre's display name.
-export async function runSpin(doc, state, genres, { durationMs = 3600, settleMs = 3000, getPhase } = {}) {
+// Builds the spin cadence as fractions of the total spin time: a long burst of
+// equal fast flips, then a decelerating tail whose steps grow super-linearly so
+// it visibly eases to a stop. Tuned for ~2s fast + ~6s slowing at durationMs=8000.
+function buildSpinCadence() {
+  const FAST_FLIPS = 32;
+  const SLOW_FLIPS = 16;
+  const fastBudget = 0.25; // share of total spent flipping fast
+  const slowBudget = 1 - fastBudget;
+  const fast = Array.from({ length: FAST_FLIPS }, () => fastBudget / FAST_FLIPS);
+  const weights = Array.from({ length: SLOW_FLIPS }, (_, i) => (i + 1) ** 1.7);
+  const wsum = weights.reduce((a, b) => a + b, 0);
+  const slow = weights.map((w) => (slowBudget * w) / wsum);
+  return [...fast, ...slow];
+}
+
+export async function runSpin(doc, state, genres, { durationMs = 8000, settleMs = 3000, getPhase } = {}) {
   const overlay = doc.getElementById('spin-card');
   const spinText = doc.getElementById('spin-card-genre');
   const headline = doc.getElementById('display-genre');
@@ -352,12 +367,9 @@ export async function runSpin(doc, state, genres, { durationMs = 3600, settleMs 
   setHidden(overlay, false);
 
   const prng = mulberry32(state.spinSeed || 1);
-  // Each entry is a fraction of durationMs: a burst of very fast flips up front,
-  // then a long deceleration so it eases to a stop on the chosen genre.
-  const cadence = [
-    0.015, 0.015, 0.02, 0.02, 0.025, 0.03, 0.04, 0.05,
-    0.07, 0.10, 0.14, 0.19, 0.26,
-  ];
+  // Cadence = fractions of durationMs. ~2s of rapid flips up front, then a long
+  // (~5-6s) deceleration easing to a stop on the chosen genre.
+  const cadence = buildSpinCadence();
   let prevIdx = -1;
   for (const frac of cadence) {
     if (!stillSpinning()) { close(); return; }
