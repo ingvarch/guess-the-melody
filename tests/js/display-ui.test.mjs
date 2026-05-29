@@ -98,7 +98,7 @@ test('playing and running: play-btn shows as a Pause control', () => {
   assert.equal(btn.getAttribute('aria-label'), 'Pause');
 });
 
-test('playing and paused: play-btn shows as a Play control, reveal/replay stay hidden', () => {
+test('playing and paused: Play (resume) + Reveal shown so the host can reveal early', () => {
   const doc = makeDoc();
   const now = Date.now();
   const state = makeState({
@@ -111,7 +111,9 @@ test('playing and paused: play-btn shows as a Play control, reveal/replay stay h
   const btn = doc.getElementById('play-btn');
   assert.ok(!hidden(doc, 'play-btn'), 'resume button visible while paused');
   assert.equal(btn.querySelector('.material-symbols-outlined').textContent, 'play_arrow');
-  assert.ok(hidden(doc, 'reveal-btn'), 'reveal hidden while paused mid-clip');
+  // Pausing means someone guessed early -> let the host reveal without waiting.
+  assert.ok(!hidden(doc, 'reveal-btn'), 'reveal shown while paused mid-clip');
+  // Replay stays clip-end-only (no point restarting a paused-mid clip).
   assert.ok(hidden(doc, 'replay-btn'), 'replay hidden while paused mid-clip');
 });
 

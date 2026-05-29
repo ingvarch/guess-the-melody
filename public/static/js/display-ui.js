@@ -225,7 +225,9 @@ export function renderPlaybackControls(doc, state) {
   }
 
   setHidden(doc.getElementById('replay-btn'), !(playing && ended));
-  setHidden(doc.getElementById('reveal-btn'), !(playing && ended));
+  // Reveal becomes available at the clip's end OR as soon as the host pauses —
+  // someone guessed early, no reason to wait out the 30s.
+  setHidden(doc.getElementById('reveal-btn'), !(playing && (ended || paused)));
   setHidden(doc.getElementById('next-btn'), !revealed);
   setHidden(doc.getElementById('current-track'), !state.currentTrack || idle);
 }
