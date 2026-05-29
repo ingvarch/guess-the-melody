@@ -9,6 +9,7 @@ export function initialState() {
     spinSeed: 0,
     audioStartTimestamp: null,
     audioPausedTimestamp: null,
+    genrePicked: false,
   };
 }
 

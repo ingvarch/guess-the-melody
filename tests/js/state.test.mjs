@@ -19,6 +19,7 @@ test('initialState: idle phase, empty teams, empty playedTrackIds', () => {
   assert.equal(s.spinSeed, 0);
   assert.equal(s.audioStartTimestamp, null);
   assert.equal(s.audioPausedTimestamp, null);
+  assert.equal(s.genrePicked, false);
 });
 
 test('addTeam: appends with zero score', () => {

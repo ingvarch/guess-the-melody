@@ -17,6 +17,29 @@ test('spin: idle -> spinning, fills currentTrack and spinSeed', () => {
   assert.equal(out.spinSeed, 42);
 });
 
+test('spin: genrePicked true when payload marks a host-chosen genre', () => {
+  const out = applyAction(initialState(), {
+    action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 42, genrePicked: true,
+  });
+  assert.equal(out.genrePicked, true);
+});
+
+test('spin: genrePicked defaults to false when absent (auto pick)', () => {
+  const out = applyAction(initialState(), {
+    action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 42,
+  });
+  assert.equal(out.genrePicked, false);
+});
+
+test('next: resets genrePicked to false', () => {
+  let s = applyAction(initialState(), {
+    action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 1, genrePicked: true,
+  });
+  s = applyAction(s, { action: 'play', now: 1 });
+  s = applyAction(s, { action: 'next' });
+  assert.equal(s.genrePicked, false);
+});
+
 test('spin: invalid from non-idle', () => {
   const s = { ...initialState(), phase: 'playing' };
   assert.throws(() => applyAction(s, {

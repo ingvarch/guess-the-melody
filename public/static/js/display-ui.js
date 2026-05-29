@@ -240,7 +240,7 @@ function renderPhaseLabel(doc, state) {
     genre.textContent = 'Press SPIN to start';
   } else if (state.phase === 'spinning') {
     label.textContent = `ROUND ${state.playedTrackIds.length + 1}`;
-    genre.textContent = 'Picking Genre...';
+    genre.textContent = state.genrePicked ? (state.selectedGenre ?? '—') : 'Picking Genre...';
   } else if (state.phase === 'playing') {
     label.textContent = isClipEnded(state) ? "TIME'S UP" : 'NOW PLAYING';
     genre.textContent = state.selectedGenre ?? '—';
@@ -349,7 +349,7 @@ function buildSpinCadence() {
   return [...fast, ...slow];
 }
 
-export async function runSpin(doc, state, genres, { durationMs = 8000, settleMs = 3000, getPhase } = {}) {
+export async function runSpin(doc, state, genres, { durationMs = 8000, settleMs = 3000, confirmMs = 1000, getPhase } = {}) {
   const overlay = doc.getElementById('spin-card');
   const spinText = doc.getElementById('spin-card-genre');
   const headline = doc.getElementById('display-genre');
@@ -361,9 +361,24 @@ export async function runSpin(doc, state, genres, { durationMs = 8000, settleMs 
   // The captured `state` is replaced wholesale on each SSE frame, so check the
   // live phase via getPhase: if the round advances to playing mid-spin, bail.
   const stillSpinning = () => (getPhase ? getPhase() === 'spinning' : true);
-  const close = () => setHidden(overlay, true);
+  const close = () => {
+    overlay?.classList.remove('spin-card--confirm');
+    setHidden(overlay, true);
+  };
 
   setHidden(overlay, false);
+
+  // Host chose the genre: cycling through names reveals nothing. Show the chosen
+  // genre with a brief pop instead of a fake random draw.
+  if (state.genrePicked) {
+    if (!stillSpinning()) { close(); return; }
+    spinText.textContent = finalName;
+    if (headline) headline.textContent = finalName;
+    overlay?.classList.add('spin-card--confirm');
+    await wait(confirmMs);
+    close();
+    return;
+  }
 
   const prng = mulberry32(state.spinSeed || 1);
   // Cadence = fractions of durationMs. ~2s of rapid flips up front, then a long

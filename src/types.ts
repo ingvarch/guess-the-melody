@@ -38,6 +38,7 @@ export interface RoomState {
   phase: Phase;
   teams: Team[];
   selectedGenre: string | null;
+  genrePicked: boolean;
   currentTrack: CurrentTrack | null;
   revealedTrack: RevealedTrack | null;
   playedTrackIds: string[];

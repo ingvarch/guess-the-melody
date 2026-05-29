@@ -176,6 +176,8 @@ export class MelodyRoom extends DurableObject<Env> {
       return {
         action: 'spin',
         selectedGenre: picked.genre_slug,
+        // The host chose the genre when it supplied one; auto-spin sends none.
+        genrePicked: selectedGenre !== undefined,
         trackId: picked.id,
         spinSeed: seedBuf[0],
       };

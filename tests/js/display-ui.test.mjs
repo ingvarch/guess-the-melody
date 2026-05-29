@@ -157,6 +157,43 @@ test('runSpin bails (and leaves the overlay hidden) when the round advances to p
   assert.equal(doc.getElementById('spin-card').hasAttribute('hidden'), true, 'overlay hidden after bail');
 });
 
+test('render: spinning headline says "Picking Genre..." only for auto spin', () => {
+  const auto = makeDoc();
+  render(auto, { state: makeState({ phase: 'spinning', selectedGenre: 'pop', genrePicked: false }), genres: [], sessionId: 's' });
+  assert.equal(auto.getElementById('display-genre').textContent, 'Picking Genre...');
+
+  const picked = makeDoc();
+  render(picked, { state: makeState({ phase: 'spinning', selectedGenre: 'pop', genrePicked: true }), genres: [], sessionId: 's' });
+  assert.equal(picked.getElementById('display-genre').textContent, 'pop');
+});
+
+test('runSpin in genrePicked mode confirms the chosen genre without cycling', async () => {
+  const doc = makeDoc();
+  const genres = [
+    { slug: 'rock', name: 'Rock' },
+    { slug: 'pop', name: 'Pop' },
+    { slug: 'jazz', name: 'Jazz' },
+  ];
+  const state = makeState({
+    phase: 'spinning',
+    selectedGenre: 'jazz',
+    genrePicked: true,
+    spinSeed: 7,
+    currentTrack: { id: 'x', genre: 'jazz' },
+  });
+  // durationMs huge: the cycling path would take ~100s and hang the test.
+  // The confirm path ignores it and returns after confirmMs → proves no cycling.
+  await runSpin(doc, state, genres, {
+    durationMs: 100000,
+    settleMs: 100000,
+    confirmMs: 10,
+    getPhase: () => 'spinning',
+  });
+  assert.equal(doc.getElementById('spin-card-genre').textContent, 'Jazz');
+  assert.equal(doc.getElementById('display-genre').textContent, 'Jazz');
+  assert.equal(doc.getElementById('spin-card').hasAttribute('hidden'), true, 'overlay closes when done');
+});
+
 test('runSpin animates the overlay, settles on the genre, then hides the overlay', async () => {
   const doc = makeDoc();
   const genres = [

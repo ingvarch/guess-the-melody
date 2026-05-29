@@ -47,6 +47,9 @@
            as the slot-machine cycles. */
         #spin-card:not([hidden]) .spin-card__box { animation: reveal-in 0.4s cubic-bezier(0.16,1,0.3,1) both; }
         #spin-card-genre { transition: opacity 0.12s ease; }
+        /* Host-picked genre: no slot-machine, just a confident pop on the name. */
+        #spin-card.spin-card--confirm #spin-card-genre { animation: genre-confirm 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+        @keyframes genre-confirm { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
         /* Visualiser bars idle low; they come alive only while a clip plays. */
         @keyframes bar-rest { 0%,100% { opacity: 0.5; } }
         body:not([data-phase="playing"]) .visualizer-bar { opacity: 0.45; }

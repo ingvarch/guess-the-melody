@@ -484,6 +484,7 @@ describe('MelodyRoom DO', () => {
     expect(state.currentTrack!.id).toBe('tr-spin-rock');
     expect(state.currentTrack!.genre).toBe('rock');
     expect(state.spinSeed).not.toBe(0);
+    expect(state.genrePicked).toBe(true);
   });
 
   it('spin without genre picks any non-archived track', async () => {
@@ -503,6 +504,7 @@ describe('MelodyRoom DO', () => {
     expect(state.phase).toBe('spinning');
     expect(state.currentTrack!.id).toBe('tr-any');
     expect(state.currentTrack!.genre).toBe('pop');
+    expect(state.genrePicked).toBe(false);
   });
 
   it('reveal resolves track metadata from D1 (host posts no payload)', async () => {
