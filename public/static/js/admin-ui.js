@@ -65,17 +65,21 @@ export function renderGenresTable(doc, genres, opts = {}) {
   }
 }
 
-export function populateGenreSelect(doc, genres, selectId) {
+// opts.placeholder sets the first option's label. opts.placeholderSelectable
+// keeps it enabled (value '') so it works as a "reset / all" choice for the
+// filter; left disabled it is a "you must pick" prompt for the import select.
+export function populateGenreSelect(doc, genres, selectId, opts = {}) {
+  const { placeholder = '— Genre —', placeholderSelectable = false } = opts;
   const select = doc.getElementById(selectId);
   if (!select) return;
   const current = select.value;
   clearChildren(select);
-  const placeholder = doc.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = '— выбрать —';
-  placeholder.disabled = true;
-  placeholder.selected = true;
-  select.append(placeholder);
+  const placeholderOpt = doc.createElement('option');
+  placeholderOpt.value = '';
+  placeholderOpt.textContent = placeholder;
+  placeholderOpt.disabled = !placeholderSelectable;
+  placeholderOpt.selected = true;
+  select.append(placeholderOpt);
   for (const g of genres) {
     const opt = doc.createElement('option');
     opt.value = g.slug;

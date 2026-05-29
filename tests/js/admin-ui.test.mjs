@@ -315,6 +315,28 @@ test('renderStats fills the stat tiles from the stats payload', () => {
   assert.equal(doc.getElementById('stat-active-genres').textContent, '10');
 });
 
+test('populateGenreSelect: a selectable reset option for the filter', () => {
+  const doc = makeDoc();
+  populateGenreSelect(doc, [{ slug: 'rock', name: 'Rock' }], 'tracks-genre-filter', {
+    placeholder: 'All Genres',
+    placeholderSelectable: true,
+  });
+  const select = doc.getElementById('tracks-genre-filter');
+  assert.equal(select.children[0].value, '');
+  assert.equal(select.children[0].textContent, 'All Genres');
+  assert.equal(select.children[0].disabled, false, 'reset option must be selectable');
+});
+
+test('populateGenreSelect: a custom disabled prompt for the import select', () => {
+  const doc = makeDoc();
+  populateGenreSelect(doc, [{ slug: 'rock', name: 'Rock' }], 'import-genre', {
+    placeholder: '— Genre —',
+  });
+  const select = doc.getElementById('import-genre');
+  assert.equal(select.children[0].textContent, '— Genre —');
+  assert.equal(select.children[0].disabled, true);
+});
+
 test('populateGenreSelect fills options and preserves value', () => {
   const doc = makeDoc();
   const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }];

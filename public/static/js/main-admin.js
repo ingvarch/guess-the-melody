@@ -56,8 +56,8 @@ async function refreshGenres() {
   try {
     currentGenres = await getGenres(fetch);
     renderGenresTable(document, currentGenres, { counts: currentStats.perGenre });
-    populateGenreSelect(document, currentGenres.filter((g) => !g.archived), 'import-genre');
-    populateGenreSelect(document, currentGenres, 'tracks-genre-filter');
+    populateGenreSelect(document, currentGenres.filter((g) => !g.archived), 'import-genre', { placeholder: '— Genre —' });
+    populateGenreSelect(document, currentGenres, 'tracks-genre-filter', { placeholder: 'All Genres', placeholderSelectable: true });
   } catch (e) {
     setError(document, e.message);
   }
