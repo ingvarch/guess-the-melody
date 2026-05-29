@@ -113,8 +113,8 @@ function boot() {
   function wireEvents() {
     const spinBtn = document.getElementById('spin-btn');
     spinBtn?.addEventListener('click', () => {
-      const mode = document.querySelector('input[name="genre-mode"]:checked')?.value;
-      const genre = mode === 'pick' ? document.getElementById('genre-select')?.value || null : null;
+      // Empty value = "Surprise me (Auto)" → no genre; the server picks at random.
+      const genre = document.getElementById('genre-select')?.value || null;
       spin(fetch, sessionId, genre).catch(silentlyIgnore403);
     });
 
@@ -205,12 +205,6 @@ function boot() {
         renameTeam(fetch, sessionId, id, trimmed).catch(silentlyIgnore403);
       }
     });
-
-    // Re-render when genre-mode radio changes so genre-select disabled state flips.
-    const modeRadios = document.querySelectorAll('input[name="genre-mode"]');
-    for (const r of modeRadios) {
-      r.addEventListener('change', () => render(document, view));
-    }
   }
 
   document.addEventListener('visibilitychange', () => {

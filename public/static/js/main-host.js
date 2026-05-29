@@ -99,8 +99,8 @@ function wireEvents(view) {
 
   const spinBtn = document.getElementById('spin-btn');
   spinBtn?.addEventListener('click', () => {
-    const mode = document.querySelector('input[name="genre-mode"]:checked')?.value;
-    const genre = mode === 'pick' ? document.getElementById('genre-select')?.value || null : null;
+    // Empty value = "Surprise me (Auto)" → no genre; the server picks at random.
+    const genre = document.getElementById('genre-select')?.value || null;
     spin(fetch, sessionId, genre).catch((err) => showError(err.message));
   });
 
@@ -141,11 +141,6 @@ function wireEvents(view) {
     const reset = confirm('Reset team scores?');
     endgame(fetch, sessionId, reset).catch((err) => showError(err.message));
   });
-
-  const modeRadios = document.querySelectorAll('input[name="genre-mode"]');
-  for (const r of modeRadios) {
-    r.addEventListener('change', () => render(document, view));
-  }
 
   // QR modal.
   const qrBtn = document.getElementById('qr-btn');

@@ -58,13 +58,12 @@ function renderGenres(doc, genres, state) {
   if (!select) return;
   const current = select.value;
   clearChildren(select);
-  if (genres.length === 0) {
-    const placeholder = doc.createElement('option');
-    placeholder.value = '';
-    placeholder.textContent = '—';
-    placeholder.disabled = true;
-    select.append(placeholder);
-  }
+  // First option = auto spin (empty value). The caller reads `value || null`,
+  // so an empty value means "no genre" → the server picks one at random.
+  const auto = doc.createElement('option');
+  auto.value = '';
+  auto.textContent = 'Surprise me (Auto)';
+  select.append(auto);
   for (const g of genres) {
     const opt = doc.createElement('option');
     opt.value = g.slug;
@@ -75,15 +74,8 @@ function renderGenres(doc, genres, state) {
   if (current && genres.some((g) => g.slug === current)) {
     select.value = current;
   }
-
-  // Disable genre controls outside idle to prevent mid-round mutation.
-  const idle = state.phase === 'idle';
-  const mode = doc.querySelector('input[name="genre-mode"]:checked');
-  const pickActive = mode?.value === 'pick';
-  select.disabled = !(idle && pickActive);
-  for (const radio of doc.querySelectorAll('input[name="genre-mode"]')) {
-    radio.disabled = !idle;
-  }
+  // Disable outside idle to prevent mid-round mutation.
+  select.disabled = state.phase !== 'idle';
 }
 
 function setHidden(el, hidden) {

@@ -209,7 +209,7 @@
 </div>
 </header>
 <!-- Main Content Stage -->
-<main class="relative z-10 min-h-screen flex flex-col items-center justify-start md:justify-center px-margin-mobile md:px-margin-desktop pt-24 md:pt-32 pb-56 md:pb-48">
+<main class="relative z-10 min-h-screen flex flex-col items-center justify-center px-margin-mobile md:px-margin-desktop pt-24 md:pt-32 pb-56 md:pb-48">
 <!-- Game State Indicator -->
 <div class="mb-6 md:mb-12 transition-all duration-1000 transform scale-100 opacity-100" id="game-state">
 <p id="phase-label" class="font-label-caps text-label-caps text-on-surface-variant text-center mb-4 tracking-[0.4em]">READY</p>
@@ -229,17 +229,9 @@
 <canvas id="waveform" width="1024" height="256" aria-hidden="true" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
 </div>
 <!-- Idle controls: SPIN + genre selector. Visible when phase === 'idle'. -->
-<div id="idle-controls" hidden class="flex flex-col items-center gap-6 w-full max-w-2xl">
-<div class="flex flex-wrap items-center justify-center gap-4 font-label-mono text-label-mono text-on-surface-variant">
-<label class="inline-flex items-center gap-2 cursor-pointer">
-<input type="radio" name="genre-mode" value="auto" checked class="accent-primary"> Auto
-</label>
-<label class="inline-flex items-center gap-2 cursor-pointer">
-<input type="radio" name="genre-mode" value="pick" class="accent-primary"> Pick Genre
-</label>
-<select id="genre-select" disabled aria-label="Genre"
-  class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"></select>
-</div>
+<div id="idle-controls" hidden class="flex flex-col items-center gap-8 w-full max-w-2xl">
+<select id="genre-select" aria-label="Genre"
+  class="w-full max-w-xs text-center bg-surface-container-low border border-outline-variant rounded-full px-5 py-3 font-label-mono text-label-mono text-on-surface cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"></select>
 <button id="spin-btn" type="button" aria-label="Spin" class="relative w-48 h-48 md:w-64 md:h-64 rounded-full bg-background border-4 border-primary inner-glow-border flex items-center justify-center active:scale-95 transition-all duration-200 glow-primary-soft disabled:opacity-50 disabled:cursor-not-allowed">
 <span class="material-symbols-outlined text-6xl md:text-8xl text-primary animate-spin-slow">autorenew</span>
 </button>

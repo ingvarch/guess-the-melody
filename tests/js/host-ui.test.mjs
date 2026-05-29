@@ -36,8 +36,6 @@ function makeDoc() {
       <button id="next-btn" hidden></button>
     </div>
     <div id="mirror-content"></div>
-    <input type="radio" name="genre-mode" value="auto" checked>
-    <input type="radio" name="genre-mode" value="pick">
   `;
   const audio = doc.getElementById('audio');
   if (audio) {
@@ -216,6 +214,28 @@ test('audio src set only when changed', () => {
   const srcCalls3 = calls.filter((c) => c.name === 'src');
   assert.equal(srcCalls3.length, 2);
   assert.ok(srcCalls3[1].value.includes('t2'));
+});
+
+test('genre-select: first option is the Auto sentinel (empty value), then genres', () => {
+  const doc = makeDoc();
+  render(doc, {
+    state: makeState({ phase: 'idle' }),
+    genres: [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }],
+    sessionId: 's',
+  });
+  const opts = Array.from(doc.getElementById('genre-select').options);
+  assert.equal(opts[0].value, '');
+  assert.match(opts[0].textContent, /auto/i);
+  assert.deepEqual(opts.slice(1).map((o) => o.value), ['rock', 'pop']);
+});
+
+test('genre-select: enabled only in idle (no mode radios)', () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }];
+  render(doc, { state: makeState({ phase: 'idle' }), genres, sessionId: 's' });
+  assert.equal(doc.getElementById('genre-select').disabled, false);
+  render(doc, { state: makeState({ phase: 'spinning' }), genres, sessionId: 's' });
+  assert.equal(doc.getElementById('genre-select').disabled, true);
 });
 
 test('genre-select preserves current selection across re-renders', () => {

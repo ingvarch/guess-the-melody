@@ -194,16 +194,10 @@
 <span class="font-label-caps text-label-caps text-primary tracking-[0.4em]">CURRENT CATEGORY</span>
 <h2 class="font-display-sm text-display-sm md:text-display-lg text-primary drop-shadow-[0_0_15px_rgba(208,188,255,0.3)]"><span id="current-genre">—</span></h2>
 </div>
-<!-- Genre mode controls (host-ui toggles disabled state based on phase) -->
-<div class="relative z-10 mb-6 flex flex-wrap items-center justify-center gap-4 font-label-mono text-label-mono text-on-surface-variant">
-<label class="inline-flex items-center gap-2 cursor-pointer">
-<input type="radio" name="genre-mode" value="auto" checked class="accent-primary"> Auto
-</label>
-<label class="inline-flex items-center gap-2 cursor-pointer">
-<input type="radio" name="genre-mode" value="pick" class="accent-primary"> Pick Genre
-</label>
-<select id="genre-select" disabled aria-label="Genre"
-  class="bg-surface-container-low border border-outline-variant rounded-lg px-3 py-2 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"></select>
+<!-- Genre selector (host-ui toggles disabled state based on phase) -->
+<div class="relative z-10 mb-6 flex justify-center">
+<select id="genre-select" aria-label="Genre"
+  class="w-full max-w-xs text-center bg-surface-container-low border border-outline-variant rounded-full px-5 py-3 font-label-mono text-label-mono text-on-surface cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"></select>
 </div>
 <button id="spin-btn" type="button" class="relative w-48 h-48 md:w-64 md:h-64 rounded-full bg-background border-4 border-primary inner-glow-border flex items-center justify-center group active:scale-95 transition-all duration-200 glow-primary mb-12 disabled:opacity-50 disabled:cursor-not-allowed">
 <span class="material-symbols-outlined text-6xl md:text-8xl text-primary animate-spin-slow group-hover:animate-none">autorenew</span>
