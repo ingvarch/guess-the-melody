@@ -155,6 +155,13 @@ test('renderGenresTable creates read-only rows with an edit button', () => {
   assert.equal(editBtn.type, 'button');
 });
 
+test('renderGenresTable tags cells with data-col for the responsive layout', () => {
+  const doc = makeDoc();
+  renderGenresTable(doc, [{ slug: 'rock', name: 'Rock', sort_order: 10, archived: 0 }]);
+  const cols = Array.from(doc.querySelectorAll('#genres-body tr td')).map((td) => td.dataset.col);
+  assert.deepEqual(cols, ['order', 'slug', 'name', 'count', 'status', 'actions']);
+});
+
 test('renderGenresTable does not attach event listeners to tbody', () => {
   const doc = makeDoc();
   const genres = [{ slug: 'rock', name: 'Rock', sort_order: 10, archived: 0 }];

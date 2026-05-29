@@ -209,4 +209,58 @@
     top: 0.85rem;
     right: 1rem;
   }
+
+  /* Genres table -> cards, same as tracks. Name (bold), slug · N tracks, with
+     the status badge pinned top-right. Order column and edit pencil are dropped
+     (the whole card taps to open the editor, where order is editable). */
+  #genres-table thead { display: none; }
+  #genres-table,
+  #genres-table tbody,
+  #genres-body tr,
+  #genres-body td {
+    display: block;
+  }
+  #genres-body tr {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.4rem;
+    padding: 0.85rem 6rem 0.85rem 1rem;
+    cursor: pointer;
+  }
+  @media (hover: hover) {
+    #genres-body tr:hover { background: rgba(208, 188, 255, 0.04); }
+  }
+  #genres-body td {
+    padding: 0 !important;
+    border: 0 !important;
+    text-align: left !important;
+  }
+  #genres-body td[data-col="order"],
+  #genres-body td[data-col="actions"] {
+    display: none;
+  }
+  #genres-body td[data-col="name"] {
+    order: 1;
+    flex: 1 0 100%;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #e5e1e4;
+  }
+  #genres-body td[data-col="slug"],
+  #genres-body td[data-col="count"] {
+    color: #958ea0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.78rem;
+  }
+  #genres-body td[data-col="slug"] { order: 2; }
+  #genres-body td[data-col="count"] { order: 3; }
+  #genres-body td[data-col="count"]::before { content: "· "; }
+  #genres-body td[data-col="count"]::after { content: " tracks"; }
+  #genres-body td[data-col="status"] {
+    position: absolute;
+    top: 0.85rem;
+    right: 1rem;
+  }
 }

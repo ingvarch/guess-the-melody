@@ -307,13 +307,14 @@ function wireForms() {
   // Add Genre button — opens the shared editor modal in create mode.
   document.getElementById('genre-add-btn')?.addEventListener('click', () => openGenreCreator(document));
 
-  // Per-row genre Edit button — opens the editor modal in edit mode.
+  // Genre row — the edit pencil or a tap anywhere on the row (the mobile card)
+  // opens the editor modal.
   const genresBody = document.getElementById('genres-body');
   if (genresBody) {
     genresBody.addEventListener('click', (e) => {
-      const editBtn = e.target.closest('button[data-action="edit"]');
-      if (!editBtn) return;
-      const genre = currentGenres.find((g) => g.slug === editBtn.dataset.slug);
+      const row = e.target.closest('tr[data-slug]');
+      if (!row) return;
+      const genre = currentGenres.find((g) => g.slug === row.dataset.slug);
       if (genre) openGenreEditor(document, genre);
     });
   }

@@ -18,23 +18,28 @@ export function renderGenresTable(doc, genres, opts = {}) {
 
     const sortTd = doc.createElement('td');
     sortTd.className = 'px-6 py-4 text-center num';
+    sortTd.dataset.col = 'order';
     sortTd.textContent = String(g.sort_order);
 
     const slugTd = doc.createElement('td');
     slugTd.className = 'px-6 py-4 font-label-mono text-label-mono';
+    slugTd.dataset.col = 'slug';
     slugTd.textContent = g.slug;
 
     const nameTd = doc.createElement('td');
     nameTd.className = 'px-6 py-4';
+    nameTd.dataset.col = 'name';
     nameTd.textContent = g.name;
 
     const countTd = doc.createElement('td');
     countTd.dataset.cell = 'count';
+    countTd.dataset.col = 'count';
     countTd.className = 'px-6 py-4 text-center num';
     countTd.textContent = String(counts[g.slug] ?? 0);
 
     const statusTd = doc.createElement('td');
     statusTd.className = 'px-6 py-4 text-center';
+    statusTd.dataset.col = 'status';
     const badge = doc.createElement('span');
     badge.className = g.archived ? 'badge badge--archived' : 'badge badge--active';
     badge.textContent = g.archived ? 'Архив' : 'Активен';
@@ -42,6 +47,7 @@ export function renderGenresTable(doc, genres, opts = {}) {
 
     const actionsTd = doc.createElement('td');
     actionsTd.className = 'px-6 py-4 text-center';
+    actionsTd.dataset.col = 'actions';
     const actions = doc.createElement('div');
     actions.className = 'track-actions';
     const editBtn = doc.createElement('button');
