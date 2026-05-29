@@ -119,6 +119,7 @@ export function renderTracksTable(doc, tracks) {
 
     const cbTd = doc.createElement('td');
     cbTd.className = 'px-6 py-4 text-center';
+    cbTd.dataset.col = 'select';
     const cb = doc.createElement('input');
     cb.type = 'checkbox';
     cb.dataset.id = t.id;
@@ -128,22 +129,27 @@ export function renderTracksTable(doc, tracks) {
 
     const genreTd = doc.createElement('td');
     genreTd.className = 'px-6 py-4';
+    genreTd.dataset.col = 'genre';
     genreTd.textContent = t.genre_slug;
 
     const artistTd = doc.createElement('td');
     artistTd.className = 'px-6 py-4';
+    artistTd.dataset.col = 'artist';
     artistTd.textContent = t.artist;
 
     const titleTd = doc.createElement('td');
     titleTd.className = 'px-6 py-4';
+    titleTd.dataset.col = 'title';
     titleTd.textContent = t.title;
 
     const yearTd = doc.createElement('td');
     yearTd.className = 'px-6 py-4 text-center num';
+    yearTd.dataset.col = 'year';
     yearTd.textContent = String(t.year);
 
     const actionsTd = doc.createElement('td');
     actionsTd.className = 'px-6 py-4 text-center';
+    actionsTd.dataset.col = 'actions';
     const actions = doc.createElement('div');
     actions.className = 'track-actions';
     const playBtn = doc.createElement('button');

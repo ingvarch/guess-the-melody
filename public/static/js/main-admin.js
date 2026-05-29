@@ -357,17 +357,19 @@ function wireForms() {
     });
   }
 
-  // Per-row Play button (single shared audio element; clicking another row's
-  // button stops the current one) and Edit button (opens the editor modal).
+  // Per-row interactions. Play uses a single shared audio element (clicking
+  // another row's button stops the current one). The checkbox toggles bulk
+  // selection. Anything else — the edit pencil or a tap anywhere on the row
+  // (the mobile card) — opens the editor.
   if (tracksBody) {
     tracksBody.addEventListener('click', (e) => {
       const playBtn = e.target.closest('button[data-action="play"]');
       if (playBtn) { togglePlay(playBtn); return; }
-      const editBtn = e.target.closest('button[data-action="edit"]');
-      if (editBtn) {
-        const track = currentTracks.find((t) => t.id === editBtn.dataset.id);
-        if (track) openTrackEditor(document, track, currentGenres);
-      }
+      if (e.target.closest('input[type="checkbox"]')) return;
+      const row = e.target.closest('tr[data-id]');
+      if (!row) return;
+      const track = currentTracks.find((t) => t.id === row.dataset.id);
+      if (track) openTrackEditor(document, track, currentGenres);
     });
   }
 

@@ -333,6 +333,15 @@ test('renderTracksTable creates rows with checkboxes and track data', () => {
   assert.equal(checkbox.dataset.action, 'select-row');
 });
 
+test('renderTracksTable tags cells with data-col for the responsive layout', () => {
+  const doc = makeDoc();
+  renderTracksTable(doc, [
+    { id: 't1', genre_slug: 'rock', artist: 'A', title: 'T1', year: 2000 },
+  ]);
+  const cols = Array.from(doc.querySelectorAll('#tracks-body tr td')).map((td) => td.dataset.col);
+  assert.deepEqual(cols, ['select', 'genre', 'artist', 'title', 'year', 'actions']);
+});
+
 test('renderTracksTable adds a Play button per row', () => {
   const doc = makeDoc();
   const tracks = [

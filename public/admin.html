@@ -194,24 +194,24 @@
 <!-- Song Library View -->
 <section hidden class="p-margin-mobile md:p-margin-desktop space-y-gutter" id="catalogue-view">
 <!-- Library stats: live counts pulled from /admin/api/stats. Add Track sits in
-     this row, mirroring the Add Genre button on the Genres view. -->
-<div class="flex items-stretch gap-gutter flex-wrap">
-<div class="grid grid-cols-1 sm:grid-cols-3 gap-gutter flex-1 min-w-[260px]">
-<div class="glass-card rounded-xl p-5 flex flex-col gap-1">
-<span class="font-label-caps text-label-caps text-on-surface-variant">Tracks</span>
-<span id="stat-total-tracks" class="font-display-sm text-display-sm text-primary num leading-none">—</span>
-</div>
-<div class="glass-card rounded-xl p-5 flex flex-col gap-1">
-<span class="font-label-caps text-label-caps text-on-surface-variant">Genres</span>
-<span id="stat-total-genres" class="font-display-sm text-display-sm text-secondary num leading-none">—</span>
-</div>
-<div class="glass-card rounded-xl p-5 flex flex-col gap-1">
-<span class="font-label-caps text-label-caps text-on-surface-variant">Active Genres</span>
-<span id="stat-active-genres" class="font-display-sm text-display-sm text-tertiary num leading-none">—</span>
-</div>
-</div>
-<button id="track-add-btn" type="button" class="shrink-0 self-stretch bg-secondary text-on-secondary px-6 rounded-xl text-label-caps font-bold hover:scale-105 active:scale-95 transition-all whitespace-nowrap flex items-center gap-2">
+     this row on desktop (mirroring Add Genre), and above the stats on mobile. -->
+<div class="flex flex-col md:flex-row md:items-stretch gap-3 md:gap-gutter">
+<button id="track-add-btn" type="button" class="order-first md:order-last shrink-0 w-full md:w-auto self-stretch bg-secondary text-on-secondary px-6 py-3 md:py-0 rounded-xl text-label-caps font-bold hover:scale-105 active:scale-95 transition-all whitespace-nowrap flex items-center justify-center gap-2">
 <span class="material-symbols-outlined">add</span>Add Track</button>
+<div class="grid grid-cols-3 gap-2 sm:gap-gutter flex-1">
+<div class="glass-card rounded-xl p-3 sm:p-5 flex flex-col gap-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Tracks</span>
+<span id="stat-total-tracks" class="font-display-sm text-2xl sm:text-display-sm text-primary num leading-none">—</span>
+</div>
+<div class="glass-card rounded-xl p-3 sm:p-5 flex flex-col gap-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Genres</span>
+<span id="stat-total-genres" class="font-display-sm text-2xl sm:text-display-sm text-secondary num leading-none">—</span>
+</div>
+<div class="glass-card rounded-xl p-3 sm:p-5 flex flex-col gap-1">
+<span class="font-label-caps text-label-caps text-on-surface-variant">Active Genres</span>
+<span id="stat-active-genres" class="font-display-sm text-2xl sm:text-display-sm text-tertiary num leading-none">—</span>
+</div>
+</div>
 </div>
 <!-- Search / filter the existing library. -->
 <div class="flex flex-col md:flex-row gap-3 items-center">
@@ -233,7 +233,7 @@
 </button>
 </div>
 <div class="glass-card rounded-xl overflow-hidden">
-<table class="w-full text-left border-collapse">
+<table id="tracks-table" class="w-full text-left border-collapse">
 <thead class="bg-surface-container-high">
 <tr>
 <th class="px-6 py-4 font-label-caps text-label-caps text-on-surface-variant text-center"><input id="select-all" type="checkbox" aria-label="Select all" class="accent-primary"/></th>

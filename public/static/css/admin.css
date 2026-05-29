@@ -120,3 +120,67 @@
   color: #3c0091;
   border-color: #d0bcff;
 }
+
+/* ---- Tracks table -> mobile cards --------------------------------------- */
+/* The 6-column tracks table cannot fit a phone. Below 768px each <tr> reflows
+   into a tappable card: artist (bold), title, "genre · year", with the play
+   button pinned top-right. The whole card opens the editor (main-admin wires the
+   row tap); the per-row edit pencil and bulk-select checkbox are desktop-only. */
+@media (max-width: 767px) {
+  #tracks-table thead { display: none; }
+  #tracks-table,
+  #tracks-table tbody,
+  #tracks-body tr,
+  #tracks-body td {
+    display: block;
+  }
+  #tracks-body tr {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.4rem;
+    padding: 0.85rem 3.5rem 0.85rem 1rem;
+    cursor: pointer;
+  }
+  @media (hover: hover) {
+    #tracks-body tr:hover { background: rgba(208, 188, 255, 0.04); }
+  }
+  #tracks-body td {
+    padding: 0 !important;
+    border: 0 !important;
+    text-align: left !important;
+  }
+  #tracks-body td[data-col="select"],
+  #tracks-body td[data-col="actions"] .icon-btn {
+    display: none;
+  }
+  #tracks-body td[data-col="artist"] {
+    order: 1;
+    flex: 1 0 100%;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #e5e1e4;
+  }
+  #tracks-body td[data-col="title"] {
+    order: 2;
+    flex: 1 0 100%;
+    color: #cbc3d7;
+    font-size: 0.9rem;
+  }
+  #tracks-body td[data-col="genre"],
+  #tracks-body td[data-col="year"] {
+    color: #958ea0;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.78rem;
+  }
+  #tracks-body td[data-col="genre"] { order: 3; }
+  #tracks-body td[data-col="year"] { order: 4; }
+  #tracks-body td[data-col="year"]::before { content: "· "; }
+  #tracks-body td[data-col="actions"] {
+    order: 5;
+    position: absolute;
+    top: 0.85rem;
+    right: 1rem;
+  }
+}
