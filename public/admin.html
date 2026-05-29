@@ -177,6 +177,13 @@
 <span class="font-label-mono text-label-mono text-on-surface-variant">HOME</span>
 </a>
 </div>
+<!-- Mobile section switcher: the sidebar is hidden below md, so these tabs are
+     the only way to reach Live / Library / Genres on a phone. -->
+<nav class="md:hidden w-full flex gap-1 bg-surface-container-low rounded-lg p-1" aria-label="Sections">
+<button type="button" class="admin-tab" data-view="live"><span class="material-symbols-outlined">play_circle</span><span>Live</span></button>
+<button type="button" class="admin-tab" data-view="library"><span class="material-symbols-outlined">library_music</span><span>Library</span></button>
+<button type="button" class="admin-tab" data-view="genres"><span class="material-symbols-outlined">category</span><span>Genres</span></button>
+</nav>
 </header>
 <!-- Inline error region (host-ui writes here) -->
 <p id="error" role="alert" aria-live="polite" class="px-margin-mobile md:px-margin-desktop pt-2 text-error font-label-mono text-label-mono min-h-[1.25rem]"></p>

@@ -419,17 +419,23 @@ const VIEWS = {
   genres: { section: 'genres-view', nav: 'nav-genres', title: 'Genres' },
 };
 
-function setActiveNav(activeNavId) {
-  for (const v of Object.values(VIEWS)) {
+function setActiveNav(view) {
+  // Desktop sidebar buttons (highlighted via Tailwind utility classes).
+  for (const [key, v] of Object.entries(VIEWS)) {
     const btn = document.getElementById(v.nav);
     if (!btn) continue;
-    if (v.nav === activeNavId) {
+    if (key === view) {
       btn.classList.add(...NAV_ACTIVE);
       btn.classList.remove('text-on-surface-variant');
     } else {
       btn.classList.remove(...NAV_ACTIVE);
       btn.classList.add('text-on-surface-variant');
     }
+  }
+  // Mobile header tabs (highlighted via aria-current in admin.css).
+  for (const tab of document.querySelectorAll('.admin-tab[data-view]')) {
+    if (tab.dataset.view === view) tab.setAttribute('aria-current', 'page');
+    else tab.removeAttribute('aria-current');
   }
 }
 
@@ -457,13 +463,17 @@ function showView(view) {
     refreshBtn?.setAttribute('hidden', '');
   }
 
-  setActiveNav(cfg.nav);
+  setActiveNav(view);
 }
 
 function wireNav() {
   document.getElementById('nav-live')?.addEventListener('click', () => showView('live'));
   document.getElementById('nav-library')?.addEventListener('click', () => showView('library'));
   document.getElementById('nav-genres')?.addEventListener('click', () => showView('genres'));
+  // Mobile header tabs mirror the sidebar.
+  for (const tab of document.querySelectorAll('.admin-tab[data-view]')) {
+    tab.addEventListener('click', () => showView(tab.dataset.view));
+  }
   document.getElementById('sessions-refresh-btn')?.addEventListener('click', () => void refreshSessions());
 }
 
