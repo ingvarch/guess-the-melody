@@ -13,6 +13,7 @@ function makeDoc() {
     <ul id="scoreboard-list"></ul>
     <p id="phase-label"></p>
     <h2 id="display-genre"></h2>
+    <div id="spin-card" hidden><h3 id="spin-card-genre"></h3></div>
     <div id="idle-controls"></div>
     <button id="spin-btn"></button>
     <div id="phase-controls" hidden></div>
@@ -143,7 +144,7 @@ test('revealed: next shown, reveal + repeat hidden', () => {
   assert.ok(hidden(doc, 'replay-btn'), 'repeat hidden when revealed (replay invalid here)');
 });
 
-test('runSpin bails when the round advances to playing mid-spin', async () => {
+test('runSpin bails (and leaves the overlay hidden) when the round advances to playing mid-spin', async () => {
   const doc = makeDoc();
   doc.getElementById('display-genre').textContent = 'KEEP';
   const genres = [
@@ -152,11 +153,12 @@ test('runSpin bails when the round advances to playing mid-spin', async () => {
   ];
   const state = makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 3 });
   // getPhase reports 'playing' immediately → runSpin must not touch the headline.
-  await runSpin(doc, state, genres, { durationMs: 60, getPhase: () => 'playing' });
+  await runSpin(doc, state, genres, { durationMs: 60, settleMs: 10, getPhase: () => 'playing' });
   assert.equal(doc.getElementById('display-genre').textContent, 'KEEP');
+  assert.equal(doc.getElementById('spin-card').hasAttribute('hidden'), true, 'overlay hidden after bail');
 });
 
-test('runSpin settles display-genre on the selected genre name', async () => {
+test('runSpin animates the overlay, settles on the genre, then hides the overlay', async () => {
   const doc = makeDoc();
   const genres = [
     { slug: 'rock', name: 'Rock' },
@@ -169,8 +171,12 @@ test('runSpin settles display-genre on the selected genre name', async () => {
     spinSeed: 7,
     currentTrack: { id: 'x', genre: 'pop' },
   });
-  await runSpin(doc, state, genres, { durationMs: 60 });
+  await runSpin(doc, state, genres, { durationMs: 60, settleMs: 10 });
+  // Final genre lands in the overlay card AND the underlying headline (so the
+  // normal spinning screen shows it once the overlay closes).
+  assert.equal(doc.getElementById('spin-card-genre').textContent, 'Pop');
   assert.equal(doc.getElementById('display-genre').textContent, 'Pop');
+  assert.equal(doc.getElementById('spin-card').hasAttribute('hidden'), true, 'overlay closes when done');
 });
 
 test('scoreboard renders teams in order', () => {

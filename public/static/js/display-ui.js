@@ -335,31 +335,43 @@ function wait(ms) {
 // to a stop on the chosen one. Deterministic given spinSeed so every viewer
 // (display + spectators) lands on the same sequence. Resolves with the headline
 // showing the selected genre's display name.
-export async function runSpin(doc, state, genres, { durationMs = 3200, getPhase } = {}) {
+export async function runSpin(doc, state, genres, { durationMs = 3200, settleMs = 1100, getPhase } = {}) {
+  const overlay = doc.getElementById('spin-card');
+  const spinText = doc.getElementById('spin-card-genre');
   const headline = doc.getElementById('display-genre');
-  if (!headline || state.phase !== 'spinning' || genres.length === 0) return;
+  if (!spinText || state.phase !== 'spinning' || genres.length === 0) return;
 
   const selected = genres.find((g) => g.slug === state.selectedGenre);
   const finalName = selected?.name ?? state.selectedGenre ?? '—';
 
   // The captured `state` is replaced wholesale on each SSE frame, so check the
-  // live phase via getPhase: if the round advances to playing mid-spin, bail so
-  // we stop fighting renderPhaseLabel (which has set the real genre headline).
+  // live phase via getPhase: if the round advances to playing mid-spin, bail.
   const stillSpinning = () => (getPhase ? getPhase() === 'spinning' : true);
+  const close = () => setHidden(overlay, true);
+
+  setHidden(overlay, false);
 
   const prng = mulberry32(state.spinSeed || 1);
   // Accelerate-then-decelerate cadence; each entry is a fraction of durationMs.
   const cadence = [0.04, 0.04, 0.05, 0.06, 0.07, 0.09, 0.11, 0.14, 0.18, 0.22];
   let prevIdx = -1;
   for (const frac of cadence) {
-    if (!stillSpinning()) return;
+    if (!stillSpinning()) { close(); return; }
     let idx;
     do { idx = Math.floor(prng() * genres.length); }
     while (idx === prevIdx && genres.length > 1);
     prevIdx = idx;
-    headline.textContent = genres[idx].name;
+    spinText.textContent = genres[idx].name;
     await wait(Math.max(16, Math.round(frac * durationMs)));
   }
-  if (!stillSpinning()) return;
-  headline.textContent = finalName;
+  if (!stillSpinning()) { close(); return; }
+
+  // Land on the chosen genre — in the card and on the underlying headline, so
+  // the normal spinning screen shows it once the overlay closes.
+  spinText.textContent = finalName;
+  if (headline) headline.textContent = finalName;
+
+  // Hold briefly so players read the genre, then drop back to the Play screen.
+  await wait(settleMs);
+  close();
 }
