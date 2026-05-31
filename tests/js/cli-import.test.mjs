@@ -226,6 +226,52 @@ test('runFile: marks ok and duplicate as done, leaves errors pending', async () 
   assert.equal(failures, 1);
 });
 
+test('runFile: persists progress after every line (interrupt-safe)', async () => {
+  const snapshots = [];
+  const importLine = async (text) => {
+    if (text === 'B — dup') return { ok: false, code: 'duplicate', body: {} };
+    return { ok: true, id: 'i', artist: 'A', title: text, year: 2000 };
+  };
+  await runFile(
+    ['A — ok', 'B — dup', 'C — ok'],
+    importLine,
+    () => {},
+    (lines) => snapshots.push([...lines]),
+  );
+  // One snapshot per input line, each reflecting progress so far.
+  assert.equal(snapshots.length, 3);
+  assert.deepEqual(snapshots[0], [markDoneLine('A — ok'), 'B — dup', 'C — ok']);
+  assert.deepEqual(snapshots[1], [markDoneLine('A — ok'), markDoneLine('B — dup'), 'C — ok']);
+  assert.deepEqual(snapshots[2], [
+    markDoneLine('A — ok'),
+    markDoneLine('B — dup'),
+    markDoneLine('C — ok'),
+  ]);
+});
+
+test('runFile: persists after a skipped done line too', async () => {
+  const snapshots = [];
+  await runFile(
+    ['#done X — y', 'A — ok'],
+    async () => ({ ok: true, id: 'i', artist: 'A', title: 'ok', year: 2000 }),
+    () => {},
+    (lines) => snapshots.push([...lines]),
+  );
+  assert.equal(snapshots.length, 2);
+  assert.deepEqual(snapshots[1], ['#done X — y', markDoneLine('A — ok')]);
+});
+
+test('runFile: logs a duplicate as already-in-DB, not an error', async () => {
+  const logs = [];
+  await runFile(
+    ['B — dup'],
+    async () => ({ ok: false, code: 'duplicate', body: { existingId: 'x' } }),
+    (m) => logs.push(m),
+  );
+  assert.match(logs[0], /уже в базе/);
+  assert.doesNotMatch(logs[0], /^ERR/);
+});
+
 test('importOne: success path', async () => {
   const fetchFn = async (url, init) => {
     assert.equal(url, 'http://base/admin/api/import');

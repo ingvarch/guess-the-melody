@@ -118,33 +118,39 @@ export function markDoneLine(text: string): string {
 // marked done, and returns the rewritten lines (done markers added for tracks
 // now in the catalogue) plus the count of genuine failures. A duplicate is not
 // a failure — the track is already in the DB, so it gets marked done too.
+//
+// `persist` is called after every line with the progress so far, so an
+// interrupted run (Ctrl-C mid-import) keeps the done markers already earned.
 export async function runFile(
   lines: string[],
   importLine: (text: string) => Promise<ImportResult>,
   log: (msg: string) => void,
+  persist?: (lines: string[]) => void | Promise<void>,
 ): Promise<{ newLines: string[]; failures: number }> {
-  const newLines: string[] = [];
+  // Seed with the input so a snapshot taken at any point is the full file.
+  const newLines = [...lines];
   let failures = 0;
-  for (const line of lines) {
-    const c = classifyLine(line);
+  for (let i = 0; i < lines.length; i++) {
+    const c = classifyLine(lines[i]!);
     if (c.status === 'blank' || c.status === 'comment') {
-      newLines.push(line);
+      if (persist) await persist(newLines);
       continue;
     }
     if (c.status === 'done') {
       log(`SKIP уже в базе, пропускаем: ${c.text}`);
-      newLines.push(line);
+      if (persist) await persist(newLines);
       continue;
     }
     const result = await importLine(c.text);
-    log(formatResult(result));
     const inDb = result.ok || result.code === 'duplicate';
     if (inDb) {
-      newLines.push(markDoneLine(c.text));
+      log(result.ok ? formatResult(result) : `DUP уже в базе: ${c.text}`);
+      newLines[i] = markDoneLine(c.text);
     } else {
-      newLines.push(line);
+      log(formatResult(result));
       failures += 1;
     }
+    if (persist) await persist(newLines);
   }
   return { newLines, failures };
 }
@@ -244,13 +250,15 @@ export async function main(deps?: { fetchFn?: typeof fetch }): Promise<number> {
   let failures = 0;
 
   if (args.file) {
-    const raw = await readFile(args.file, 'utf-8');
-    const { newLines, failures: fileFailures } = await runFile(
+    const file = args.file;
+    const raw = await readFile(file, 'utf-8');
+    const { failures: fileFailures } = await runFile(
       raw.split('\n'),
       paced,
       (m) => process.stdout.write(`${m}\n`),
+      // Rewrite after every line so an interrupted run keeps its progress.
+      (lines) => writeFile(file, lines.join('\n')),
     );
-    await writeFile(args.file, newLines.join('\n'));
     failures += fileFailures;
   }
 
