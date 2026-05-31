@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {
   parseArgs,
   formatResult,
-  readUrlsFile,
+  classifyLine,
+  markDoneLine,
+  runFile,
   importOne,
 } from '../../src/cli/import.ts';
 
@@ -150,13 +152,78 @@ test('formatResult: error', () => {
   assert.match(line, /existingId/);
 });
 
-test('readUrlsFile: skips blanks and # comments, dedupes, trims', async () => {
-  const path = new URL('../fixtures/urls.txt', import.meta.url).pathname;
-  const urls = await readUrlsFile(path);
-  assert.deepEqual(urls, [
-    'https://music.apple.com/us/album/foo/1?i=111',
-    'https://music.apple.com/us/album/bar/2?i=222',
+test('classifyLine: blank line', () => {
+  assert.deepEqual(classifyLine('   '), { status: 'blank', text: '' });
+});
+
+test('classifyLine: comment line', () => {
+  assert.deepEqual(classifyLine('# a comment'), { status: 'comment', text: '# a comment' });
+});
+
+test('classifyLine: track line is trimmed', () => {
+  assert.deepEqual(classifyLine('  Кино — Группа крови '), {
+    status: 'track',
+    text: 'Кино — Группа крови',
+  });
+});
+
+test('classifyLine: done marker extracts the original text', () => {
+  assert.deepEqual(classifyLine('#done Кино — Группа крови'), {
+    status: 'done',
+    text: 'Кино — Группа крови',
+  });
+});
+
+test('classifyLine: done marker is case-insensitive', () => {
+  assert.deepEqual(classifyLine('#DONE Queen - Bohemian Rhapsody'), {
+    status: 'done',
+    text: 'Queen - Bohemian Rhapsody',
+  });
+});
+
+test('markDoneLine: round-trips through classifyLine', () => {
+  const line = markDoneLine('Кино — Группа крови');
+  assert.equal(classifyLine(line).status, 'done');
+  assert.equal(classifyLine(line).text, 'Кино — Группа крови');
+});
+
+test('runFile: skips done lines without importing, logs skip message', async () => {
+  const calls = [];
+  const logs = [];
+  const importLine = async (text) => {
+    calls.push(text);
+    return { ok: true, id: 'i', artist: 'a', title: text, year: 2000 };
+  };
+  const { newLines, failures } = await runFile(
+    ['#done Кино — Группа крови', '# header', ''],
+    importLine,
+    (m) => logs.push(m),
+  );
+  assert.deepEqual(calls, []);
+  assert.equal(failures, 0);
+  assert.deepEqual(newLines, ['#done Кино — Группа крови', '# header', '']);
+  assert.match(logs[0], /пропускаем/);
+});
+
+test('runFile: marks ok and duplicate as done, leaves errors pending', async () => {
+  const logs = [];
+  const importLine = async (text) => {
+    if (text === 'A — ok') return { ok: true, id: 'i', artist: 'A', title: 'ok', year: 2000 };
+    if (text === 'B — dup') return { ok: false, code: 'duplicate', body: { existingId: 'x' } };
+    return { ok: false, code: 'no_preview', body: {} };
+  };
+  const { newLines, failures } = await runFile(
+    ['A — ok', 'B — dup', 'C — fail'],
+    importLine,
+    (m) => logs.push(m),
+  );
+  assert.deepEqual(newLines, [
+    markDoneLine('A — ok'),
+    markDoneLine('B — dup'),
+    'C — fail',
   ]);
+  // only the genuine error counts as a failure; a duplicate is "already in DB".
+  assert.equal(failures, 1);
 });
 
 test('importOne: success path', async () => {

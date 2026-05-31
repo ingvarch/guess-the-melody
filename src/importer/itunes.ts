@@ -13,9 +13,19 @@ export interface ItunesTrack {
   trackName: string;
   releaseDate: string;
   previewUrl: string;
+  // "song" for audio tracks; "music-video" carries a .m4v preview we can't play.
+  kind?: string;
   artworkUrl100?: string;
   trackTimeMillis?: number;
   collectionName?: string;
+}
+
+// A usable track must be playable audio. iTunes mixes music videos into
+// musicTrack results; their preview is a .m4v we reject downstream, so drop
+// them here. A missing `kind` is treated as a song (defensive).
+function isPlayableSong(t: ItunesTrack): boolean {
+  if (typeof t.previewUrl !== 'string' || t.previewUrl.length === 0) return false;
+  return t.kind === undefined || t.kind === 'song';
 }
 
 interface ItunesResponse {
@@ -91,7 +101,7 @@ export async function searchItunes(opts: {
   });
   if (opts.country) params.set('country', opts.country);
   const data = await fetchItunes(`${ITUNES_BASE}/search?${params.toString()}`);
-  return data.results.filter((r): r is ItunesTrack => typeof r.previewUrl === 'string' && r.previewUrl.length > 0);
+  return data.results.filter(isPlayableSong);
 }
 
 export async function lookupItunes(opts: { trackId: number }): Promise<ItunesTrack | null> {
@@ -100,12 +110,7 @@ export async function lookupItunes(opts: { trackId: number }): Promise<ItunesTra
     entity: 'musicTrack',
   });
   const data = await fetchItunes(`${ITUNES_BASE}/lookup?${params.toString()}`);
-  if (data.resultCount === 0 || data.results.length === 0) return null;
-  const first = data.results[0];
-  if (!first || typeof first.previewUrl !== 'string' || first.previewUrl.length === 0) {
-    return null;
-  }
-  return first;
+  return data.results.find(isPlayableSong) ?? null;
 }
 
 export function yearFromItunes(t: ItunesTrack): number {

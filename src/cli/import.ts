@@ -5,7 +5,7 @@
 // readUrlsFile, importOne) are unit-tested under bun; main() composes them
 // and is intentionally thin so the unit tests do not need to mock argv/stdio.
 
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 
 export interface CliArgs {
   genre: string;
@@ -91,19 +91,62 @@ export function parseArgs(argv: string[]): CliArgs {
   return out;
 }
 
-export async function readUrlsFile(path: string): Promise<string[]> {
-  const content = await readFile(path, 'utf-8');
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const raw of content.split('\n')) {
-    const line = raw.trim();
-    if (line.length === 0) continue;
-    if (line.startsWith('#')) continue;
-    if (seen.has(line)) continue;
-    seen.add(line);
-    out.push(line);
+// A list file mixes blank lines, `#` comments, pending track queries, and
+// `#done <text>` markers written back after a track lands in the catalogue.
+export type LineStatus = 'blank' | 'comment' | 'done' | 'track';
+export interface ClassifiedLine {
+  status: LineStatus;
+  text: string;
+}
+
+const DONE_RE = /^#done\s+(.*)$/i;
+
+export function classifyLine(line: string): ClassifiedLine {
+  const trimmed = line.trim();
+  if (trimmed.length === 0) return { status: 'blank', text: '' };
+  const done = DONE_RE.exec(trimmed);
+  if (done) return { status: 'done', text: done[1]!.trim() };
+  if (trimmed.startsWith('#')) return { status: 'comment', text: trimmed };
+  return { status: 'track', text: trimmed };
+}
+
+export function markDoneLine(text: string): string {
+  return `#done ${text}`;
+}
+
+// Walks a list file's lines: imports each pending track, skips lines already
+// marked done, and returns the rewritten lines (done markers added for tracks
+// now in the catalogue) plus the count of genuine failures. A duplicate is not
+// a failure — the track is already in the DB, so it gets marked done too.
+export async function runFile(
+  lines: string[],
+  importLine: (text: string) => Promise<ImportResult>,
+  log: (msg: string) => void,
+): Promise<{ newLines: string[]; failures: number }> {
+  const newLines: string[] = [];
+  let failures = 0;
+  for (const line of lines) {
+    const c = classifyLine(line);
+    if (c.status === 'blank' || c.status === 'comment') {
+      newLines.push(line);
+      continue;
+    }
+    if (c.status === 'done') {
+      log(`SKIP уже в базе, пропускаем: ${c.text}`);
+      newLines.push(line);
+      continue;
+    }
+    const result = await importLine(c.text);
+    log(formatResult(result));
+    const inDb = result.ok || result.code === 'duplicate';
+    if (inDb) {
+      newLines.push(markDoneLine(c.text));
+    } else {
+      newLines.push(line);
+      failures += 1;
+    }
   }
-  return out;
+  return { newLines, failures };
 }
 
 export function formatResult(r: ImportResult): string {
@@ -181,26 +224,41 @@ export async function main(deps?: { fetchFn?: typeof fetch }): Promise<number> {
     return 1;
   }
 
-  const urls = args.file
-    ? [...(await readUrlsFile(args.file)), ...args.urls]
-    : args.urls;
-
   const importOpts: { itunesIdOverride?: number; country?: string } = {};
   if (args.itunesIdOverride !== undefined) importOpts.itunesIdOverride = args.itunesIdOverride;
   if (args.country !== undefined) importOpts.country = args.country;
 
   // Pace requests to stay under iTunes' ~20 req/min throttle. The server also
-  // backs off on 429, but pacing avoids most retries in the first place.
+  // backs off on 429, but pacing avoids most retries in the first place. Lines
+  // already marked done skip the HTTP call entirely, so they cost no delay.
   const delayMs = args.delayMs ?? 500;
-
-  let failures = 0;
-  for (let i = 0; i < urls.length; i++) {
-    if (i > 0 && delayMs > 0) {
+  let pendingCalls = 0;
+  const paced = async (text: string): Promise<ImportResult> => {
+    if (pendingCalls > 0 && delayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
-    const result = await importOne(fetchFn, baseUrl, password, args.genre, urls[i]!, importOpts);
+    pendingCalls += 1;
+    return importOne(fetchFn, baseUrl, password, args.genre, text, importOpts);
+  };
+
+  let failures = 0;
+
+  if (args.file) {
+    const raw = await readFile(args.file, 'utf-8');
+    const { newLines, failures: fileFailures } = await runFile(
+      raw.split('\n'),
+      paced,
+      (m) => process.stdout.write(`${m}\n`),
+    );
+    await writeFile(args.file, newLines.join('\n'));
+    failures += fileFailures;
+  }
+
+  for (const url of args.urls) {
+    const result = await paced(url);
     process.stdout.write(`${formatResult(result)}\n`);
-    if (!result.ok) failures += 1;
+    const inDb = result.ok || result.code === 'duplicate';
+    if (!inDb) failures += 1;
   }
 
   return failures === 0 ? 0 : 1;

@@ -69,6 +69,22 @@ describe('importer/itunes', () => {
       expect(out.map((t) => t.trackId)).toEqual([1, 3]);
     });
 
+    it('drops music-video results (kind != song)', async () => {
+      const mockFetch = vi.fn().mockResolvedValue(
+        jsonResponse({
+          resultCount: 2,
+          results: [
+            makeTrack({ trackId: 1, kind: 'song' }),
+            makeTrack({ trackId: 2, kind: 'music-video', previewUrl: 'https://example.com/clip.m4v' }),
+          ],
+        }),
+      );
+      vi.stubGlobal('fetch', mockFetch);
+
+      const out = await searchItunes({ term: 'foo' });
+      expect(out.map((t) => t.trackId)).toEqual([1]);
+    });
+
     it('uses limit=25 by default', async () => {
       const mockFetch = vi.fn().mockResolvedValue(
         jsonResponse({ resultCount: 0, results: [] }),
@@ -186,6 +202,36 @@ describe('importer/itunes', () => {
       vi.stubGlobal(
         'fetch',
         vi.fn().mockResolvedValue(jsonResponse({ resultCount: 0, results: [] })),
+      );
+      expect(await lookupItunes({ trackId: 1 })).toBeNull();
+    });
+
+    it('skips a leading music-video and returns the song', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          jsonResponse({
+            resultCount: 2,
+            results: [
+              makeTrack({ trackId: 1, kind: 'music-video', previewUrl: 'https://example.com/clip.m4v' }),
+              makeTrack({ trackId: 2, kind: 'song' }),
+            ],
+          }),
+        ),
+      );
+      const got = await lookupItunes({ trackId: 2 });
+      expect(got?.trackId).toBe(2);
+    });
+
+    it('returns null when the only result is a music-video', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(
+          jsonResponse({
+            resultCount: 1,
+            results: [makeTrack({ trackId: 1, kind: 'music-video', previewUrl: 'https://example.com/clip.m4v' })],
+          }),
+        ),
       );
       expect(await lookupItunes({ trackId: 1 })).toBeNull();
     });

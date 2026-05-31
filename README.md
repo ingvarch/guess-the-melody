@@ -118,6 +118,12 @@ Each line prints `OK <id> Artist - Title (year)` or `ERR <code> ...`. Fix an
 `ERR no_preview` miss by editing the line or replacing it with the track's real
 `music.apple.com/...?i=<id>` URL.
 
+When importing from a `--file`, every track that lands in the catalogue (a fresh
+import or one that was already a duplicate) is rewritten in place with a `#done `
+prefix. Re-running the same file skips those lines without an HTTP call — it
+prints `SKIP уже в базе, пропускаем: <track>` and only retries the lines that
+still failed. Delete the `#done ` prefix to force a re-import of a line.
+
 ## Project docs
 
 - `CLAUDE.md` — detailed guidance for Claude Code (architecture, testing, conventions)
