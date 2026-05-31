@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   parseArgs,
-  formatResult,
+  describeResult,
+  formatLogLine,
+  nowHHMMSS,
   classifyLine,
   markDoneLine,
   runFile,
@@ -135,21 +137,49 @@ test('parseArgs: --itunes-id with mixed alphanumeric throws', () => {
   );
 });
 
-test('formatResult: success', () => {
-  const line = formatResult({
-    ok: true,
-    id: 'abc',
-    artist: 'Queen',
-    title: 'Radio Ga Ga',
-    year: 1984,
-  });
-  assert.match(line, /^OK abc Queen - Radio Ga Ga \(1984\)$/);
+test('describeResult: success → ok level with id/artist/title/year body', () => {
+  const d = describeResult({ ok: true, id: 'abc', artist: 'Queen', title: 'Radio Ga Ga', year: 1984 });
+  assert.equal(d.level, 'ok');
+  assert.equal(d.body, 'abc Queen - Radio Ga Ga (1984)');
 });
 
-test('formatResult: error', () => {
-  const line = formatResult({ ok: false, code: 'duplicate', body: { existingId: 'xyz' } });
-  assert.match(line, /^ERR duplicate/);
-  assert.match(line, /existingId/);
+test('describeResult: duplicate → dup level', () => {
+  const d = describeResult({ ok: false, code: 'duplicate', body: { existingId: 'xyz' } });
+  assert.equal(d.level, 'dup');
+});
+
+test('describeResult: other error → err level with code and body', () => {
+  const d = describeResult({ ok: false, code: 'no_preview', body: { message: 'nope' } });
+  assert.equal(d.level, 'err');
+  assert.match(d.body, /no_preview/);
+  assert.match(d.body, /nope/);
+});
+
+test('nowHHMMSS: zero-pads hours, minutes, seconds', () => {
+  assert.equal(nowHHMMSS(new Date(2026, 4, 31, 9, 5, 3)), '09:05:03');
+});
+
+test('nowHHMMSS: handles two-digit components', () => {
+  assert.equal(nowHHMMSS(new Date(2026, 4, 31, 23, 59, 48)), '23:59:48');
+});
+
+test('formatLogLine: plain (no color) has timestamp and bracketed tag', () => {
+  assert.equal(formatLogLine('ok', 'hello', { time: '12:00:00', color: false }), '[12:00:00] [OK] hello');
+});
+
+test('formatLogLine: color wraps the tag in green for ok', () => {
+  const line = formatLogLine('ok', 'hi', { time: '12:00:00', color: true });
+  assert.match(line, /\x1b\[32m\[OK\]\x1b\[0m/);
+});
+
+test('formatLogLine: skip tag is orange', () => {
+  const line = formatLogLine('skip', 'x', { time: '00:00:00', color: true });
+  assert.match(line, /\x1b\[33m\[SKIP\]\x1b\[0m/);
+});
+
+test('formatLogLine: err tag is red', () => {
+  const line = formatLogLine('err', 'x', { time: '00:00:00', color: true });
+  assert.match(line, /\x1b\[31m\[ERR\]\x1b\[0m/);
 });
 
 test('classifyLine: blank line', () => {
@@ -197,7 +227,7 @@ test('runFile: skips done lines without importing, logs skip message', async () 
   const { newLines, failures } = await runFile(
     ['#done Кино — Группа крови', '# header', ''],
     importLine,
-    (m) => logs.push(m),
+    (_level, m) => logs.push(m),
   );
   assert.deepEqual(calls, []);
   assert.equal(failures, 0);
@@ -261,15 +291,29 @@ test('runFile: persists after a skipped done line too', async () => {
   assert.deepEqual(snapshots[1], ['#done X — y', markDoneLine('A — ok')]);
 });
 
-test('runFile: logs a duplicate as already-in-DB, not an error', async () => {
-  const logs = [];
+test('runFile: logs a duplicate as already-in-DB with dup level, not err', async () => {
+  const events = [];
   await runFile(
     ['B — dup'],
     async () => ({ ok: false, code: 'duplicate', body: { existingId: 'x' } }),
-    (m) => logs.push(m),
+    (level, m) => events.push([level, m]),
   );
-  assert.match(logs[0], /уже в базе/);
-  assert.doesNotMatch(logs[0], /^ERR/);
+  assert.equal(events[0][0], 'dup');
+  assert.match(events[0][1], /уже в базе/);
+});
+
+test('runFile: emits ok/err/skip levels to the log callback', async () => {
+  const events = [];
+  const importLine = async (text) => {
+    if (text === 'A — ok') return { ok: true, id: 'i', artist: 'A', title: 'ok', year: 2000 };
+    return { ok: false, code: 'no_preview', body: {} };
+  };
+  await runFile(
+    ['#done D — done', 'A — ok', 'C — fail'],
+    importLine,
+    (level) => events.push(level),
+  );
+  assert.deepEqual(events, ['skip', 'ok', 'err']);
 });
 
 test('importOne: success path', async () => {

@@ -1,9 +1,9 @@
 // Importer CLI.
 //
 // Posts to /admin/api/import on a running Worker (locally via wrangler dev
-// or a deployed instance). Pure helpers (parseArgs, formatResult,
-// readUrlsFile, importOne) are unit-tested under bun; main() composes them
-// and is intentionally thin so the unit tests do not need to mock argv/stdio.
+// or a deployed instance). Pure helpers (parseArgs, describeResult,
+// formatLogLine, runFile, importOne) are unit-tested under bun; main()
+// composes them and is intentionally thin so tests need not mock argv/stdio.
 
 import { readFile, writeFile } from 'node:fs/promises';
 
@@ -119,12 +119,13 @@ export function markDoneLine(text: string): string {
 // now in the catalogue) plus the count of genuine failures. A duplicate is not
 // a failure — the track is already in the DB, so it gets marked done too.
 //
-// `persist` is called after every line with the progress so far, so an
-// interrupted run (Ctrl-C mid-import) keeps the done markers already earned.
+// `log` receives a level (for colouring/tagging at the call site) plus a
+// human message. `persist` is called after every line with the progress so
+// far, so an interrupted run (Ctrl-C mid-import) keeps the markers earned.
 export async function runFile(
   lines: string[],
   importLine: (text: string) => Promise<ImportResult>,
-  log: (msg: string) => void,
+  log: (level: LogLevel, message: string) => void,
   persist?: (lines: string[]) => void | Promise<void>,
 ): Promise<{ newLines: string[]; failures: number }> {
   // Seed with the input so a snapshot taken at any point is the full file.
@@ -137,17 +138,18 @@ export async function runFile(
       continue;
     }
     if (c.status === 'done') {
-      log(`SKIP уже в базе, пропускаем: ${c.text}`);
+      log('skip', `уже в базе, пропускаем: ${c.text}`);
       if (persist) await persist(newLines);
       continue;
     }
     const result = await importLine(c.text);
+    const d = describeResult(result);
     const inDb = result.ok || result.code === 'duplicate';
     if (inDb) {
-      log(result.ok ? formatResult(result) : `DUP уже в базе: ${c.text}`);
+      log(d.level, result.ok ? d.body : `уже в базе: ${c.text}`);
       newLines[i] = markDoneLine(c.text);
     } else {
-      log(formatResult(result));
+      log(d.level, d.body);
       failures += 1;
     }
     if (persist) await persist(newLines);
@@ -155,11 +157,39 @@ export async function runFile(
   return { newLines, failures };
 }
 
-export function formatResult(r: ImportResult): string {
+// Log levels drive the coloured tag shown to the user.
+//   ok   → [OK]   green   — imported a new track
+//   skip → [SKIP] orange  — line already #done, no HTTP call
+//   dup  → [DUP]  orange  — track already in the catalogue
+//   err  → [ERR]  red     — genuine failure
+export type LogLevel = 'ok' | 'skip' | 'dup' | 'err';
+
+// Maps an import result to a level + a one-line human body (no timestamp/tag).
+export function describeResult(r: ImportResult): { level: LogLevel; body: string } {
   if (r.ok) {
-    return `OK ${r.id} ${r.artist} - ${r.title} (${r.year})`;
+    return { level: 'ok', body: `${r.id} ${r.artist} - ${r.title} (${r.year})` };
   }
-  return `ERR ${r.code} ${JSON.stringify(r.body)}`;
+  if (r.code === 'duplicate') return { level: 'dup', body: JSON.stringify(r.body) };
+  return { level: 'err', body: `${r.code} ${JSON.stringify(r.body)}` };
+}
+
+const TAG: Record<LogLevel, string> = { ok: 'OK', skip: 'SKIP', dup: 'DUP', err: 'ERR' };
+// ANSI: green / orange (bright yellow) / red. Tag only — message stays default.
+const COLOR: Record<LogLevel, string> = { ok: '32', skip: '33', dup: '33', err: '31' };
+
+export function nowHHMMSS(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+}
+
+export function formatLogLine(
+  level: LogLevel,
+  message: string,
+  opts: { time: string; color: boolean },
+): string {
+  const tag = `[${TAG[level]}]`;
+  const painted = opts.color ? `\x1b[${COLOR[level]}m${tag}\x1b[0m` : tag;
+  return `[${opts.time}] ${painted} ${message}`;
 }
 
 const HTTP_RE = /^https?:\/\//i;
@@ -247,6 +277,14 @@ export async function main(deps?: { fetchFn?: typeof fetch }): Promise<number> {
     return importOne(fetchFn, baseUrl, password, args.genre, text, importOpts);
   };
 
+  // Colour only when stdout is a TTY; piped/redirected output stays plain.
+  const color = process.stdout.isTTY === true;
+  const emit = (level: LogLevel, message: string) => {
+    process.stdout.write(
+      `${formatLogLine(level, message, { time: nowHHMMSS(new Date()), color })}\n`,
+    );
+  };
+
   let failures = 0;
 
   if (args.file) {
@@ -255,7 +293,7 @@ export async function main(deps?: { fetchFn?: typeof fetch }): Promise<number> {
     const { failures: fileFailures } = await runFile(
       raw.split('\n'),
       paced,
-      (m) => process.stdout.write(`${m}\n`),
+      emit,
       // Rewrite after every line so an interrupted run keeps its progress.
       (lines) => writeFile(file, lines.join('\n')),
     );
@@ -264,7 +302,8 @@ export async function main(deps?: { fetchFn?: typeof fetch }): Promise<number> {
 
   for (const url of args.urls) {
     const result = await paced(url);
-    process.stdout.write(`${formatResult(result)}\n`);
+    const d = describeResult(result);
+    emit(d.level, d.body);
     const inDb = result.ok || result.code === 'duplicate';
     if (!inDb) failures += 1;
   }
