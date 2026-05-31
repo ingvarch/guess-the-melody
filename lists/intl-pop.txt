@@ -1,152 +1,152 @@
 # International pop — classics through modern. Imports into the generic `pop` genre.
 # bun run import --genre pop --country US --file lists/intl-pop.txt
-Michael Jackson — Billie Jean
-Michael Jackson — Beat It
-Madonna — Like a Prayer
-Whitney Houston — I Wanna Dance with Somebody
-Britney Spears — ...Baby One More Time
-Britney Spears — Toxic
-Backstreet Boys — I Want It That Way
-Spice Girls — Wannabe
-Christina Aguilera — Genie in a Bottle
-Justin Timberlake — Cry Me a River
-Beyoncé — Crazy in Love
-Beyoncé — Halo
-Rihanna — Umbrella
-Rihanna — Diamonds
-Lady Gaga — Poker Face
-Lady Gaga — Bad Romance
-Lady Gaga — Shallow
-Katy Perry — Firework
-Katy Perry — Roar
-The Black Eyed Peas — I Gotta Feeling
-Maroon 5 — Moves like Jagger
-Maroon 5 — Sugar
-Bruno Mars — Just the Way You Are
-Bruno Mars — Uptown Funk
-Adele — Rolling in the Deep
-Adele — Someone like You
-Adele — Hello
-Taylor Swift — Shake It Off
-Taylor Swift — Blank Space
-Ed Sheeran — Shape of You
-Ed Sheeran — Perfect
-Justin Bieber — Sorry
-Justin Bieber — Love Yourself
-The Weeknd — Blinding Lights
-The Weeknd — Can't Feel My Face
-Dua Lipa — New Rules
-Dua Lipa — Don't Start Now
-Ariana Grande — Thank U, Next
-Billie Eilish — Bad Guy
-Billie Eilish — Happier Than Ever
-Sia — Chandelier
-Pharrell Williams — Happy
-Lorde — Royals
-Shawn Mendes — Stitches
-Camila Cabello — Havana
-Lewis Capaldi — Someone You Loved
-Harry Styles — As It Was
-Miley Cyrus — Flowers
-ABBA — Dancing Queen
-ABBA — Mamma Mia
-George Michael — Faith
-Prince — Kiss
-Cher — Believe
-Celine Dion — My Heart Will Go On
-Mariah Carey — Fantasy
-Janet Jackson — Together Again
-TLC — No Scrubs
-Destiny's Child — Say My Name
-Robbie Williams — Angels
-Shakira — Whenever, Wherever
-Jennifer Lopez — On the Floor
-Nelly — Hot in Herre
-Usher — Yeah!
-Alicia Keys — No One
-John Legend — All of Me
-Maroon 5 — She Will Be Loved
-Coldplay — Yellow
-The Killers — Mr. Brightside
-OneRepublic — Apologize
-Train — Hey, Soul Sister
-Gotye — Somebody That I Used to Know
-fun. — We Are Young
-Of Monsters and Men — Little Talks
-Passenger — Let Her Go
-Magic! — Rude
-American Authors — Best Day of My Life
-Hozier — Take Me to Church
-Sam Smith — I'm Not the Only One
-Ellie Goulding — Love Me Like You Do
-Meghan Trainor — All About That Bass
-Mark Ronson — Valerie
-Robin Thicke — Blurred Lines
-Daft Punk — Get Lucky
-LMFAO — Party Rock Anthem
-will.i.am — Scream & Shout
-Jason Derulo — Talk Dirty
-Iggy Azalea — Fancy
-Nicki Minaj — Super Bass
-Cardi B — I Like It
-Post Malone — Circles
-Khalid — Talk
-Shawn Mendes — Señorita
-David Guetta & Bebe Rexha — I'm Good (Blue)
-The Chainsmokers — Closer
-Marshmello — Happier
-Zara Larsson — Lush Life
-Ariana Grande — No Tears Left to Cry
-Taylor Swift — Love Story
-Ed Sheeran — Thinking Out Loud
-Billie Eilish — Lovely
-Olivia Rodrigo — Good 4 U
-Lil Nas X — Old Town Road
-Glass Animals — Heat Waves
-Tones and I — Dance Monkey
-SZA — Kill Bill
-Doja Cat — Paint the Town Red
-Sabrina Carpenter — Espresso
-Chappell Roan — Pink Pony Club
-Benson Boone — Beautiful Things
-Teddy Swims — Lose Control
-Hozier — Too Sweet
-Charli XCX — Boom Clap
-Wham! — Last Christmas
-a-ha — Take On Me
-Bon Jovi — Livin' on a Prayer
-Roxette — It Must Have Been Love
-Ace of Base — All That She Wants
-Aqua — Barbie Girl
-Ricky Martin — Livin' la Vida Loca
-Eminem — Lose Yourself
-OutKast — Hey Ya!
-Gwen Stefani — Hollaback Girl
-Coldplay — Viva la Vida
-Kelly Clarkson — Since U Been Gone
-Avril Lavigne — Complicated
-P!nk — Just Give Me a Reason
-Kesha — Tik Tok
-Flo Rida — Low
-Pitbull — Timber
-David Guetta — Titanium
-Avicii — Wake Me Up
-Calvin Harris — Summer
-Clean Bandit — Rather Be
-Sam Smith — Stay With Me
-Charlie Puth — Attention
-Maroon 5 — Memories
-Imagine Dragons — Believer
-OneRepublic — Counting Stars
-Twenty One Pilots — Stressed Out
-Selena Gomez — Lose You to Love Me
-Demi Lovato — Sorry Not Sorry
-Ariana Grande — 7 rings
-Dua Lipa — Levitating
-The Weeknd — Save Your Tears
-Lizzo — About Damn Time
-Harry Styles — Watermelon Sugar
-Olivia Rodrigo — Vampire
-Taylor Swift — Anti-Hero
-Justin Bieber — Peaches
-Bruno Mars — That's What I Like
+#done Michael Jackson — Billie Jean
+#done Michael Jackson — Beat It
+#done Madonna — Like a Prayer
+#done Whitney Houston — I Wanna Dance with Somebody
+#done Britney Spears — ...Baby One More Time
+#done Britney Spears — Toxic
+#done Backstreet Boys — I Want It That Way
+#done Spice Girls — Wannabe
+#done Christina Aguilera — Genie in a Bottle
+#done Justin Timberlake — Cry Me a River
+#done Beyoncé — Crazy in Love
+#done Beyoncé — Halo
+#done Rihanna — Umbrella
+#done Rihanna — Diamonds
+#done Lady Gaga — Poker Face
+#done Lady Gaga — Bad Romance
+#done Lady Gaga — Shallow
+#done Katy Perry — Firework
+#done Katy Perry — Roar
+#done The Black Eyed Peas — I Gotta Feeling
+#done Maroon 5 — Moves like Jagger
+#done Maroon 5 — Sugar
+#done Bruno Mars — Just the Way You Are
+#done Bruno Mars — Uptown Funk
+#done Adele — Rolling in the Deep
+#done Adele — Someone like You
+#done Adele — Hello
+#done Taylor Swift — Shake It Off
+#done Taylor Swift — Blank Space
+#done Ed Sheeran — Shape of You
+#done Ed Sheeran — Perfect
+#done Justin Bieber — Sorry
+#done Justin Bieber — Love Yourself
+#done The Weeknd — Blinding Lights
+#done The Weeknd — Can't Feel My Face
+#done Dua Lipa — New Rules
+#done Dua Lipa — Don't Start Now
+#done Ariana Grande — Thank U, Next
+#done Billie Eilish — Bad Guy
+#done Billie Eilish — Happier Than Ever
+#done Sia — Chandelier
+#done Pharrell Williams — Happy
+#done Lorde — Royals
+#done Shawn Mendes — Stitches
+#done Camila Cabello — Havana
+#done Lewis Capaldi — Someone You Loved
+#done Harry Styles — As It Was
+#done Miley Cyrus — Flowers
+#done ABBA — Dancing Queen
+#done ABBA — Mamma Mia
+#done George Michael — Faith
+#done Prince — Kiss
+#done Cher — Believe
+#done Celine Dion — My Heart Will Go On
+#done Mariah Carey — Fantasy
+#done Janet Jackson — Together Again
+#done TLC — No Scrubs
+#done Destiny's Child — Say My Name
+#done Robbie Williams — Angels
+#done Shakira — Whenever, Wherever
+#done Jennifer Lopez — On the Floor
+#done Nelly — Hot in Herre
+#done Usher — Yeah!
+#done Alicia Keys — No One
+#done John Legend — All of Me
+#done Maroon 5 — She Will Be Loved
+#done Coldplay — Yellow
+#done The Killers — Mr. Brightside
+#done OneRepublic — Apologize
+#done Train — Hey, Soul Sister
+#done Gotye — Somebody That I Used to Know
+#done fun. — We Are Young
+#done Of Monsters and Men — Little Talks
+#done Passenger — Let Her Go
+#done Magic! — Rude
+#done American Authors — Best Day of My Life
+#done Hozier — Take Me to Church
+#done Sam Smith — I'm Not the Only One
+#done Ellie Goulding — Love Me Like You Do
+#done Meghan Trainor — All About That Bass
+#done Mark Ronson — Valerie
+#done Robin Thicke — Blurred Lines
+#done Daft Punk — Get Lucky
+#done LMFAO — Party Rock Anthem
+#done will.i.am — Scream & Shout
+#done Jason Derulo — Talk Dirty
+#done Iggy Azalea — Fancy
+#done Nicki Minaj — Super Bass
+#done Cardi B — I Like It
+#done Post Malone — Circles
+#done Khalid — Talk
+#done Shawn Mendes — Señorita
+#done David Guetta & Bebe Rexha — I'm Good (Blue)
+#done The Chainsmokers — Closer
+#done Marshmello — Happier
+#done Zara Larsson — Lush Life
+#done Ariana Grande — No Tears Left to Cry
+#done Taylor Swift — Love Story
+#done Ed Sheeran — Thinking Out Loud
+#done Billie Eilish — Lovely
+#done Olivia Rodrigo — Good 4 U
+#done Lil Nas X — Old Town Road
+#done Glass Animals — Heat Waves
+#done Tones and I — Dance Monkey
+#done SZA — Kill Bill
+#done Doja Cat — Paint the Town Red
+#done Sabrina Carpenter — Espresso
+#done Chappell Roan — Pink Pony Club
+#done Benson Boone — Beautiful Things
+#done Teddy Swims — Lose Control
+#done Hozier — Too Sweet
+#done Charli XCX — Boom Clap
+#done Wham! — Last Christmas
+#done a-ha — Take On Me
+#done Bon Jovi — Livin' on a Prayer
+#done Roxette — It Must Have Been Love
+#done Ace of Base — All That She Wants
+#done Aqua — Barbie Girl
+#done Ricky Martin — Livin' la Vida Loca
+#done Eminem — Lose Yourself
+#done OutKast — Hey Ya!
+#done Gwen Stefani — Hollaback Girl
+#done Coldplay — Viva la Vida
+#done Kelly Clarkson — Since U Been Gone
+#done Avril Lavigne — Complicated
+#done P!nk — Just Give Me a Reason
+#done Kesha — Tik Tok
+#done Flo Rida — Low
+#done Pitbull — Timber
+#done David Guetta — Titanium
+#done Avicii — Wake Me Up
+#done Calvin Harris — Summer
+#done Clean Bandit — Rather Be
+#done Sam Smith — Stay With Me
+#done Charlie Puth — Attention
+#done Maroon 5 — Memories
+#done Imagine Dragons — Believer
+#done OneRepublic — Counting Stars
+#done Twenty One Pilots — Stressed Out
+#done Selena Gomez — Lose You to Love Me
+#done Demi Lovato — Sorry Not Sorry
+#done Ariana Grande — 7 rings
+#done Dua Lipa — Levitating
+#done The Weeknd — Save Your Tears
+#done Lizzo — About Damn Time
+#done Harry Styles — Watermelon Sugar
+#done Olivia Rodrigo — Vampire
+#done Taylor Swift — Anti-Hero
+#done Justin Bieber — Peaches
+#done Bruno Mars — That's What I Like
