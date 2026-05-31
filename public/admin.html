@@ -194,6 +194,10 @@
 <h3 class="font-display-sm text-display-sm text-primary">Live Games</h3>
 <p class="font-body-md text-body-md text-on-surface-variant">Games in progress across all sessions. Read-only — open a console to run one.</p>
 </div>
+<label class="flex items-center gap-2 cursor-pointer font-label-mono text-label-mono text-on-surface-variant select-none">
+<input id="sessions-active-only" type="checkbox" checked class="accent-primary"/>
+<span>Active only</span>
+</label>
 </div>
 <p id="sessions-empty" hidden class="glass-card rounded-xl p-8 text-center font-body-md text-on-surface-variant">No games in progress. Start one from the <a class="text-primary hover:underline" href="/">home page</a>.</p>
 <div id="sessions-list" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-gutter"></div>

@@ -3,7 +3,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { env } from 'cloudflare:test';
 import type { Env } from '../../src/types';
-import { upsertSession, listSessions, deleteSession } from '../../src/catalog/sessions';
+import {
+  upsertSession,
+  listSessions,
+  deleteSession,
+  deleteSessionsOlderThan,
+} from '../../src/catalog/sessions';
 
 const testEnv = env as unknown as Env;
 
@@ -78,5 +83,16 @@ describe('sessions registry', () => {
     await upsertSession(testEnv.CATALOG, { id: 'fresh', now: 10_000, phase: 'idle', selectedGenre: null, roundsPlayed: 0, teams: [] });
     const rows = await listSessions(testEnv.CATALOG, { updatedAfter: 5_000 });
     expect(rows.map((r) => r.id)).toEqual(['fresh']);
+  });
+
+  it('deleteSessionsOlderThan removes rows updated before the cutoff and returns the count', async () => {
+    await upsertSession(testEnv.CATALOG, { id: 'old1', now: 1_000, phase: 'idle', selectedGenre: null, roundsPlayed: 0, teams: [] });
+    await upsertSession(testEnv.CATALOG, { id: 'old2', now: 2_000, phase: 'idle', selectedGenre: null, roundsPlayed: 0, teams: [] });
+    await upsertSession(testEnv.CATALOG, { id: 'keep', now: 9_000, phase: 'idle', selectedGenre: null, roundsPlayed: 0, teams: [] });
+
+    const deleted = await deleteSessionsOlderThan(testEnv.CATALOG, 5_000);
+    expect(deleted).toBe(2);
+    const rows = await listSessions(testEnv.CATALOG);
+    expect(rows.map((r) => r.id)).toEqual(['keep']);
   });
 });

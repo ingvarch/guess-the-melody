@@ -405,8 +405,9 @@ let sessionsTimer = null;
 
 async function refreshSessions() {
   if (!document.getElementById('sessions-list')) return;
+  const activeOnly = document.getElementById('sessions-active-only')?.checked ?? false;
   try {
-    const sessions = await getSessions(fetch);
+    const sessions = await getSessions(fetch, { activeOnly });
     renderSessions(document, sessions, { now: Date.now() });
   } catch (e) {
     setError(document, e.message);
@@ -475,6 +476,7 @@ function wireNav() {
     tab.addEventListener('click', () => showView(tab.dataset.view));
   }
   document.getElementById('sessions-refresh-btn')?.addEventListener('click', () => void refreshSessions());
+  document.getElementById('sessions-active-only')?.addEventListener('change', () => void refreshSessions());
 
   // Delete a session from the Live registry. A live game re-registers on its
   // next action; this clears stale/abandoned rows.

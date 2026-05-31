@@ -134,6 +134,30 @@ describe('admin handlers', () => {
     expect(rows[0]!.teams).toEqual([{ name: 'Cats', score: 7 }]);
   });
 
+  it('GET /admin/api/sessions?activeOnly=1 hides rows older than the active window', async () => {
+    await testEnv.CATALOG.exec('DELETE FROM sessions');
+    await upsertSession(testEnv.CATALOG, {
+      id: 'stale', now: Date.now() - 2 * 60 * 60 * 1000, phase: 'idle', selectedGenre: null, roundsPlayed: 0, teams: [],
+    });
+    await upsertSession(testEnv.CATALOG, {
+      id: 'live', now: Date.now(), phase: 'playing', selectedGenre: 'rock', roundsPlayed: 1, teams: [],
+    });
+
+    const filtered = await SELF.fetch('http://localhost/admin/api/sessions?activeOnly=1', {
+      headers: { authorization: authHeader() },
+    });
+    expect(filtered.status).toBe(200);
+    const liveRows = (await filtered.json()) as Array<{ id: string }>;
+    expect(liveRows.map((r) => r.id)).toEqual(['live']);
+
+    // Without the flag the stale row is still listed.
+    const all = await SELF.fetch('http://localhost/admin/api/sessions', {
+      headers: { authorization: authHeader() },
+    });
+    const allRows = (await all.json()) as Array<{ id: string }>;
+    expect(allRows.map((r) => r.id).sort()).toEqual(['live', 'stale']);
+  });
+
   it('GET /admin/api/stats without auth returns 401', async () => {
     const res = await SELF.fetch('http://localhost/admin/api/stats');
     expect(res.status).toBe(401);

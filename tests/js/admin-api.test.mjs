@@ -49,6 +49,18 @@ test('getSessions: GET /admin/api/sessions', async () => {
   assert.deepEqual(result, [{ id: 'ABC' }]);
 });
 
+test('getSessions: appends ?activeOnly=1 when activeOnly is set', async () => {
+  const { fetchFn, calls } = captureFetch(okResponse([]));
+  await getSessions(fetchFn, { activeOnly: true });
+  assert.equal(calls[0].url, '/admin/api/sessions?activeOnly=1');
+});
+
+test('getSessions: omits the query param when activeOnly is false', async () => {
+  const { fetchFn, calls } = captureFetch(okResponse([]));
+  await getSessions(fetchFn, { activeOnly: false });
+  assert.equal(calls[0].url, '/admin/api/sessions');
+});
+
 test('deleteSession: DELETE /admin/api/sessions/:id', async () => {
   const { fetchFn, calls } = captureFetch(new Response(null, { status: 204 }));
   await deleteSession(fetchFn, 'ABC');

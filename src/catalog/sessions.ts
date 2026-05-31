@@ -66,6 +66,20 @@ export async function deleteSession(db: D1Database, id: string): Promise<boolean
   return (result.meta.changes ?? 0) > 0;
 }
 
+// Bulk sweep for the daily cron: drop registry rows untouched since `cutoff`.
+// A still-live DO re-registers on its next mutation, so deleting a recent-but-
+// idle row is harmless. Returns how many rows were removed.
+export async function deleteSessionsOlderThan(
+  db: D1Database,
+  cutoff: number,
+): Promise<number> {
+  const result = await db
+    .prepare('DELETE FROM sessions WHERE updated_at < ?')
+    .bind(cutoff)
+    .run();
+  return result.meta.changes ?? 0;
+}
+
 export async function listSessions(
   db: D1Database,
   opts: { updatedAfter?: number; limit?: number } = {},

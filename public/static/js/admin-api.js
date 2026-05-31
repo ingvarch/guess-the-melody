@@ -74,8 +74,9 @@ export async function deleteTrack(fetchFn, id) {
   if (!res.ok) throw new Error(`deleteTrack: ${res.status}`);
 }
 
-export async function getSessions(fetchFn) {
-  const res = await fetchFn('/admin/api/sessions');
+export async function getSessions(fetchFn, opts = {}) {
+  const query = opts.activeOnly ? '?activeOnly=1' : '';
+  const res = await fetchFn(`/admin/api/sessions${query}`);
   if (!res.ok) throw new Error(`getSessions: ${res.status}`);
   return res.json();
 }

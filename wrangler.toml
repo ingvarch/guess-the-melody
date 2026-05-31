@@ -30,3 +30,8 @@ bucket_name = "guess-the-melody-audio"
 name = "SESSION_RATE_LIMITER"
 namespace_id = "1001"
 simple = { limit = 60, period = 60 }
+
+# Daily sweep of the advisory sessions registry (deletes rows older than 24h).
+# Handled by the `scheduled` export in src/index.ts.
+[triggers]
+crons = ["0 4 * * *"]

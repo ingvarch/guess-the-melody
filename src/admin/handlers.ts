@@ -278,11 +278,21 @@ async function handleStats(req: Request, env: Env): Promise<Response> {
   });
 }
 
+// "Active" filter window for the Live Game view. The DO refreshes a session's
+// updated_at on every host action, so a row untouched this long is effectively
+// abandoned and hidden when the admin toggles `activeOnly`.
+const ACTIVE_WINDOW_MS = 60 * 60 * 1000;
+
 async function handleSessions(req: Request, env: Env): Promise<Response> {
   if (req.method !== 'GET') {
     return new Response('method not allowed', { status: 405 });
   }
-  const rows = await listSessions(env.CATALOG);
+  const url = new URL(req.url);
+  const opts: Parameters<typeof listSessions>[1] = {};
+  if (url.searchParams.get('activeOnly') === '1') {
+    opts.updatedAfter = Date.now() - ACTIVE_WINDOW_MS;
+  }
+  const rows = await listSessions(env.CATALOG, opts);
   const out = rows.map((r) => ({
     id: r.id,
     createdAt: r.created_at,
