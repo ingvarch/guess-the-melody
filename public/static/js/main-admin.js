@@ -67,7 +67,7 @@ async function refreshGenres() {
 async function refreshTracks(offset = 0) {
   tracksOffset = offset;
   try {
-    const tracks = await getTracks(fetch, {
+    const { tracks, total } = await getTracks(fetch, {
       ...currentTracksFilter,
       limit: TRACKS_LIMIT,
       offset,
@@ -75,8 +75,6 @@ async function refreshTracks(offset = 0) {
     currentTracks = tracks;
     renderTracksTable(document, tracks);
     updateBulkDeleteVisibility();
-    // Approximate total for pagination (heuristic: if we got a full page, there are more).
-    const total = tracks.length === TRACKS_LIMIT ? offset + tracks.length + 1 : offset + tracks.length;
     renderPagination(document, {
       offset,
       limit: TRACKS_LIMIT,

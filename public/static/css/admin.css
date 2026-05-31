@@ -119,11 +119,14 @@
 .import-status.ok { color: #4cd7f6; }
 .import-status.err { color: #ffb4ab; }
 
-/* ---- Pagination buttons (emitted by renderPagination) ------------------- */
+/* ---- Pagination (emitted by renderPagination) --------------------------- */
 
-.tracks-pagination button {
+#tracks-pagination button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 38px;
-  min-height: 38px;
+  height: 38px;
   padding: 0 0.6rem;
   border-radius: 8px;
   border: 1px solid rgba(73, 68, 84, 0.6);
@@ -131,20 +134,33 @@
   color: #cbc3d7;
   font-family: "JetBrains Mono", monospace;
   font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
   cursor: pointer;
   transition: color 120ms, border-color 120ms, background 120ms;
 }
 @media (hover: hover) {
-  .tracks-pagination button:hover:not(:disabled) {
+  #tracks-pagination button:hover:not(:disabled) {
     color: #d0bcff;
     border-color: #d0bcff;
   }
 }
-.tracks-pagination button:disabled { opacity: 0.4; cursor: default; }
-.tracks-pagination button.active {
+#tracks-pagination .page-nav:disabled { opacity: 0.3; cursor: default; }
+#tracks-pagination .page-nav svg { display: block; }
+#tracks-pagination .page-btn.active {
   background: #d0bcff;
   color: #3c0091;
   border-color: #d0bcff;
+  cursor: default;
+}
+#tracks-pagination .page-gap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 38px;
+  color: #8b8497;
+  font-family: "JetBrains Mono", monospace;
+  user-select: none;
 }
 
 /* ---- Tracks table -> mobile cards --------------------------------------- */

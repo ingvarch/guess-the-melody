@@ -336,6 +336,30 @@ export function setGenreEditorError(doc, msg) {
   if (el) el.textContent = msg;
 }
 
+const CHEVRON_LEFT =
+  '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>';
+const CHEVRON_RIGHT =
+  '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="currentColor"><path d="M8.59 16.59 10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>';
+
+// Page indices (0-based) to render, with '…' markers for collapsed runs.
+// Always keeps first, last and a one-page window around the current page.
+function paginationItems(pages, current) {
+  const radius = 1;
+  const show = new Set([0, pages - 1]);
+  for (let i = current - radius; i <= current + radius; i++) {
+    if (i >= 0 && i < pages) show.add(i);
+  }
+  const sorted = Array.from(show).sort((a, b) => a - b);
+  const items = [];
+  let prev = -1;
+  for (const p of sorted) {
+    if (prev >= 0 && p - prev > 1) items.push('…');
+    items.push(p);
+    prev = p;
+  }
+  return items;
+}
+
 export function renderPagination(doc, { offset, limit, total, onPage }) {
   const root = doc.getElementById('tracks-pagination');
   if (!root) return;
@@ -343,18 +367,47 @@ export function renderPagination(doc, { offset, limit, total, onPage }) {
 
   const pages = Math.ceil(total / limit);
   const current = Math.floor(offset / limit);
-
   if (pages <= 1) return;
 
-  for (let i = 0; i < pages; i++) {
+  const navBtn = (dir, target, enabled) => {
     const btn = doc.createElement('button');
     btn.type = 'button';
-    btn.textContent = String(i + 1);
-    btn.disabled = i === current;
-    if (i === current) btn.classList.add('active');
-    btn.addEventListener('click', () => onPage(i * limit));
+    btn.className = 'page-nav';
+    btn.dataset.nav = dir;
+    btn.disabled = !enabled;
+    btn.setAttribute('aria-label', dir === 'prev' ? 'Предыдущая страница' : 'Следующая страница');
+    btn.innerHTML = dir === 'prev' ? CHEVRON_LEFT : CHEVRON_RIGHT;
+    if (enabled) btn.addEventListener('click', () => onPage(target * limit));
+    return btn;
+  };
+
+  root.append(navBtn('prev', current - 1, current > 0));
+
+  for (const item of paginationItems(pages, current)) {
+    if (item === '…') {
+      const gap = doc.createElement('span');
+      gap.className = 'page-gap';
+      gap.textContent = '…';
+      gap.setAttribute('aria-hidden', 'true');
+      root.append(gap);
+      continue;
+    }
+    const btn = doc.createElement('button');
+    btn.type = 'button';
+    btn.className = 'page-btn';
+    btn.dataset.page = String(item);
+    btn.textContent = String(item + 1);
+    if (item === current) {
+      btn.classList.add('active');
+      btn.disabled = true;
+      btn.setAttribute('aria-current', 'page');
+    } else {
+      btn.addEventListener('click', () => onPage(item * limit));
+    }
     root.append(btn);
   }
+
+  root.append(navBtn('next', current + 1, current < pages - 1));
 }
 
 export function setImportStatus(doc, msg, isError = false) {

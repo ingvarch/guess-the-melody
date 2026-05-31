@@ -7,6 +7,7 @@ import { archiveGenre } from '../../src/catalog/genres';
 import {
   countTracks,
   countTracksByGenre,
+  countTracksFiltered,
   deleteTrack,
   getTrack,
   getTrackByItunesId,
@@ -315,5 +316,16 @@ describe('catalog/tracks', () => {
 
   it('countTracksByGenre returns an empty map when there are no tracks', async () => {
     expect(await countTracksByGenre(testEnv.CATALOG)).toEqual({});
+  });
+
+  it('countTracksFiltered honours genre and search like listTracks does', async () => {
+    await insertTrack(testEnv.CATALOG, track({ id: 't1', genre_slug: 'rock', artist: 'Queen', title: 'A' }));
+    await insertTrack(testEnv.CATALOG, track({ id: 't2', genre_slug: 'rock', artist: 'Queen', title: 'B' }));
+    await insertTrack(testEnv.CATALOG, track({ id: 't3', genre_slug: 'pop', artist: 'Abba', title: 'C' }));
+
+    expect(await countTracksFiltered(testEnv.CATALOG, {})).toBe(3);
+    expect(await countTracksFiltered(testEnv.CATALOG, { genreSlug: 'rock' })).toBe(2);
+    expect(await countTracksFiltered(testEnv.CATALOG, { search: 'queen' })).toBe(2);
+    expect(await countTracksFiltered(testEnv.CATALOG, { genreSlug: 'pop', search: 'queen' })).toBe(0);
   });
 });

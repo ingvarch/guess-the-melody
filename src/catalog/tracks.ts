@@ -100,10 +100,11 @@ export async function getTrackByItunesId(
     .first<Track>();
 }
 
-export async function listTracks(
-  db: D1Database,
-  opts: ListTracksOpts = {},
-): Promise<Track[]> {
+// Shared genre + search WHERE clause for listTracks and countTracksFiltered,
+// so the count always matches the page it paginates.
+function buildTrackFilter(
+  opts: Pick<ListTracksOpts, 'genreSlug' | 'search'>,
+): { whereSql: string; binds: (string | number)[] } {
   const where: string[] = [];
   const binds: (string | number)[] = [];
 
@@ -117,15 +118,36 @@ export async function listTracks(
     binds.push(pat, pat);
   }
 
+  return { whereSql: where.length > 0 ? `WHERE ${where.join(' AND ')}` : '', binds };
+}
+
+export async function listTracks(
+  db: D1Database,
+  opts: ListTracksOpts = {},
+): Promise<Track[]> {
+  const { whereSql, binds } = buildTrackFilter(opts);
+
   const limit = Math.min(opts.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
   const offset = opts.offset ?? 0;
   binds.push(limit, offset);
 
-  const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
   const sql = `SELECT ${TRACK_COLS} FROM tracks ${whereSql} ORDER BY added_at DESC LIMIT ? OFFSET ?`;
 
   const result = await db.prepare(sql).bind(...binds).all<Track>();
   return result.results;
+}
+
+// Row count for the same filter listTracks would apply (ignores limit/offset).
+export async function countTracksFiltered(
+  db: D1Database,
+  opts: Pick<ListTracksOpts, 'genreSlug' | 'search'> = {},
+): Promise<number> {
+  const { whereSql, binds } = buildTrackFilter(opts);
+  const row = await db
+    .prepare(`SELECT COUNT(*) AS c FROM tracks ${whereSql}`)
+    .bind(...binds)
+    .first<{ c: number }>();
+  return row?.c ?? 0;
 }
 
 export async function countTracks(db: D1Database): Promise<number> {

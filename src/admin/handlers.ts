@@ -22,6 +22,7 @@ import {
 import {
   countTracks,
   countTracksByGenre,
+  countTracksFiltered,
   deleteTrack,
   getTrack,
   isPlausibleYear,
@@ -149,7 +150,8 @@ async function handleTracksIndex(req: Request, env: Env): Promise<Response> {
     if (Number.isFinite(n)) opts.offset = n;
   }
   const rows = await listTracks(env.CATALOG, opts);
-  return json(rows);
+  const total = await countTracksFiltered(env.CATALOG, opts);
+  return json({ tracks: rows, total });
 }
 
 async function handleTrackPatch(

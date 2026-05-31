@@ -631,15 +631,75 @@ test('setPlayButtonState toggles playing icon, class and aria-label', () => {
   assert.equal(btn.getAttribute('aria-label'), idle, 'aria-label restored when stopped');
 });
 
-test('renderPagination creates numbered buttons', () => {
+function pageButtons(doc) {
+  return Array.from(doc.querySelectorAll('#tracks-pagination button[data-page]'));
+}
+function pageLabels(doc) {
+  return pageButtons(doc).map((b) => b.textContent);
+}
+
+test('renderPagination: one page or fewer renders nothing', () => {
   const doc = makeDoc();
-  let clickedOffset = null;
-  renderPagination(doc, { offset: 25, limit: 25, total: 80, onPage: (o) => { clickedOffset = o; } });
-  const buttons = doc.querySelectorAll('#tracks-pagination button');
-  assert.equal(buttons.length, 4);
-  assert.ok(buttons[1].disabled);
-  buttons[2].click();
-  assert.equal(clickedOffset, 50);
+  renderPagination(doc, { offset: 0, limit: 25, total: 10, onPage: () => {} });
+  assert.equal(doc.getElementById('tracks-pagination').children.length, 0);
+});
+
+test('renderPagination: few pages shows every page number plus prev/next', () => {
+  const doc = makeDoc();
+  let clicked = null;
+  renderPagination(doc, { offset: 25, limit: 25, total: 80, onPage: (o) => { clicked = o; } });
+  // 80/25 -> 4 pages, current = page 2 (index 1).
+  assert.deepEqual(pageLabels(doc), ['1', '2', '3', '4']);
+  const active = pageButtons(doc).find((b) => b.classList.contains('active'));
+  assert.equal(active.textContent, '2');
+  assert.equal(active.disabled, true);
+  assert.equal(active.getAttribute('aria-current'), 'page');
+  // Clicking page 3 jumps to its offset.
+  pageButtons(doc).find((b) => b.textContent === '3').click();
+  assert.equal(clicked, 50);
+});
+
+test('renderPagination: prev/next arrows navigate and disable at ends', () => {
+  const doc = makeDoc();
+  let clicked = null;
+  const opts = { offset: 0, limit: 25, total: 100, onPage: (o) => { clicked = o; } };
+  renderPagination(doc, opts);
+  const prev = doc.querySelector('#tracks-pagination button[data-nav="prev"]');
+  const next = doc.querySelector('#tracks-pagination button[data-nav="next"]');
+  assert.ok(prev && next, 'has prev and next');
+  assert.equal(prev.disabled, true, 'prev disabled on first page');
+  assert.equal(next.disabled, false);
+  next.click();
+  assert.equal(clicked, 25);
+
+  // On the last page next is disabled, prev is enabled.
+  const doc2 = makeDoc();
+  renderPagination(doc2, { offset: 75, limit: 25, total: 100, onPage: () => {} });
+  assert.equal(doc2.querySelector('#tracks-pagination button[data-nav="next"]').disabled, true);
+  assert.equal(doc2.querySelector('#tracks-pagination button[data-nav="prev"]').disabled, false);
+});
+
+test('renderPagination: many pages collapse the middle with ellipsis, keeping first and last', () => {
+  const doc = makeDoc();
+  // 500/25 -> 20 pages, current = page 11 (index 10).
+  renderPagination(doc, { offset: 250, limit: 25, total: 500, onPage: () => {} });
+  // First (1), last (20), and current +/-1 (10,11,12) are always present.
+  for (const label of ['1', '10', '11', '12', '20']) {
+    assert.ok(pageLabels(doc).includes(label), `expected page ${label}, got ${pageLabels(doc)}`);
+  }
+  // Distant pages are hidden behind gaps, not rendered.
+  assert.ok(!pageLabels(doc).includes('5'));
+  // Two ellipsis gaps (before and after the window).
+  const gaps = doc.querySelectorAll('#tracks-pagination .page-gap');
+  assert.equal(gaps.length, 2);
+});
+
+test('renderPagination: near the start shows no leading gap', () => {
+  const doc = makeDoc();
+  // current = page 2 (index 1) of 20 -> 1 2 3 ... 20, only a trailing gap.
+  renderPagination(doc, { offset: 25, limit: 25, total: 500, onPage: () => {} });
+  assert.deepEqual(pageLabels(doc), ['1', '2', '3', '20']);
+  assert.equal(doc.querySelectorAll('#tracks-pagination .page-gap').length, 1);
 });
 
 test('setImportStatus sets text and ok class', () => {

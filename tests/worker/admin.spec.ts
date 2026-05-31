@@ -348,8 +348,12 @@ describe('admin handlers', () => {
       headers: { authorization: authHeader() },
     });
     expect(res.status).toBe(200);
-    const tracks = (await res.json()) as Array<{ id: string; genre_slug: string }>;
-    expect(tracks.map((t) => t.id)).toEqual(['t-rock-a']);
+    const body = (await res.json()) as {
+      tracks: Array<{ id: string; genre_slug: string }>;
+      total: number;
+    };
+    expect(body.tracks.map((t) => t.id)).toEqual(['t-rock-a']);
+    expect(body.total).toBe(1);
   });
 
   it('DELETE /admin/api/tracks/:id removes D1 row and R2 object', async () => {
