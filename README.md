@@ -103,6 +103,9 @@ Flags:
 - `--delay <ms>` — pause between requests, default `500`. iTunes throttles
   (~20 req/min); the server also retries on 429 with backoff, but pacing avoids
   most retries. Raise to `3000` if you still hit rate limits.
+- `--verbose` / `-v` — also print `[SKIP]` (already `#done`) and `[DUP]`
+  (already in the catalogue) lines. Off by default, so a re-run shows only
+  `[OK]` (newly imported) and `[ERR]` (genuine failures).
 
 Curated starter lists live in `lists/` (one `Artist — Title` per line):
 
@@ -114,14 +117,28 @@ bun run src/cli/import.ts --genre pop          --country US --file lists/intl-po
 bun run src/cli/import.ts --genre hip-hop      --country US --file lists/hip-hop.txt
 ```
 
-Each line prints `OK <id> Artist - Title (year)` or `ERR <code> ...`. Fix an
-`ERR no_preview` miss by editing the line or replacing it with the track's real
-`music.apple.com/...?i=<id>` URL.
+Each line is logged as `[HH:MM:SS] [TAG] message`, where `TAG` is one of:
+
+- `[OK]` (green) — a new track imported.
+- `[SKIP]` (orange) — line already `#done`, skipped without an HTTP call.
+- `[DUP]` (orange) — track already in the catalogue (marked `#done` now).
+- `[ERR]` (red) — a genuine failure (e.g. `no_preview`).
+
+Colour shows only on a TTY; piped/redirected output stays plain. By default
+`[SKIP]` and `[DUP]` are hidden (they are noise on a re-run) — pass `--verbose`
+to see them. The run ends with a summary line:
+
+```
+Итого: загружено 8, пропущено 142, дубликатов 0, ошибок 0
+```
+
+Fix an `[ERR] no_preview` miss by editing the line or replacing it with the
+track's real `music.apple.com/...?i=<id>` URL.
 
 When importing from a `--file`, every track that lands in the catalogue (a fresh
 import or one that was already a duplicate) is rewritten in place with a `#done `
-prefix. Re-running the same file skips those lines without an HTTP call — it
-prints `SKIP уже в базе, пропускаем: <track>` and only retries the lines that
+prefix after each line, so an interrupted run keeps its progress. Re-running the
+same file skips those lines without an HTTP call and only retries the lines that
 still failed. Delete the `#done ` prefix to force a re-import of a line.
 
 ## Project docs

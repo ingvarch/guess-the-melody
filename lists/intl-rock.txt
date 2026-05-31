@@ -1,52 +1,52 @@
 # International rock — classics through modern. Imports into the generic `rock` genre.
 # bun run import --genre rock --country US --file lists/intl-rock.txt
-Queen — Bohemian Rhapsody
-Queen — We Will Rock You
-Queen — Don't Stop Me Now
-Nirvana — Smells Like Teen Spirit
-Nirvana — Come as You Are
-Guns N' Roses — Sweet Child o' Mine
-Guns N' Roses — November Rain
-Metallica — Nothing Else Matters
-Metallica — Enter Sandman
-AC/DC — Highway to Hell
-AC/DC — Back in Black
-Led Zeppelin — Stairway to Heaven
-The Beatles — Hey Jude
-The Rolling Stones — Paint It Black
-Red Hot Chili Peppers — Californication
-Red Hot Chili Peppers — Can't Stop
-Red Hot Chili Peppers — Otherside
-Linkin Park — In the End
-Linkin Park — Numb
-Linkin Park — Crawling
-Green Day — Boulevard of Broken Dreams
-Green Day — American Idiot
-Coldplay — Yellow
-Coldplay — Viva la Vida
-Coldplay — The Scientist
-The Killers — Mr. Brightside
-Oasis — Wonderwall
-Oasis — Don't Look Back in Anger
-Radiohead — Creep
-U2 — With or Without You
-Bon Jovi — It's My Life
-Bon Jovi — Livin' on a Prayer
-Aerosmith — I Don't Want to Miss a Thing
-Nickelback — How You Remind Me
-System of a Down — Toxicity
-System of a Down — Chop Suey!
-Rammstein — Du Hast
-Rammstein — Sonne
-The White Stripes — Seven Nation Army
-Arctic Monkeys — Do I Wanna Know?
-Arctic Monkeys — R U Mine?
-Muse — Uprising
-Muse — Starlight
-Foo Fighters — Everlong
-Foo Fighters — The Pretender
-Imagine Dragons — Believer
-Imagine Dragons — Radioactive
-Evanescence — Bring Me to Life
-The Cranberries — Zombie
-Survivor — Eye of the Tiger
+#done Queen — Bohemian Rhapsody
+#done Queen — We Will Rock You
+#done Queen — Don't Stop Me Now
+#done Nirvana — Smells Like Teen Spirit
+#done Nirvana — Come as You Are
+#done Guns N' Roses — Sweet Child o' Mine
+#done Guns N' Roses — November Rain
+#done Metallica — Nothing Else Matters
+#done Metallica — Enter Sandman
+#done AC/DC — Highway to Hell
+#done AC/DC — Back in Black
+#done Led Zeppelin — Stairway to Heaven
+#done The Beatles — Hey Jude
+#done The Rolling Stones — Paint It Black
+#done Red Hot Chili Peppers — Californication
+#done Red Hot Chili Peppers — Can't Stop
+#done Red Hot Chili Peppers — Otherside
+#done Linkin Park — In the End
+#done Linkin Park — Numb
+#done Linkin Park — Crawling
+#done Green Day — Boulevard of Broken Dreams
+#done Green Day — American Idiot
+#done Coldplay — Yellow
+#done Coldplay — Viva la Vida
+#done Coldplay — The Scientist
+#done The Killers — Mr. Brightside
+#done Oasis — Wonderwall
+#done Oasis — Don't Look Back in Anger
+#done Radiohead — Creep
+#done U2 — With or Without You
+#done Bon Jovi — It's My Life
+#done Bon Jovi — Livin' on a Prayer
+#done Aerosmith — I Don't Want to Miss a Thing
+#done Nickelback — How You Remind Me
+#done System of a Down — Toxicity
+#done System of a Down — Chop Suey!
+#done Rammstein — Du Hast
+#done Rammstein — Sonne
+#done The White Stripes — Seven Nation Army
+#done Arctic Monkeys — Do I Wanna Know?
+#done Arctic Monkeys — R U Mine?
+#done Muse — Uprising
+#done Muse — Starlight
+#done Foo Fighters — Everlong
+#done Foo Fighters — The Pretender
+#done Imagine Dragons — Believer
+#done Imagine Dragons — Radioactive
+#done Evanescence — Bring Me to Life
+#done The Cranberries — Zombie
+#done Survivor — Eye of the Tiger

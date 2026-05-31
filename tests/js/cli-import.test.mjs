@@ -5,6 +5,8 @@ import {
   describeResult,
   formatLogLine,
   nowHHMMSS,
+  shouldShow,
+  formatStats,
   classifyLine,
   markDoneLine,
   runFile,
@@ -45,6 +47,41 @@ test('parseArgs: duplicate --country throws', () => {
     () => parseArgs(['--genre', 'rock', '--country', 'RU', '--country', 'US', '--file', 'l.txt']),
     /duplicate|--country/i,
   );
+});
+
+test('parseArgs: --verbose sets verbose true', () => {
+  const out = parseArgs(['--genre', 'rock', '--verbose', '--file', 'l.txt']);
+  assert.equal(out.verbose, true);
+});
+
+test('parseArgs: verbose defaults to false', () => {
+  const out = parseArgs(['--genre', 'rock', '--file', 'l.txt']);
+  assert.equal(out.verbose ?? false, false);
+});
+
+test('parseArgs: -v is an alias for --verbose', () => {
+  const out = parseArgs(['--genre', 'rock', '-v', '--file', 'l.txt']);
+  assert.equal(out.verbose, true);
+});
+
+test('shouldShow: ok and err always shown', () => {
+  assert.equal(shouldShow('ok', false), true);
+  assert.equal(shouldShow('err', false), true);
+});
+
+test('shouldShow: skip and dup hidden unless verbose', () => {
+  assert.equal(shouldShow('skip', false), false);
+  assert.equal(shouldShow('dup', false), false);
+  assert.equal(shouldShow('skip', true), true);
+  assert.equal(shouldShow('dup', true), true);
+});
+
+test('formatStats: renders all four counters', () => {
+  const s = formatStats({ ok: 8, skip: 140, dup: 2, err: 3 });
+  assert.match(s, /загружено 8/);
+  assert.match(s, /пропущено 140/);
+  assert.match(s, /дубликатов 2/);
+  assert.match(s, /ошибок 3/);
 });
 
 test('parseArgs: --delay parses a non-negative integer', () => {
@@ -314,6 +351,20 @@ test('runFile: emits ok/err/skip levels to the log callback', async () => {
     (level) => events.push(level),
   );
   assert.deepEqual(events, ['skip', 'ok', 'err']);
+});
+
+test('runFile: returns per-level counts', async () => {
+  const importLine = async (text) => {
+    if (text === 'A — ok') return { ok: true, id: 'i', artist: 'A', title: 'ok', year: 2000 };
+    if (text === 'B — dup') return { ok: false, code: 'duplicate', body: {} };
+    return { ok: false, code: 'no_preview', body: {} };
+  };
+  const { counts } = await runFile(
+    ['#done D — done', '# comment', '', 'A — ok', 'B — dup', 'C — fail'],
+    importLine,
+    () => {},
+  );
+  assert.deepEqual(counts, { ok: 1, skip: 1, dup: 1, err: 1 });
 });
 
 test('importOne: success path', async () => {

@@ -14,6 +14,7 @@ export interface CliArgs {
   file?: string;
   country?: string;
   delayMs?: number;
+  verbose?: boolean;
 }
 
 export interface ImportSuccess {
@@ -32,7 +33,9 @@ export interface ImportFailure {
 
 export type ImportResult = ImportSuccess | ImportFailure;
 
-const KNOWN_FLAGS = new Set(['--genre', '--itunes-id', '--file', '--country', '--delay']);
+const KNOWN_FLAGS = new Set([
+  '--genre', '--itunes-id', '--file', '--country', '--delay', '--verbose', '-v',
+]);
 const POSITIVE_INT_RE = /^[1-9][0-9]*$/;
 const NON_NEGATIVE_INT_RE = /^[0-9]+$/;
 
@@ -42,6 +45,7 @@ export function parseArgs(argv: string[]): CliArgs {
   let file: string | undefined;
   let country: string | undefined;
   let delayMs: number | undefined;
+  let verbose = false;
   const urls: string[] = [];
 
   for (let i = 0; i < argv.length; i++) {
@@ -52,6 +56,8 @@ export function parseArgs(argv: string[]): CliArgs {
     } else if (a === '--country') {
       if (country !== undefined) throw new Error('duplicate --country');
       country = argv[++i];
+    } else if (a === '--verbose' || a === '-v') {
+      verbose = true;
     } else if (a === '--delay') {
       if (delayMs !== undefined) throw new Error('duplicate --delay');
       const raw = argv[++i];
@@ -71,7 +77,7 @@ export function parseArgs(argv: string[]): CliArgs {
     } else if (a === '--file') {
       if (file !== undefined) throw new Error('duplicate --file');
       file = argv[++i];
-    } else if (a !== undefined && a.startsWith('--')) {
+    } else if (a !== undefined && a.startsWith('-')) {
       if (!KNOWN_FLAGS.has(a)) throw new Error(`unknown flag: ${a}`);
     } else if (a !== undefined) {
       urls.push(a);
@@ -88,6 +94,7 @@ export function parseArgs(argv: string[]): CliArgs {
   if (file !== undefined) out.file = file;
   if (country !== undefined) out.country = country;
   if (delayMs !== undefined) out.delayMs = delayMs;
+  if (verbose) out.verbose = true;
   return out;
 }
 
@@ -114,10 +121,13 @@ export function markDoneLine(text: string): string {
   return `#done ${text}`;
 }
 
+export type LevelCounts = Record<LogLevel, number>;
+
 // Walks a list file's lines: imports each pending track, skips lines already
 // marked done, and returns the rewritten lines (done markers added for tracks
-// now in the catalogue) plus the count of genuine failures. A duplicate is not
-// a failure — the track is already in the DB, so it gets marked done too.
+// now in the catalogue), the count of genuine failures, and per-level counts
+// for the summary. A duplicate is not a failure — the track is already in the
+// DB, so it gets marked done too.
 //
 // `log` receives a level (for colouring/tagging at the call site) plus a
 // human message. `persist` is called after every line with the progress so
@@ -127,9 +137,10 @@ export async function runFile(
   importLine: (text: string) => Promise<ImportResult>,
   log: (level: LogLevel, message: string) => void,
   persist?: (lines: string[]) => void | Promise<void>,
-): Promise<{ newLines: string[]; failures: number }> {
+): Promise<{ newLines: string[]; failures: number; counts: LevelCounts }> {
   // Seed with the input so a snapshot taken at any point is the full file.
   const newLines = [...lines];
+  const counts: LevelCounts = { ok: 0, skip: 0, dup: 0, err: 0 };
   let failures = 0;
   for (let i = 0; i < lines.length; i++) {
     const c = classifyLine(lines[i]!);
@@ -139,6 +150,7 @@ export async function runFile(
     }
     if (c.status === 'done') {
       log('skip', `уже в базе, пропускаем: ${c.text}`);
+      counts.skip += 1;
       if (persist) await persist(newLines);
       continue;
     }
@@ -152,9 +164,10 @@ export async function runFile(
       log(d.level, d.body);
       failures += 1;
     }
+    counts[d.level] += 1;
     if (persist) await persist(newLines);
   }
-  return { newLines, failures };
+  return { newLines, failures, counts };
 }
 
 // Log levels drive the coloured tag shown to the user.
@@ -190,6 +203,17 @@ export function formatLogLine(
   const tag = `[${TAG[level]}]`;
   const painted = opts.color ? `\x1b[${COLOR[level]}m${tag}\x1b[0m` : tag;
   return `[${opts.time}] ${painted} ${message}`;
+}
+
+// ok/err always print; skip/dup ("уже в базе") are noise on a re-run and only
+// show with --verbose.
+export function shouldShow(level: LogLevel, verbose: boolean): boolean {
+  if (level === 'ok' || level === 'err') return true;
+  return verbose;
+}
+
+export function formatStats(counts: LevelCounts): string {
+  return `Итого: загружено ${counts.ok}, пропущено ${counts.skip}, дубликатов ${counts.dup}, ошибок ${counts.err}`;
 }
 
 const HTTP_RE = /^https?:\/\//i;
@@ -279,18 +303,21 @@ export async function main(deps?: { fetchFn?: typeof fetch }): Promise<number> {
 
   // Colour only when stdout is a TTY; piped/redirected output stays plain.
   const color = process.stdout.isTTY === true;
+  const verbose = args.verbose === true;
   const emit = (level: LogLevel, message: string) => {
+    if (!shouldShow(level, verbose)) return;
     process.stdout.write(
       `${formatLogLine(level, message, { time: nowHHMMSS(new Date()), color })}\n`,
     );
   };
 
+  const totals: LevelCounts = { ok: 0, skip: 0, dup: 0, err: 0 };
   let failures = 0;
 
   if (args.file) {
     const file = args.file;
     const raw = await readFile(file, 'utf-8');
-    const { failures: fileFailures } = await runFile(
+    const { failures: fileFailures, counts } = await runFile(
       raw.split('\n'),
       paced,
       emit,
@@ -298,16 +325,19 @@ export async function main(deps?: { fetchFn?: typeof fetch }): Promise<number> {
       (lines) => writeFile(file, lines.join('\n')),
     );
     failures += fileFailures;
+    for (const k of Object.keys(totals) as LogLevel[]) totals[k] += counts[k];
   }
 
   for (const url of args.urls) {
     const result = await paced(url);
     const d = describeResult(result);
     emit(d.level, d.body);
+    totals[d.level] += 1;
     const inDb = result.ok || result.code === 'duplicate';
     if (!inDb) failures += 1;
   }
 
+  process.stdout.write(`${formatStats(totals)}\n`);
   return failures === 0 ? 0 : 1;
 }
 
