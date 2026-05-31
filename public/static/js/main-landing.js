@@ -14,7 +14,9 @@ export async function startGame({
   if (typeof data.sessionId !== 'string') {
     throw new Error('bad session response');
   }
-  location.href = `/s/${data.sessionId}/display`;
+  // The creator holds the owner cookie, so send them to the host console.
+  // The read-only display is opened separately on the TV via the console's QR.
+  location.href = `/s/${data.sessionId}/`;
   return data.sessionId;
 }
 
