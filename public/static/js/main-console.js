@@ -19,7 +19,7 @@ if (!sessionId) {
 }
 
 function boot() {
-  const view = { state: { phase: 'idle', teams: [], playedTrackIds: [], selectedGenre: null }, answer: null };
+  const view = { state: { phase: 'idle', teams: [], playedTrackIds: [], selectedGenre: null }, answer: null, genres: [] };
 
   const codeEl = document.getElementById('session-code');
   if (codeEl) codeEl.textContent = sessionId;
@@ -28,12 +28,12 @@ function boot() {
     render(document, view);
   }
 
-  async function postAction(action) {
+  async function postAction(payload) {
     try {
       const res = await fetch(`/admin/api/console/${sessionId}/action`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok && res.status !== 409) {
         // 409 = invalid transition (e.g. double tap); ignore. Others are real.
@@ -42,6 +42,15 @@ function boot() {
     } catch (e) {
       console.warn('console action error:', e);
     }
+  }
+
+  async function loadGenres() {
+    try {
+      const res = await fetch('/api/genres');
+      if (!res.ok) return;
+      view.genres = await res.json();
+      paint();
+    } catch { /* non-fatal; Spin still works with Auto */ }
   }
 
   async function refreshAnswer() {
@@ -66,11 +75,22 @@ function boot() {
     // EventSource auto-reconnects with backoff on transient errors.
   }
 
-  document.getElementById('reveal-btn')?.addEventListener('click', () => postAction('reveal'));
-  document.getElementById('next-btn')?.addEventListener('click', () => postAction('next'));
+  document.getElementById('spin-btn')?.addEventListener('click', () => {
+    // Empty value = Auto: omit selectedGenre so the DO picks a genre at random.
+    const genre = document.getElementById('genre-select')?.value || '';
+    postAction(genre ? { action: 'spin', selectedGenre: genre } : { action: 'spin' });
+  });
+  document.getElementById('play-btn')?.addEventListener('click', (e) => {
+    // Resolved by the renderer from live state: play | pause | resume.
+    const action = e.currentTarget.dataset.action;
+    if (action) postAction({ action });
+  });
+  document.getElementById('reveal-btn')?.addEventListener('click', () => postAction({ action: 'reveal' }));
+  document.getElementById('next-btn')?.addEventListener('click', () => postAction({ action: 'next' }));
 
   paint();
   connectSse();
+  void loadGenres();
   void refreshAnswer();
   setInterval(refreshAnswer, ANSWER_POLL_MS);
 }

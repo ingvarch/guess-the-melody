@@ -1,7 +1,8 @@
 // Admin host-console renderer. Pure DOM — no fetch, no globals. The console is
 // a private monitor (basic-auth gated): it shows the current track's answer so
 // the host can judge guesses, mirrors the live scoreboard, animates a "playing"
-// bar effect, and exposes Reveal + Next. Actual spin/play stays on /display.
+// bar effect, and drives the full round — genre pick + Spin, a Play/Stop
+// (pause/resume) toggle, Reveal, and Next — so a phone can run the game alone.
 
 function setText(doc, id, value) {
   const el = doc.getElementById(id);
@@ -24,6 +25,50 @@ function answerText(answer) {
   return `${artist} — ${title}${year ? ` (${year})` : ''}`;
 }
 
+function renderGenres(doc, genres, state) {
+  const select = doc.getElementById('genre-select');
+  if (!select) return;
+  const current = select.value;
+  while (select.firstChild) select.removeChild(select.firstChild);
+  // Empty value = auto: the server picks a genre at random.
+  const auto = doc.createElement('option');
+  auto.value = '';
+  auto.textContent = 'Surprise me (Auto)';
+  select.append(auto);
+  for (const g of genres) {
+    const opt = doc.createElement('option');
+    opt.value = g.slug;
+    opt.textContent = g.name;
+    select.append(opt);
+  }
+  if (current && genres.some((g) => g.slug === current)) select.value = current;
+  select.disabled = state.phase !== 'idle';
+}
+
+// Play button doubles as a stop (pause) / resume toggle once a clip runs:
+//   spinning         -> Play  (start the clip)
+//   playing, running -> Stop  (pause, holds position)
+//   playing, paused  -> Play  (resume from the same spot)
+// The resolved DO action is stamped on dataset.action so the bootstrap handler
+// stays dumb. Outside these phases the button is hidden.
+function renderPlayButton(doc, state) {
+  const btn = doc.getElementById('play-btn');
+  if (!btn) return;
+  const spinning = state.phase === 'spinning';
+  const playing = state.phase === 'playing';
+  setHidden(btn, !(spinning || playing));
+  if (!spinning && !playing) return;
+
+  const paused = state.audioPausedTimestamp != null;
+  const action = spinning ? 'play' : paused ? 'resume' : 'pause';
+  const stop = playing && !paused;
+  btn.dataset.action = action;
+  const icon = btn.querySelector('.material-symbols-outlined');
+  if (icon) icon.textContent = stop ? 'stop' : 'play_arrow';
+  const label = btn.querySelector('.play-btn__label');
+  if (label) label.textContent = stop ? 'STOP' : 'PLAY';
+}
+
 function renderScoreboard(doc, teams) {
   const list = doc.getElementById('console-scoreboard');
   if (!list) return;
@@ -43,18 +88,22 @@ function renderScoreboard(doc, teams) {
   }
 }
 
-export function render(doc, { state, answer }) {
+export function render(doc, { state, answer, genres = [] }) {
   setText(doc, 'console-phase', state.phase);
   setText(doc, 'console-genre', state.selectedGenre ?? '—');
   setText(doc, 'console-track', answerText(answer));
   setText(doc, 'console-rounds', String(state.playedTrackIds?.length ?? 0));
 
   renderScoreboard(doc, state.teams ?? []);
+  renderGenres(doc, genres, state);
 
   const bars = doc.getElementById('console-bars');
   if (bars) bars.classList.toggle('is-playing', state.phase === 'playing');
 
-  // Reveal mid-round; Next once revealed. The DO is the final guard on validity.
+  // Spin/genre at idle; Play/Stop toggle drives the clip; Reveal mid-round; Next
+  // once revealed. The DO is the final guard on every transition's validity.
+  setHidden(doc.getElementById('idle-controls'), state.phase !== 'idle');
+  renderPlayButton(doc, state);
   setHidden(doc.getElementById('reveal-btn'), state.phase !== 'playing');
   setHidden(doc.getElementById('next-btn'), state.phase !== 'revealed');
 }

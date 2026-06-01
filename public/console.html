@@ -80,10 +80,18 @@
 </div>
 </section>
 
-<!-- Minimal controls: spin/play live on /display; the judge only reveals + advances. -->
-<section class="flex gap-3">
+<!-- Full round controls: pick a genre + Spin at idle, Play/Stop the clip, then Reveal + advance. -->
+<section class="space-y-3">
+<!-- Idle: choose a genre (or Auto) and spin. Compact row so mobile stays clean. -->
+<div id="idle-controls" hidden class="flex gap-3 items-stretch">
+<select id="genre-select" class="flex-1 min-w-0 rounded-xl bg-surface-container-low border border-outline-variant text-on-surface font-body-md text-body-md px-4 py-3"></select>
+<button id="spin-btn" type="button" class="shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-on-primary font-headline-lg text-headline-lg-mobile hover:scale-[1.02] active:scale-95 transition-all"><span class="material-symbols-outlined">casino</span>SPIN</button>
+</div>
+<div class="flex gap-3">
+<button id="play-btn" type="button" hidden class="flex-1 inline-flex items-center justify-center gap-2 py-4 rounded-xl bg-secondary text-on-secondary font-headline-lg text-headline-lg-mobile hover:scale-[1.02] active:scale-95 transition-all"><span class="material-symbols-outlined">play_arrow</span><span class="play-btn__label">PLAY</span></button>
 <button id="reveal-btn" type="button" hidden class="flex-1 py-4 rounded-xl bg-primary text-on-primary font-headline-lg text-headline-lg-mobile hover:scale-[1.02] active:scale-95 transition-all">REVEAL</button>
 <button id="next-btn" type="button" hidden class="flex-1 py-4 rounded-xl bg-secondary text-on-secondary font-headline-lg text-headline-lg-mobile hover:scale-[1.02] active:scale-95 transition-all">NEXT ROUND</button>
+</div>
 </section>
 
 <!-- Live scoreboard (read-only). -->

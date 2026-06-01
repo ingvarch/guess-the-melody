@@ -19,10 +19,24 @@ function makeDoc() {
     <span id="console-rounds"></span>
     <ul id="console-scoreboard"></ul>
     <div id="console-bars"></div>
+    <div id="idle-controls" hidden>
+      <select id="genre-select"></select>
+      <button id="spin-btn"></button>
+    </div>
+    <button id="play-btn" hidden><span class="material-symbols-outlined"></span><span class="play-btn__label"></span></button>
     <button id="reveal-btn" hidden></button>
     <button id="next-btn" hidden></button>
   `;
   return doc;
+}
+
+const GENRES = [
+  { slug: 'russian-pop', name: 'Russian Pop' },
+  { slug: 'rock', name: 'Rock' },
+];
+
+function st(over) {
+  return { phase: 'idle', selectedGenre: null, playedTrackIds: [], teams: [], audioPausedTimestamp: null, ...over };
 }
 
 test('render: shows the host-private answer as the track line', () => {
@@ -64,6 +78,75 @@ test('render: Reveal shows while playing, Next shows once revealed', () => {
   render(doc, { state: { phase: 'revealed', selectedGenre: null, playedTrackIds: [], teams: [] }, answer: null });
   assert.equal(doc.getElementById('reveal-btn').hasAttribute('hidden'), true);
   assert.equal(doc.getElementById('next-btn').hasAttribute('hidden'), false);
+});
+
+test('render: genre select offers Auto plus every genre, preselecting Auto', () => {
+  const doc = makeDoc();
+  render(doc, { state: st(), answer: null, genres: GENRES });
+  const opts = Array.from(doc.querySelectorAll('#genre-select option')).map((o) => o.value);
+  assert.deepEqual(opts, ['', 'russian-pop', 'rock']);
+  assert.equal(doc.querySelector('#genre-select option').textContent, 'Surprise me (Auto)');
+});
+
+test('render: genre select is enabled only at idle', () => {
+  const doc = makeDoc();
+  render(doc, { state: st({ phase: 'idle' }), answer: null, genres: GENRES });
+  assert.equal(doc.getElementById('genre-select').disabled, false);
+  render(doc, { state: st({ phase: 'playing' }), answer: null, genres: GENRES });
+  assert.equal(doc.getElementById('genre-select').disabled, true);
+});
+
+test('render: genre select preserves the host selection across re-renders', () => {
+  const doc = makeDoc();
+  render(doc, { state: st(), answer: null, genres: GENRES });
+  doc.getElementById('genre-select').value = 'rock';
+  render(doc, { state: st(), answer: null, genres: GENRES });
+  assert.equal(doc.getElementById('genre-select').value, 'rock');
+});
+
+test('render: idle controls (genre + spin) show only at idle', () => {
+  const doc = makeDoc();
+  render(doc, { state: st({ phase: 'idle' }), answer: null, genres: GENRES });
+  assert.equal(doc.getElementById('idle-controls').hasAttribute('hidden'), false);
+  render(doc, { state: st({ phase: 'spinning' }), answer: null, genres: GENRES });
+  assert.equal(doc.getElementById('idle-controls').hasAttribute('hidden'), true);
+});
+
+test('render: play button hidden at idle and revealed', () => {
+  const doc = makeDoc();
+  render(doc, { state: st({ phase: 'idle' }), answer: null, genres: GENRES });
+  assert.equal(doc.getElementById('play-btn').hasAttribute('hidden'), true);
+  render(doc, { state: st({ phase: 'revealed' }), answer: null, genres: GENRES });
+  assert.equal(doc.getElementById('play-btn').hasAttribute('hidden'), true);
+});
+
+test('render: play button starts the clip while spinning', () => {
+  const doc = makeDoc();
+  render(doc, { state: st({ phase: 'spinning' }), answer: null, genres: GENRES });
+  const btn = doc.getElementById('play-btn');
+  assert.equal(btn.hasAttribute('hidden'), false);
+  assert.equal(btn.dataset.action, 'play');
+  assert.equal(btn.querySelector('.play-btn__label').textContent, 'PLAY');
+  assert.equal(btn.querySelector('.material-symbols-outlined').textContent, 'play_arrow');
+});
+
+test('render: play button stops (pauses) a running clip', () => {
+  const doc = makeDoc();
+  render(doc, { state: st({ phase: 'playing', audioPausedTimestamp: null }), answer: null, genres: GENRES });
+  const btn = doc.getElementById('play-btn');
+  assert.equal(btn.hasAttribute('hidden'), false);
+  assert.equal(btn.dataset.action, 'pause');
+  assert.equal(btn.querySelector('.play-btn__label').textContent, 'STOP');
+  assert.equal(btn.querySelector('.material-symbols-outlined').textContent, 'stop');
+});
+
+test('render: play button resumes a paused clip', () => {
+  const doc = makeDoc();
+  render(doc, { state: st({ phase: 'playing', audioPausedTimestamp: 123 }), answer: null, genres: GENRES });
+  const btn = doc.getElementById('play-btn');
+  assert.equal(btn.dataset.action, 'resume');
+  assert.equal(btn.querySelector('.play-btn__label').textContent, 'PLAY');
+  assert.equal(btn.querySelector('.material-symbols-outlined').textContent, 'play_arrow');
 });
 
 test('render: scoreboard lists teams sorted by score desc', () => {
