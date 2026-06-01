@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Guess The Melody - Host Console</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600&amp;family=Sora:wght@700;800&amp;family=JetBrains+Mono:wght@500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="/static/css/base.css" rel="stylesheet"/>
+<style>
+  [hidden] { display: none !important; }
+  .glass-card {
+    background: rgba(20, 19, 21, 0.7);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(208, 188, 255, 0.1);
+  }
+  /* "Music playing" effect: vertical bars idle flat, jiggle while .is-playing. */
+  .bars { display: flex; align-items: flex-end; gap: 6px; height: 64px; }
+  .bars span {
+    flex: 1; min-width: 4px; height: 12%;
+    background: linear-gradient(to top, #4cd7f6, #d0bcff);
+    border-radius: 4px; opacity: 0.5;
+    transition: height 0.18s ease;
+  }
+  .bars.is-playing span { animation: bar 0.9s ease-in-out infinite; opacity: 1; }
+  .bars.is-playing span:nth-child(2) { animation-delay: 0.1s; }
+  .bars.is-playing span:nth-child(3) { animation-delay: 0.25s; }
+  .bars.is-playing span:nth-child(4) { animation-delay: 0.4s; }
+  .bars.is-playing span:nth-child(5) { animation-delay: 0.15s; }
+  .bars.is-playing span:nth-child(6) { animation-delay: 0.3s; }
+  .bars.is-playing span:nth-child(7) { animation-delay: 0.05s; }
+  .bars.is-playing span:nth-child(8) { animation-delay: 0.35s; }
+  @keyframes bar { 0%, 100% { height: 18%; } 50% { height: 95%; } }
+</style>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: { extend: { "colors": {
+      "background": "#131315", "on-surface": "#e5e1e4", "secondary": "#4cd7f6",
+      "primary": "#d0bcff", "on-primary": "#3c0091", "on-secondary": "#003640",
+      "on-surface-variant": "#cbc3d7", "surface-container-low": "#1c1b1d",
+      "surface-container-high": "#2a2a2c", "surface-container-highest": "#353437",
+      "outline-variant": "#494454", "error": "#ffb4ab"
+    },
+    "fontFamily": {
+      "headline-lg": ["Sora"], "display-sm": ["Sora"], "headline-lg-mobile": ["Sora"],
+      "body-md": ["Plus Jakarta Sans"], "label-mono": ["JetBrains Mono"], "label-caps": ["JetBrains Mono"]
+    },
+    "fontSize": {
+      "display-sm": ["48px", {"lineHeight": "1.1", "fontWeight": "800"}],
+      "headline-lg-mobile": ["24px", {"lineHeight": "1.2", "fontWeight": "700"}],
+      "body-md": ["16px", {"lineHeight": "1.5"}],
+      "label-mono": ["14px", {"letterSpacing": "0.05em", "fontWeight": "500"}],
+      "label-caps": ["12px", {"letterSpacing": "0.1em", "fontWeight": "700"}]
+    } } }
+  }
+</script>
+</head>
+<body class="bg-background text-on-surface min-h-screen">
+<main class="max-w-3xl mx-auto px-5 py-8 space-y-6">
+<header class="flex items-center justify-between gap-3 flex-wrap">
+<div>
+<h1 class="font-display-sm text-3xl sm:text-display-sm text-primary">Host Console</h1>
+<p class="font-label-caps text-label-caps text-on-surface-variant tracking-widest">Judge view · private · Room <span id="session-code" class="text-secondary"></span></p>
+</div>
+<a href="/admin" class="px-3 py-1.5 rounded-lg border border-outline-variant text-on-surface-variant hover:text-primary hover:border-primary transition-colors font-label-caps text-label-caps">ADMIN</a>
+</header>
+
+<!-- Now Playing (host peek): Track shows the real answer so the judge can rule. -->
+<section class="glass-card rounded-xl p-6 space-y-3">
+<h2 class="font-label-caps text-label-caps text-on-surface-variant tracking-widest">Now Playing (host only)</h2>
+<div class="grid grid-cols-1 gap-2 font-body-md text-body-md">
+<p><strong class="text-on-surface-variant">Phase:</strong> <span id="console-phase" class="num">—</span></p>
+<p><strong class="text-on-surface-variant">Genre:</strong> <span id="console-genre">—</span></p>
+<p class="text-headline-lg-mobile"><strong class="text-on-surface-variant text-body-md">Track:</strong> <span id="console-track" class="text-primary">—</span></p>
+<p><strong class="text-on-surface-variant">Rounds played:</strong> <span id="console-rounds" class="num">0</span></p>
+</div>
+<div id="console-bars" class="bars pt-2">
+<span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+</div>
+</section>
+
+<!-- Minimal controls: spin/play live on /display; the judge only reveals + advances. -->
+<section class="flex gap-3">
+<button id="reveal-btn" type="button" hidden class="flex-1 py-4 rounded-xl bg-primary text-on-primary font-headline-lg text-headline-lg-mobile hover:scale-[1.02] active:scale-95 transition-all">REVEAL</button>
+<button id="next-btn" type="button" hidden class="flex-1 py-4 rounded-xl bg-secondary text-on-secondary font-headline-lg text-headline-lg-mobile hover:scale-[1.02] active:scale-95 transition-all">NEXT ROUND</button>
+</section>
+
+<!-- Live scoreboard (read-only). -->
+<section class="glass-card rounded-xl p-6 space-y-3">
+<h2 class="font-label-caps text-label-caps text-on-surface-variant tracking-widest">Scoreboard</h2>
+<ul id="console-scoreboard" class="space-y-2 list-none p-0 m-0"></ul>
+</section>
+</main>
+<script type="module" src="/static/js/main-console.js"></script>
+</body></html>

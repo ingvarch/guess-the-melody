@@ -220,45 +220,11 @@ describe('Worker router', () => {
     expect(res.status).toBe(404);
   });
 
-  it('GET /s/<id>/ returns 200 HTML with <meta name="session-id" content="<id>">', async () => {
+  it('GET /s/<id>/ redirects to the public display (host console is admin-only now)', async () => {
     const { sessionId } = await createSession();
-    const res = await SELF.fetch(`http://localhost/s/${sessionId}/`);
-    expect(res.status).toBe(200);
-    expect(res.headers.get('content-type')).toMatch(/html/);
-    const text = await res.text();
-    expect(text).toContain(`<meta name="session-id" content="${sessionId}">`);
-  });
-
-  it('GET /s/<id>/ runs HTMLRewriter on the host.html asset and preserves original content', async () => {
-    // why: public/host.html does not exist yet, so the live router falls through
-    // to placeholderShell and the HTMLRewriter branch is never exercised. Override
-    // ASSETS.fetch to return a real HTML body so we cover the rewriter path.
-    const { sessionId } = await createSession();
-    const assetHtml =
-      '<!doctype html><html><head><title>Host</title></head>' +
-      '<body><h1>host</h1></body></html>';
-    const wrappedEnv = {
-      ...testEnv,
-      ASSETS: {
-        async fetch(_req: Request) {
-          return new Response(assetHtml, {
-            status: 200,
-            headers: { 'content-type': 'text/html; charset=utf-8' },
-          });
-        },
-      } as unknown as Fetcher,
-    } as Env;
-    const { route } = await import('../../src/router');
-    const ctx = { waitUntil() {}, passThroughOnException() {} } as unknown as ExecutionContext;
-    const res = await route(
-      new Request(`http://localhost/s/${sessionId}/`, { method: 'GET' }),
-      wrappedEnv,
-      ctx,
-    );
-    expect(res.status).toBe(200);
-    const text = await res.text();
-    expect(text).toContain('<title>Host</title>');
-    expect(text).toContain(`<meta name="session-id" content="${sessionId}">`);
+    const res = await SELF.fetch(`http://localhost/s/${sessionId}/`, { redirect: 'manual' });
+    expect(res.status).toBe(302);
+    expect(res.headers.get('Location')).toBe(`/s/${sessionId}/display`);
   });
 
   it('GET /s/<id>/display returns 200 HTML with the session-id meta tag', async () => {

@@ -114,7 +114,7 @@ test('renderSessions renders a card per session with links and leaderboard', () 
   assert.ok(card.textContent.toLowerCase().includes('rock'));
   // Links to host + display for that session.
   const hrefs = Array.from(card.querySelectorAll('a')).map((a) => a.getAttribute('href'));
-  assert.ok(hrefs.includes('/s/ABC123/'));
+  assert.ok(hrefs.includes('/admin/console/ABC123'));
   assert.ok(hrefs.includes('/s/ABC123/display'));
   // Leaderboard sorted desc: Dogs (5) before Cats (2).
   const names = Array.from(card.querySelectorAll('.session-team__name')).map((n) => n.textContent);

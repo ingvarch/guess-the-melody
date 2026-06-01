@@ -172,6 +172,47 @@ describe('admin handlers', () => {
     expect(rows[0]!.currentAnswer).toEqual({ artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975 });
   });
 
+  it('GET /admin/console/:id without auth returns 401', async () => {
+    const res = await SELF.fetch('http://localhost/admin/console/abc123');
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /admin/console/:id with auth returns HTML carrying the session-id meta', async () => {
+    const res = await SELF.fetch('http://localhost/admin/console/abc123', {
+      headers: { authorization: authHeader() },
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/html/);
+    const text = await res.text();
+    expect(text).toContain('<meta name="session-id" content="abc123">');
+  });
+
+  it('POST /admin/api/console/:id/action without auth returns 401', async () => {
+    const res = await SELF.fetch('http://localhost/admin/api/console/abc/action', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'team.add', id: 't1', name: 'Cats' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('POST /admin/api/console/:id/action drives the DO by admin password, no owner cookie', async () => {
+    // Real session so the DO is initialised with an owner token we never send.
+    const created = await SELF.fetch('http://localhost/api/session', { method: 'POST' });
+    const { sessionId } = (await created.json()) as { sessionId: string };
+
+    const res = await SELF.fetch(`http://localhost/admin/api/console/${sessionId}/action`, {
+      method: 'POST',
+      headers: { authorization: authHeader(), 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'team.add', id: 't1', name: 'Phone' }),
+    });
+    expect(res.status).toBe(200);
+
+    const state = await SELF.fetch(`http://localhost/s/${sessionId}/api/state`);
+    const body = (await state.json()) as { teams: Array<{ name: string }> };
+    expect(body.teams.map((t) => t.name)).toEqual(['Phone']);
+  });
+
   it('GET /admin/api/stats without auth returns 401', async () => {
     const res = await SELF.fetch('http://localhost/admin/api/stats');
     expect(res.status).toBe(401);

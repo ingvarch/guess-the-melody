@@ -608,6 +608,36 @@ describe('MelodyRoom DO', () => {
     expect(JSON.parse(row!.teams_json)).toEqual([{ name: 'Cats', score: 0 }]);
   });
 
+  it('accepts an admin-override mutation without the owner token', async () => {
+    const stub = roomStub('session-admin-override');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'secret-owner', sessionId: 'session-admin-override' }),
+    });
+    // No X-Owner-Token; the trusted admin marker authorises the write instead.
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Admin-Override': '1' },
+      body: JSON.stringify({ action: 'team.add', id: 't1', name: 'Cats' }),
+    });
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoomState;
+    expect(state.teams).toEqual([{ id: 't1', name: 'Cats', score: 0 }]);
+  });
+
+  it('still rejects a mutation with neither owner token nor admin override', async () => {
+    const stub = roomStub('session-no-auth');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'secret-owner', sessionId: 'session-no-auth' }),
+    });
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      body: JSON.stringify({ action: 'team.add', id: 't1', name: 'Cats' }),
+    });
+    expect(res.status).toBe(403);
+  });
+
   it('registry snapshot carries the host-private current answer, cleared on next', async () => {
     await testEnv.CATALOG.exec('DELETE FROM sessions');
     await seedTrack({ id: 'tr-ans', genre_slug: 'rock', artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975 });

@@ -333,6 +333,68 @@ async function handleSessionById(
   return new Response(null, { status: 204 });
 }
 
+// Injects the per-session meta tag so the admin console page knows which DO to
+// talk to. Mirrors the router's host/display injection.
+class InjectSessionId {
+  constructor(private readonly sessionId: string) {}
+  element(el: Element): void {
+    el.append(`<meta name="session-id" content="${this.sessionId}">`, { html: true });
+  }
+}
+
+// Serves the admin-gated host console for a session. Basic auth was already
+// verified by handleAdmin, so reaching here means the operator holds the
+// password — no owner cookie required.
+async function handleConsolePage(
+  req: Request,
+  env: Env,
+  sessionId: string,
+): Promise<Response> {
+  if (req.method !== 'GET') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const origin = new URL(req.url).origin;
+  const assetRes = await env.ASSETS.fetch(
+    new Request(`${origin}/console.html`, { method: 'GET' }),
+  );
+  if (assetRes.status === 200) {
+    return new HTMLRewriter()
+      .on('head', new InjectSessionId(sessionId))
+      .transform(assetRes);
+  }
+  const html =
+    `<!doctype html><html><head><meta charset="utf-8">` +
+    `<meta name="session-id" content="${sessionId}"></head>` +
+    `<body>console</body></html>`;
+  return new Response(html, {
+    status: 200,
+    headers: { 'content-type': 'text/html; charset=utf-8' },
+  });
+}
+
+// Forwards a host action to the session's DO authorised by admin password
+// (X-Admin-Override), so a phone holding only the password can control a game
+// it didn't create. The DO is binding-only, so this header is never client-set.
+async function handleConsoleAction(
+  req: Request,
+  env: Env,
+  sessionId: string,
+): Promise<Response> {
+  if (req.method !== 'POST') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const stub = env.MELODY_ROOM.get(env.MELODY_ROOM.idFromName(sessionId));
+  const body = await req.arrayBuffer();
+  return stub.fetch('http://room/state', {
+    method: 'POST',
+    headers: {
+      'Content-Type': req.headers.get('content-type') ?? 'application/json',
+      'X-Admin-Override': '1',
+    },
+    body,
+  });
+}
+
 async function handleImport(req: Request, env: Env): Promise<Response> {
   if (req.method !== 'POST') {
     return new Response('method not allowed', { status: 405 });
@@ -441,6 +503,14 @@ export async function handleAdmin(
   const sessionMatch = /^\/admin\/api\/sessions\/([^/]+)$/.exec(path);
   if (sessionMatch && sessionMatch[1]) {
     return handleSessionById(req, env, decodeURIComponent(sessionMatch[1]));
+  }
+  const consoleActionMatch = /^\/admin\/api\/console\/([^/]+)\/action$/.exec(path);
+  if (consoleActionMatch && consoleActionMatch[1]) {
+    return handleConsoleAction(req, env, decodeURIComponent(consoleActionMatch[1]));
+  }
+  const consolePageMatch = /^\/admin\/console\/([^/]+)$/.exec(path);
+  if (consolePageMatch && consolePageMatch[1]) {
+    return handleConsolePage(req, env, decodeURIComponent(consolePageMatch[1]));
   }
   if (path === '/admin/api/stats') {
     return handleStats(req, env);

@@ -99,12 +99,21 @@ export class MelodyRoom extends DurableObject<Env> {
   }
 
   async #handleMutation(req: Request): Promise<Response> {
-    if (this.#meta.ownerToken === null) {
-      return new Response('uninitialised', { status: 403 });
-    }
-    const provided = req.headers.get('x-owner-token');
-    if (provided !== this.#meta.ownerToken) {
-      return new Response('forbidden', { status: 403 });
+    // Two ways to authorise a write:
+    //   1. the owner token (host's HttpOnly cookie, forwarded by the router), or
+    //   2. X-Admin-Override, which the router sets ONLY after basic-auth passes.
+    // The DO is reachable solely through the Worker binding, so a header the
+    // Worker attaches post-auth is trustworthy; the public state proxy never
+    // forwards a client-supplied X-Admin-Override.
+    const adminOverride = req.headers.get('x-admin-override') === '1';
+    if (!adminOverride) {
+      if (this.#meta.ownerToken === null) {
+        return new Response('uninitialised', { status: 403 });
+      }
+      const provided = req.headers.get('x-owner-token');
+      if (provided !== this.#meta.ownerToken) {
+        return new Response('forbidden', { status: 403 });
+      }
     }
     const payload = await safeJson(req);
     if (payload === null || typeof payload !== 'object') {

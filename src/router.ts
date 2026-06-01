@@ -201,7 +201,7 @@ async function servePageShell(
   req: Request,
   env: Env,
   sessionId: string,
-  assetName: 'host.html' | 'display.html',
+  assetName: 'display.html',
 ): Promise<Response> {
   const assetUrl = new URL(req.url);
   assetUrl.pathname = `/${assetName}`;
@@ -238,7 +238,12 @@ async function handleSessionScoped(
     return serveTrack(env, decodeURIComponent(trackMatch[1]));
   }
   if (req.method === 'GET' && (rest === '' || rest === '/')) {
-    return servePageShell(req, env, sessionId, 'host.html');
+    // The host console moved behind admin auth (/admin/console/<id>). A bare
+    // session URL is for players, so send it to the public display.
+    return new Response(null, {
+      status: 302,
+      headers: { Location: `/s/${sessionId}/display` },
+    });
   }
   if (req.method === 'GET' && (rest === '/display' || rest === '/display.html')) {
     return servePageShell(req, env, sessionId, 'display.html');

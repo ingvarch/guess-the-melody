@@ -540,7 +540,7 @@ export function renderSessions(doc, sessions, { now }) {
     const actions = doc.createElement('div');
     actions.className = 'flex gap-2 pt-1';
     const hostLink = doc.createElement('a');
-    hostLink.href = `/s/${s.id}/`;
+    hostLink.href = `/admin/console/${s.id}`;
     hostLink.target = '_blank';
     hostLink.rel = 'noopener noreferrer';
     hostLink.className = 'px-3 py-1.5 rounded-lg bg-primary/10 text-primary border border-primary/20 hover:bg-primary hover:text-on-primary transition-all font-label-caps text-label-caps';
