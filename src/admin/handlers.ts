@@ -263,6 +263,19 @@ function parseTeams(json: string): { name: string; score: number }[] {
   }
 }
 
+function parseAnswer(
+  json: string | null,
+): { artist: string; title: string; year: number } | null {
+  if (!json) return null;
+  try {
+    const parsed = JSON.parse(json);
+    if (parsed && typeof parsed === 'object') return parsed;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 async function handleStats(req: Request, env: Env): Promise<Response> {
   if (req.method !== 'GET') {
     return new Response('method not allowed', { status: 405 });
@@ -302,6 +315,7 @@ async function handleSessions(req: Request, env: Env): Promise<Response> {
     roundsPlayed: r.rounds_played,
     teamCount: r.team_count,
     teams: parseTeams(r.teams_json),
+    currentAnswer: parseAnswer(r.current_answer),
   }));
   return json(out);
 }

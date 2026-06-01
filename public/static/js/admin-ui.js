@@ -502,6 +502,22 @@ export function renderSessions(doc, sessions, { now }) {
 
     card.append(head, meta);
 
+    // Host-private answer peek: lets the judge verify guesses without revealing
+    // on the public display. Only present while a round has a current track.
+    if (s.currentAnswer) {
+      const answer = doc.createElement('div');
+      answer.className = 'session-card__answer flex items-center gap-2 rounded-lg px-3 py-2 bg-primary/10 text-primary font-label-mono text-label-mono';
+      const icon = doc.createElement('span');
+      icon.className = 'material-symbols-outlined text-[18px]';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = 'lightbulb';
+      const text = doc.createElement('span');
+      const { artist, title, year } = s.currentAnswer;
+      text.textContent = `${artist} — ${title}${year ? ` (${year})` : ''}`;
+      answer.append(icon, text);
+      card.append(answer);
+    }
+
     if (s.teams && s.teams.length > 0) {
       const board = doc.createElement('ul');
       board.className = 'space-y-1 list-none p-0 m-0';

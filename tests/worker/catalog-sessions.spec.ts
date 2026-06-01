@@ -85,6 +85,30 @@ describe('sessions registry', () => {
     expect(rows.map((r) => r.id)).toEqual(['fresh']);
   });
 
+  it('upsert round-trips the host-private current answer', async () => {
+    await upsertSession(testEnv.CATALOG, {
+      id: 'ans', now: 1_000, phase: 'playing', selectedGenre: 'rock', roundsPlayed: 0, teams: [],
+      currentAnswer: { artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975 },
+    });
+    const rows = await listSessions(testEnv.CATALOG);
+    expect(JSON.parse(rows[0]!.current_answer!)).toEqual({
+      artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975,
+    });
+  });
+
+  it('upsert clears the current answer when none is supplied', async () => {
+    await upsertSession(testEnv.CATALOG, {
+      id: 'ans', now: 1_000, phase: 'playing', selectedGenre: 'rock', roundsPlayed: 0, teams: [],
+      currentAnswer: { artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975 },
+    });
+    await upsertSession(testEnv.CATALOG, {
+      id: 'ans', now: 2_000, phase: 'idle', selectedGenre: null, roundsPlayed: 1, teams: [],
+      currentAnswer: null,
+    });
+    const rows = await listSessions(testEnv.CATALOG);
+    expect(rows[0]!.current_answer).toBeNull();
+  });
+
   it('deleteSessionsOlderThan removes rows updated before the cutoff and returns the count', async () => {
     await upsertSession(testEnv.CATALOG, { id: 'old1', now: 1_000, phase: 'idle', selectedGenre: null, roundsPlayed: 0, teams: [] });
     await upsertSession(testEnv.CATALOG, { id: 'old2', now: 2_000, phase: 'idle', selectedGenre: null, roundsPlayed: 0, teams: [] });

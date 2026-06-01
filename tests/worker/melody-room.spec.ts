@@ -608,6 +608,33 @@ describe('MelodyRoom DO', () => {
     expect(JSON.parse(row!.teams_json)).toEqual([{ name: 'Cats', score: 0 }]);
   });
 
+  it('registry snapshot carries the host-private current answer, cleared on next', async () => {
+    await testEnv.CATALOG.exec('DELETE FROM sessions');
+    await seedTrack({ id: 'tr-ans', genre_slug: 'rock', artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975 });
+    const stub = roomStub('session-answer');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x', sessionId: 'session-answer' }),
+    });
+    const hdr = { 'X-Owner-Token': 'x' };
+
+    await stub.fetch(`${BASE}/state`, {
+      method: 'POST', headers: hdr,
+      body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
+    });
+    let row = (await listSessions(testEnv.CATALOG)).find((r) => r.id === 'session-answer');
+    expect(JSON.parse(row!.current_answer!)).toEqual({
+      artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975,
+    });
+
+    // Run the round to revealed then next; next clears the current track.
+    await stub.fetch(`${BASE}/state`, { method: 'POST', headers: hdr, body: JSON.stringify({ action: 'play', now: 10_000 }) });
+    await stub.fetch(`${BASE}/state`, { method: 'POST', headers: hdr, body: JSON.stringify({ action: 'reveal' }) });
+    await stub.fetch(`${BASE}/state`, { method: 'POST', headers: hdr, body: JSON.stringify({ action: 'next' }) });
+    row = (await listSessions(testEnv.CATALOG)).find((r) => r.id === 'session-answer');
+    expect(row!.current_answer).toBeNull();
+  });
+
   it('reveal returns 409 when the current track row has gone missing', async () => {
     await seedTrack({ id: 'tr-vanish', genre_slug: 'rock' });
     const stub = roomStub('session-reveal-missing');

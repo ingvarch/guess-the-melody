@@ -4,6 +4,12 @@
 // "Live Game" view reads it. Rows are advisory: a DO eviction leaves a stale
 // row behind, so consumers judge liveness by `updated_at`, not existence.
 
+export interface TrackAnswer {
+  artist: string;
+  title: string;
+  year: number;
+}
+
 export interface SessionRow {
   id: string;
   created_at: number;
@@ -13,6 +19,7 @@ export interface SessionRow {
   rounds_played: number;
   team_count: number;
   teams_json: string;
+  current_answer: string | null;
 }
 
 export interface SessionSnapshot {
@@ -22,28 +29,33 @@ export interface SessionSnapshot {
   selectedGenre: string | null;
   roundsPlayed: number;
   teams: { name: string; score: number }[];
+  // Host-private answer for the current (possibly unrevealed) track. Null when
+  // no round is in progress. Lives only here, never in the broadcast RoomState.
+  currentAnswer?: TrackAnswer | null;
 }
 
 const COLS =
-  'id, created_at, updated_at, phase, selected_genre, rounds_played, team_count, teams_json';
+  'id, created_at, updated_at, phase, selected_genre, rounds_played, team_count, teams_json, current_answer';
 
 export async function upsertSession(
   db: D1Database,
   snap: SessionSnapshot,
 ): Promise<void> {
   const teamsJson = JSON.stringify(snap.teams);
+  const answerJson = snap.currentAnswer ? JSON.stringify(snap.currentAnswer) : null;
   await db
     .prepare(
       `INSERT INTO sessions
-         (id, created_at, updated_at, phase, selected_genre, rounds_played, team_count, teams_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         (id, created_at, updated_at, phase, selected_genre, rounds_played, team_count, teams_json, current_answer)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          updated_at     = excluded.updated_at,
          phase          = excluded.phase,
          selected_genre = excluded.selected_genre,
          rounds_played  = excluded.rounds_played,
          team_count     = excluded.team_count,
-         teams_json     = excluded.teams_json`,
+         teams_json     = excluded.teams_json,
+         current_answer = excluded.current_answer`,
     )
     .bind(
       snap.id,
@@ -54,6 +66,7 @@ export async function upsertSession(
       snap.roundsPlayed,
       snap.teams.length,
       teamsJson,
+      answerJson,
     )
     .run();
 }

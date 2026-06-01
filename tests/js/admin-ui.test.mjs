@@ -121,6 +121,31 @@ test('renderSessions renders a card per session with links and leaderboard', () 
   assert.deepEqual(names, ['Dogs', 'Cats']);
 });
 
+test('renderSessions shows the host-private current answer when present', () => {
+  const doc = makeDoc();
+  const now = 1_000_000;
+  renderSessions(doc, [
+    {
+      id: 'ABC123', phase: 'playing', selectedGenre: 'rock', roundsPlayed: 1,
+      teamCount: 0, updatedAt: now, createdAt: now, teams: [],
+      currentAnswer: { artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975 },
+    },
+  ], { now });
+  const answer = doc.querySelector('.session-card__answer');
+  assert.ok(answer, 'card shows an answer element');
+  assert.ok(answer.textContent.includes('Queen'));
+  assert.ok(answer.textContent.includes('Bohemian Rhapsody'));
+});
+
+test('renderSessions omits the answer element when there is no current answer', () => {
+  const doc = makeDoc();
+  const now = 1_000_000;
+  renderSessions(doc, [
+    { id: 'ABC123', phase: 'idle', selectedGenre: null, roundsPlayed: 0, teamCount: 0, updatedAt: now, createdAt: now, teams: [], currentAnswer: null },
+  ], { now });
+  assert.equal(doc.querySelector('.session-card__answer'), null);
+});
+
 test('renderSessions adds a delete button per session card', () => {
   const doc = makeDoc();
   const now = 1_000_000;

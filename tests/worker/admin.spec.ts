@@ -158,6 +158,20 @@ describe('admin handlers', () => {
     expect(allRows.map((r) => r.id).sort()).toEqual(['live', 'stale']);
   });
 
+  it('GET /admin/api/sessions exposes the host-private current answer', async () => {
+    await testEnv.CATALOG.exec('DELETE FROM sessions');
+    await upsertSession(testEnv.CATALOG, {
+      id: 'with-answer', now: Date.now(), phase: 'playing', selectedGenre: 'rock', roundsPlayed: 0, teams: [],
+      currentAnswer: { artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975 },
+    });
+    const res = await SELF.fetch('http://localhost/admin/api/sessions', {
+      headers: { authorization: authHeader() },
+    });
+    expect(res.status).toBe(200);
+    const rows = (await res.json()) as Array<{ id: string; currentAnswer: unknown }>;
+    expect(rows[0]!.currentAnswer).toEqual({ artist: 'Queen', title: 'Bohemian Rhapsody', year: 1975 });
+  });
+
   it('GET /admin/api/stats without auth returns 401', async () => {
     const res = await SELF.fetch('http://localhost/admin/api/stats');
     expect(res.status).toBe(401);

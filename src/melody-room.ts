@@ -142,6 +142,18 @@ export class MelodyRoom extends DurableObject<Env> {
   async #registerSnapshot(): Promise<void> {
     if (this.#meta.sessionId === null) return;
     try {
+      // Host-private answer for the admin Live Game view. Looked up from the
+      // catalogue (the current track's id is the only track ref in RoomState)
+      // so the answer never has to live in the broadcast state where the
+      // public /display would leak it. Null when no round is in progress.
+      let currentAnswer = null;
+      const current = this.#state.currentTrack;
+      if (current !== null) {
+        const track = await getTrack(this.env.CATALOG, current.id);
+        if (track !== null) {
+          currentAnswer = { artist: track.artist, title: track.title, year: track.year };
+        }
+      }
       await upsertSession(this.env.CATALOG, {
         id: this.#meta.sessionId,
         now: Date.now(),
@@ -149,6 +161,7 @@ export class MelodyRoom extends DurableObject<Env> {
         selectedGenre: this.#state.selectedGenre,
         roundsPlayed: this.#state.playedTrackIds.length,
         teams: this.#state.teams.map((t) => ({ name: t.name, score: t.score })),
+        currentAnswer,
       });
     } catch {
       /* advisory registry; ignore write failures */
