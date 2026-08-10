@@ -3,11 +3,12 @@
 // browsers to treat the endpoint as a seekable media source (Safari refuses
 // media from servers that ignore ranges).
 //
-// R2 range semantics, verified against workerd: passing the request Headers as
-// `range` makes R2 parse it and expose the resolved window as `obj.range`.
-// Suffix ranges arrive pre-resolved to offset/length. An out-of-bounds or
-// unparseable Range never throws — R2 falls back to the full extent, so there
-// is no 416 to surface without re-parsing the header ourselves.
+// R2 range semantics, verified against miniflare's R2 simulator: passing the
+// request Headers as `range` makes R2 parse it and expose the resolved window
+// as `obj.range`. Suffix ranges arrive pre-resolved to offset/length; an
+// out-of-bounds or unparseable Range falls back to the full extent. Production
+// R2 is a separate implementation and may reject such ranges instead, so the
+// get is still guarded: a rejected range degrades to 416, never a 500.
 
 export interface ServeAudioOpts {
   cacheControl: string;
@@ -20,10 +21,15 @@ export async function serveR2Audio(
   opts: ServeAudioOpts,
 ): Promise<Response> {
   const rangeHeader = req.headers.get('range');
-  const obj = await bucket.get(
-    key,
-    rangeHeader === null ? undefined : { range: req.headers },
-  );
+  let obj: R2ObjectBody | null;
+  try {
+    obj = await bucket.get(
+      key,
+      rangeHeader === null ? undefined : { range: req.headers },
+    );
+  } catch {
+    return new Response('range not satisfiable', { status: 416 });
+  }
   if (obj === null) return new Response('not found', { status: 404 });
 
   const headers = new Headers();

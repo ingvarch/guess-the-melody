@@ -107,4 +107,19 @@ describe('serveR2Audio', () => {
     expect(res.status).toBe(206);
     expect(res.headers.get('Content-Range')).toBe(`bytes 0-9/${BODY.byteLength}`);
   });
+
+  // Production R2 is a separate implementation from the local simulator and
+  // may reject an unsatisfiable range instead of ignoring it. A public media
+  // route must degrade to 416, never surface a 500.
+  it('answers 416 when the bucket rejects the range', async () => {
+    const rejecting = {
+      get: () => {
+        throw new Error('get: The requested range is not satisfiable (10039)');
+      },
+    } as unknown as R2Bucket;
+    const res = await serveR2Audio(req({ Range: 'bytes=100-200' }), rejecting, KEY, {
+      cacheControl: 'public, max-age=1',
+    });
+    expect(res.status).toBe(416);
+  });
 });
