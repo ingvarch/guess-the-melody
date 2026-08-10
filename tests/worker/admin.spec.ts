@@ -653,6 +653,29 @@ describe('admin handlers', () => {
     expect(Array.from(body)).toEqual([21, 22, 23]);
   });
 
+  it('POST /admin/api/maintenance/audio-content-type relabels mislabelled objects', async () => {
+    const m4a = new Uint8Array([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70, 0x4d, 0x34, 0x41, 0x20]);
+    const mp3 = new Uint8Array([0x49, 0x44, 0x33, 4, 0, 0]);
+    await testEnv.AUDIO.put('tracks/bf-m4a.mp3', m4a, { httpMetadata: { contentType: 'audio/mpeg' } });
+    await testEnv.AUDIO.put('tracks/bf-mp3.mp3', mp3, { httpMetadata: { contentType: 'audio/mpeg' } });
+    // Already correct and not the default: proves the stored type is read,
+    // not assumed to be audio/mpeg.
+    await testEnv.AUDIO.put('tracks/bf-ok.mp3', m4a, { httpMetadata: { contentType: 'audio/mp4' } });
+
+    const res = await SELF.fetch('http://localhost/admin/api/maintenance/audio-content-type', {
+      method: 'POST',
+      headers: { authorization: authHeader() },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { scanned: number; updated: number; cursor: string | null };
+    expect(body.updated).toBe(1);
+
+    const relabelled = await testEnv.AUDIO.head('tracks/bf-m4a.mp3');
+    expect(relabelled?.httpMetadata?.contentType).toBe('audio/mp4');
+    const untouched = await testEnv.AUDIO.head('tracks/bf-mp3.mp3');
+    expect(untouched?.httpMetadata?.contentType).toBe('audio/mpeg');
+  });
+
   it('GET /admin/api/tracks/:id.mp3 returns 401 without auth', async () => {
     const res = await SELF.fetch('http://localhost/admin/api/tracks/some-id.mp3', {
       method: 'GET',

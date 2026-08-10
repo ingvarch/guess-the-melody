@@ -32,6 +32,7 @@ import {
   type UpdateTrack,
 } from '../catalog/tracks';
 import { deleteSession, listSessions } from '../catalog/sessions';
+import { detectAudioContentType } from '../importer/audio-type';
 import { importTrack } from '../importer/import-track';
 import type { Env } from '../types';
 
@@ -243,6 +244,50 @@ async function handleTrackAudio(
   }
   return serveR2Audio(req, env.AUDIO, row.r2_key, {
     cacheControl: 'private, max-age=3600',
+  });
+}
+
+// One-shot maintenance: earlier imports stored every preview as audio/mpeg
+// even when the bytes are an MP4 container. Batched (R2 metadata can only be
+// rewritten via a full copy); call repeatedly with the returned cursor until
+// it comes back null.
+const BACKFILL_BATCH = 20;
+
+async function handleAudioContentTypeBackfill(
+  req: Request,
+  env: Env,
+): Promise<Response> {
+  if (req.method !== 'POST') {
+    return new Response('method not allowed', { status: 405 });
+  }
+  const cursor = new URL(req.url).searchParams.get('cursor') ?? undefined;
+  const page = await env.AUDIO.list({
+    prefix: 'tracks/',
+    limit: BACKFILL_BATCH,
+    ...(cursor ? { cursor } : {}),
+  });
+
+  let updated = 0;
+  for (const item of page.objects) {
+    // The ranged read carries the object's stored httpMetadata, so the listing
+    // does not need to ask for it.
+    const head = await env.AUDIO.get(item.key, { range: { offset: 0, length: 16 } });
+    if (head === null) continue;
+    const stored = head.httpMetadata?.contentType ?? 'audio/mpeg';
+    const actual = detectAudioContentType(await head.arrayBuffer(), stored);
+    if (actual === stored) continue;
+    const full = await env.AUDIO.get(item.key);
+    if (full === null) continue;
+    await env.AUDIO.put(item.key, await full.arrayBuffer(), {
+      httpMetadata: { contentType: actual },
+    });
+    updated += 1;
+  }
+
+  return json({
+    scanned: page.objects.length,
+    updated,
+    cursor: page.truncated ? page.cursor : null,
   });
 }
 
@@ -503,6 +548,9 @@ export async function handleAdmin(
   const consolePageMatch = /^\/admin\/console\/([^/]+)$/.exec(path);
   if (consolePageMatch && consolePageMatch[1]) {
     return handleConsolePage(req, env, decodeURIComponent(consolePageMatch[1]));
+  }
+  if (path === '/admin/api/maintenance/audio-content-type') {
+    return handleAudioContentTypeBackfill(req, env);
   }
   if (path === '/admin/api/stats') {
     return handleStats(req, env);
