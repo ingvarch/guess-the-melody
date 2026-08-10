@@ -65,7 +65,25 @@ describe('importer/r2', () => {
       previewUrl: 'https://example.com/preview.m4a',
     });
     expect(key).toBe('tracks/id1.mp3');
-    expect(await testEnv.AUDIO.get(key)).not.toBeNull();
+    const got = await testEnv.AUDIO.get(key);
+    expect(got).not.toBeNull();
+    // Body 'x' is unsniffable, so the response header is the fallback.
+    expect(got?.httpMetadata?.contentType).toBe('audio/mp4');
+  });
+
+  it('stores audio/mp4 when the downloaded bytes are an MP4 container', async () => {
+    const m4a = new Uint8Array([0, 0, 0, 0x20, 0x66, 0x74, 0x79, 0x70, 0x4d, 0x34, 0x41, 0x20]);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(audioResponse(m4a, 'audio/x-m4a')),
+    );
+
+    const key = await downloadPreviewToR2(testEnv, {
+      trackId: 'id-m4a',
+      previewUrl: 'https://example.com/preview.m4a',
+    });
+    const got = await testEnv.AUDIO.get(key);
+    expect(got?.httpMetadata?.contentType).toBe('audio/mp4');
   });
 
   it('throws on a non-2xx response', async () => {
