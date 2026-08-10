@@ -11,6 +11,7 @@
 //   404 for missing rows,
 //   409 with `{error: '...'}` or the importer's typed error body for conflicts.
 
+import { serveR2Audio } from '../audio-serve';
 import { basicAuthChallenge, checkBasicAuth } from '../auth';
 import {
   createGenre,
@@ -240,18 +241,9 @@ async function handleTrackAudio(
   if (!row || !row.r2_key) {
     return new Response('not found', { status: 404 });
   }
-  const obj = await env.AUDIO.get(row.r2_key);
-  if (!obj) {
-    return new Response('not found', { status: 404 });
-  }
-  const headers: Record<string, string> = {
-    'Content-Type': 'audio/mpeg',
-    'Cache-Control': 'private, max-age=3600',
-  };
-  if (typeof obj.size === 'number') {
-    headers['Content-Length'] = String(obj.size);
-  }
-  return new Response(obj.body, { status: 200, headers });
+  return serveR2Audio(req, env.AUDIO, row.r2_key, {
+    cacheControl: 'private, max-age=3600',
+  });
 }
 
 function parseTeams(json: string): { name: string; score: number }[] {

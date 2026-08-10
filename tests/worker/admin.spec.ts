@@ -617,6 +617,42 @@ describe('admin handlers', () => {
     expect(Array.from(body)).toEqual(Array.from(payload));
   });
 
+  it('GET /admin/api/tracks/:id.mp3 serves stored content type and honours Range', async () => {
+    const id = 't-play-range';
+    const key = `tracks/${id}.mp3`;
+    const payload = new Uint8Array([20, 21, 22, 23, 24, 25]);
+    await testEnv.AUDIO.put(key, payload, {
+      httpMetadata: { contentType: 'audio/mp4' },
+    });
+    await insertTrack(testEnv.CATALOG, {
+      id,
+      genre_slug: 'rock',
+      artist: 'PA',
+      title: 'PT',
+      year: 2010,
+      r2_key: key,
+      preview_url: 'https://example.com/p.m4a',
+      added_at: 401,
+    });
+
+    const full = await SELF.fetch(`http://localhost/admin/api/tracks/${id}.mp3`, {
+      method: 'GET',
+      headers: { authorization: authHeader() },
+    });
+    expect(full.status).toBe(200);
+    expect(full.headers.get('content-type')).toBe('audio/mp4');
+    expect(full.headers.get('accept-ranges')).toBe('bytes');
+
+    const part = await SELF.fetch(`http://localhost/admin/api/tracks/${id}.mp3`, {
+      method: 'GET',
+      headers: { authorization: authHeader(), Range: 'bytes=1-3' },
+    });
+    expect(part.status).toBe(206);
+    expect(part.headers.get('content-range')).toBe(`bytes 1-3/${payload.byteLength}`);
+    const body = new Uint8Array(await part.arrayBuffer());
+    expect(Array.from(body)).toEqual([21, 22, 23]);
+  });
+
   it('GET /admin/api/tracks/:id.mp3 returns 401 without auth', async () => {
     const res = await SELF.fetch('http://localhost/admin/api/tracks/some-id.mp3', {
       method: 'GET',
