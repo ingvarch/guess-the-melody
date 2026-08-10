@@ -8,6 +8,7 @@
 // game started on a laptop.
 
 import { render } from './console-ui.js';
+import { connectStateStream } from './sse.js';
 
 const sessionId = document.querySelector('meta[name="session-id"]')?.content ?? '';
 const ANSWER_POLL_MS = 3000;
@@ -65,14 +66,13 @@ function boot() {
   }
 
   function connectSse() {
-    const es = new EventSource(`/s/${sessionId}/api/events`);
-    es.addEventListener('state', (e) => {
-      try {
-        view.state = JSON.parse(e.data);
+    connectStateStream({
+      url: `/s/${sessionId}/api/events`,
+      onState: (s) => {
+        view.state = s;
         paint();
-      } catch { /* malformed frame */ }
+      },
     });
-    // EventSource auto-reconnects with backoff on transient errors.
   }
 
   document.getElementById('spin-btn')?.addEventListener('click', () => {

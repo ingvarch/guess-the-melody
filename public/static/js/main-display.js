@@ -4,6 +4,7 @@
 // DO owner-cookie check. Acceptable for the MVP — the URL is unguessable.
 
 import { render, renderClock, runSpin, renderPlaybackControls } from './display-ui.js';
+import { connectStateStream } from './sse.js';
 import {
   fetchGenres,
   fetchState,
@@ -100,12 +101,12 @@ function boot() {
   }
 
   function connectSse() {
-    const es = new EventSource(`/s/${sessionId}/api/events`);
-    es.addEventListener('state', (e) => {
-      try {
-        view.state = JSON.parse(e.data);
+    connectStateStream({
+      url: `/s/${sessionId}/api/events`,
+      onState: (s) => {
+        view.state = s;
         onState();
-      } catch { /* malformed frame */ }
+      },
     });
   }
 
