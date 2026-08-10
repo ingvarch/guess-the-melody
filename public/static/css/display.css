@@ -323,3 +323,42 @@ body {
   .tonearm__tube { height: 70px; }
   #waveform { width: 120px; height: 120px; }
 }
+
+/* ---- Sound gate ---------------------------------------------------------- */
+
+/* Full-screen tap target while the browser blocks audible playback. */
+.sound-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 6vh;
+  background: rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.sound-gate[hidden] { display: none; }
+
+.sound-gate__pill {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.8em 1.6em;
+  border-radius: 999px;
+  background: rgba(20, 20, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+  animation: sound-gate-pulse 2s ease-in-out infinite;
+}
+
+@keyframes sound-gate-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sound-gate__pill { animation: none; }
+}

@@ -355,5 +355,12 @@
             setInterval(animateBars, 150);
         }
     </script>
+<!-- Shown while the browser blocks audible playback; the whole overlay is the tap target. -->
+<div id="sound-gate" class="sound-gate" hidden>
+  <div class="sound-gate__pill">
+    <span class="material-symbols-outlined">volume_off</span>
+    <span id="sound-gate-message">Tap anywhere for sound</span>
+  </div>
+</div>
 <script type="module" src="/static/js/main-display.js"></script>
 </body></html>
