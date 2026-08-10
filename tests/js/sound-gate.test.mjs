@@ -92,3 +92,15 @@ test('audio error event surfaces the overlay with a failure message', () => {
   assert.ok(shown(doc));
   assert.match(doc.getElementById('sound-gate-message').textContent, /failed/i);
 });
+
+test('hiding the overlay restores the default message after an error', () => {
+  const doc = makeDoc();
+  const audio = makeAudio(doc);
+  const gate = createSoundGate({ doc, audio });
+  audio.dispatchEvent(new doc.defaultView.Event('error'));
+  gate.sync(false);
+  assert.equal(
+    doc.getElementById('sound-gate-message').textContent,
+    'Tap anywhere for sound',
+  );
+});

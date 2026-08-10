@@ -19,15 +19,18 @@ export function connectStateStream({
 
   function open() {
     if (closed) return;
-    es = makeSource(url);
-    es.addEventListener('state', (e) => {
+    // Listeners read their own source, not the shared `es`: after a reopen the
+    // old source's error handler must not consult the new source's readyState.
+    const source = makeSource(url);
+    es = source;
+    source.addEventListener('state', (e) => {
       attempt = 0;
       try {
         onState(JSON.parse(e.data));
       } catch { /* malformed frame */ }
     });
-    es.addEventListener('error', () => {
-      if (es.readyState !== CLOSED) return; // browser is retrying on its own
+    source.addEventListener('error', () => {
+      if (source.readyState !== CLOSED) return; // browser is retrying on its own
       const delay = Math.min(MAX_DELAY_MS, BASE_DELAY_MS * 2 ** attempt);
       attempt += 1;
       schedule(open, delay);

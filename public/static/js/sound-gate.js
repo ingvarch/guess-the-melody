@@ -7,9 +7,16 @@
 
 export function createSoundGate({ doc, audio, getWaveform = () => null }) {
   const overlay = doc.getElementById('sound-gate');
+  const msgEl = doc.getElementById('sound-gate-message');
+  const defaultMsg = msgEl?.textContent ?? '';
 
   function show() { overlay?.removeAttribute('hidden'); }
-  function hide() { overlay?.setAttribute('hidden', ''); }
+  function hide() {
+    overlay?.setAttribute('hidden', '');
+    // A load-failure message must not outlive the failure: the next time the
+    // overlay surfaces it is about autoplay again.
+    if (msgEl) msgEl.textContent = defaultMsg;
+  }
 
   function waveformSuspended() {
     return getWaveform()?.suspended?.() ?? false;
@@ -48,8 +55,7 @@ export function createSoundGate({ doc, audio, getWaveform = () => null }) {
   overlay?.addEventListener('click', unlock);
 
   audio?.addEventListener('error', () => {
-    const msg = doc.getElementById('sound-gate-message');
-    if (msg) msg.textContent = 'Audio failed to load';
+    if (msgEl) msgEl.textContent = 'Audio failed to load';
     show();
   });
 
