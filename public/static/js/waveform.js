@@ -2,10 +2,10 @@
 // Falls back to CSS-only spin when AudioContext is unavailable.
 
 export function attachWaveform({ audioEl, canvas }) {
-  if (!canvas || !audioEl) return { stop: () => {} };
+  if (!canvas || !audioEl) return { stop: () => {}, suspended: () => false };
 
   const AudioContext = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContext) return { stop: () => {} };
+  if (!AudioContext) return { stop: () => {}, suspended: () => false };
 
   let ctx;
   let analyser;
@@ -22,13 +22,13 @@ export function attachWaveform({ audioEl, canvas }) {
     analyser.connect(ctx.destination);
   } catch {
     if (ctx && ctx.state !== 'closed') ctx.close().catch(() => {});
-    return { stop: () => {} };
+    return { stop: () => {}, suspended: () => false };
   }
 
   const bufferLength = analyser.frequencyBinCount;
   const dataArray = new Uint8Array(bufferLength);
   const c2d = canvas.getContext('2d');
-  if (!c2d) return { stop: () => {} };
+  if (!c2d) return { stop: () => {}, suspended: () => false };
 
   let running = true;
   const cx = canvas.width / 2;
@@ -90,5 +90,11 @@ export function attachWaveform({ audioEl, canvas }) {
     start();
   }
 
-  return { stop, start, resume };
+  // Suspended = the element's output is routed through a context the browser
+  // has not unlocked yet, so playback is silent even when play() resolves.
+  function suspended() {
+    return ctx.state === 'suspended';
+  }
+
+  return { stop, start, resume, suspended };
 }
