@@ -3,8 +3,9 @@
 // Anonymous viewers see the same controls; their POSTs will 403 against the
 // DO owner-cookie check. Acceptable for the MVP — the URL is unguessable.
 
-import { render, renderClock, runSpin, renderPlaybackControls } from './display-ui.js';
+import { render, renderClock, runSpin, renderPlaybackControls, shouldBeAudible } from './display-ui.js';
 import { connectStateStream } from './sse.js';
+import { createSoundGate } from './sound-gate.js';
 import {
   fetchGenres,
   fetchState,
@@ -57,6 +58,14 @@ function boot() {
   let waveformCtrl = null;
   let prevPhase = null;
 
+  // Owns starting audible playback: retried on every state frame and clock
+  // tick, so a blocked autoplay recovers as soon as the page gets a gesture.
+  const gate = createSoundGate({
+    doc: document,
+    audio: document.getElementById('audio'),
+    getWaveform: () => waveformCtrl,
+  });
+
   function onState() {
     render(document, view);
     // Expose phase to the inline visualiser so the bars react only while playing.
@@ -83,6 +92,7 @@ function boot() {
     }
 
     prevPhase = view.state.phase;
+    gate.sync(shouldBeAudible(view.state));
   }
 
   async function init() {
@@ -220,6 +230,7 @@ function boot() {
     renderClock(document, view.state);
     // Surface Reveal/Repeat the moment the 30s clip elapses, without a server msg.
     renderPlaybackControls(document, view.state);
+    gate.sync(shouldBeAudible(view.state));
   }, TICK_MS);
 }
 
