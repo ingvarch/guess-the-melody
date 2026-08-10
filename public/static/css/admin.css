@@ -1,5 +1,5 @@
-/* Admin — Sonic Pulse. Most styling is Tailwind utilities in admin.html and
- * the Catalogue tab inside host.html. This stylesheet holds rules tied to the
+/* Admin — Sonic Pulse. Most styling is Tailwind utilities in admin.html.
+ * This stylesheet holds rules tied to the
  * DOM that admin-ui.js emits (status badges, play/edit icon-button states) —
  * Tailwind can't be applied to JS-generated elements without changing
  * admin-ui.js. */
