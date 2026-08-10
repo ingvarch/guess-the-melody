@@ -13,6 +13,16 @@ function isClipEnded(state) {
   return audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC, state.audioPausedTimestamp) >= CLIP_DURATION_SEC;
 }
 
+// True while the shared state says the clip must be audible on this screen.
+// The sound gate polls this every tick; starting playback lives there, not in
+// the renderer, because play() needs autoplay-policy handling and retries.
+export function shouldBeAudible(state) {
+  return state.phase === 'playing'
+    && state.audioStartTimestamp !== null
+    && state.audioPausedTimestamp == null
+    && !isClipEnded(state);
+}
+
 const TEAM_ICONS = ['rocket_launch', 'electric_bolt', 'auto_awesome', 'texture', 'bolt', 'flare', 'whatshot', 'star'];
 const TEAM_COLORS = [
   { text: 'text-secondary', bar: 'bg-secondary glow-track-fill' },
@@ -264,10 +274,6 @@ function syncAudioDisplay(doc, state, sessionId) {
     const wantTime = audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC);
     if (Math.abs((audio.currentTime ?? 0) - wantTime) > 0.5) {
       try { audio.currentTime = wantTime; } catch { /* not seekable yet */ }
-    }
-    if (audio.paused) {
-      const p = audio.play();
-      if (p && typeof p.catch === 'function') p.catch(() => { /* user gesture required */ });
     }
   } else {
     // Idle, revealed, or explicitly paused: stop playback. A paused clip holds

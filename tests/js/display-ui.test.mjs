@@ -53,7 +53,7 @@ function makeState(overrides = {}) {
 }
 
 const mod = await import('../../public/static/js/display-ui.js');
-const { render, runSpin } = mod;
+const { render, runSpin, shouldBeAudible } = mod;
 
 const hidden = (doc, id) => doc.getElementById(id).hasAttribute('hidden');
 
@@ -291,4 +291,36 @@ test('audio src set only when changed', () => {
   const srcCalls = calls.filter((c) => c.name === 'src');
   assert.equal(srcCalls.length, 1);
   assert.ok(srcCalls[0].value.includes('tr1'));
+});
+
+test('shouldBeAudible: true only while playing, unpaused, clip not ended', () => {
+  assert.equal(shouldBeAudible(makeState({
+    phase: 'playing',
+    audioStartTimestamp: Date.now() - 5_000,
+  })), true);
+  assert.equal(shouldBeAudible(makeState({ phase: 'idle' })), false);
+  assert.equal(shouldBeAudible(makeState({
+    phase: 'playing',
+    audioStartTimestamp: Date.now() - 5_000,
+    audioPausedTimestamp: Date.now() - 1_000,
+  })), false);
+  assert.equal(shouldBeAudible(makeState({
+    phase: 'playing',
+    audioStartTimestamp: Date.now() - 31_000, // past the 30s clip
+  })), false);
+  assert.equal(shouldBeAudible(makeState({ phase: 'revealed' })), false);
+});
+
+test('render never calls audio.play directly (the sound gate owns starting)', () => {
+  const doc = makeDoc();
+  let plays = 0;
+  const audio = doc.getElementById('audio');
+  audio.play = () => { plays += 1; return Promise.resolve(); };
+  const state = makeState({
+    phase: 'playing',
+    currentTrack: { id: 'x', genre: 'rock' },
+    audioStartTimestamp: Date.now() - 5_000,
+  });
+  render(doc, { state, genres: [], sessionId: 's' });
+  assert.equal(plays, 0);
 });
