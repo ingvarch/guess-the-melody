@@ -21,6 +21,7 @@
 // would still be stopped at the DO boundary.
 
 import { handleAdmin } from './admin/handlers';
+import { serveR2Audio } from './audio-serve';
 import { countGenres, listGenres } from './catalog/genres';
 import { countTracks, getTrack } from './catalog/tracks';
 import { handleQr } from './qr';
@@ -155,6 +156,7 @@ async function proxyEvents(env: Env, sessionId: string): Promise<Response> {
 }
 
 async function serveTrack(
+  req: Request,
   env: Env,
   trackId: string,
 ): Promise<Response> {
@@ -162,18 +164,9 @@ async function serveTrack(
   if (track === null || track.r2_key === null) {
     return new Response('not found', { status: 404 });
   }
-  const obj = await env.AUDIO.get(track.r2_key);
-  if (obj === null) {
-    return new Response('not found', { status: 404 });
-  }
-  const headers: Record<string, string> = {
-    'Content-Type': 'audio/mpeg',
-    'Cache-Control': 'public, max-age=31536000, immutable',
-  };
-  if (typeof obj.size === 'number') {
-    headers['Content-Length'] = String(obj.size);
-  }
-  return new Response(obj.body, { status: 200, headers });
+  return serveR2Audio(req, env.AUDIO, track.r2_key, {
+    cacheControl: 'public, max-age=31536000, immutable',
+  });
 }
 
 // HTMLRewriter handler that appends the per-session meta tag into <head>.
@@ -235,7 +228,7 @@ async function handleSessionScoped(
   }
   const trackMatch = req.method === 'GET' ? TRACK_PATH_RE.exec(rest) : null;
   if (trackMatch && trackMatch[1]) {
-    return serveTrack(env, decodeURIComponent(trackMatch[1]));
+    return serveTrack(req, env, decodeURIComponent(trackMatch[1]));
   }
   if (req.method === 'GET' && (rest === '' || rest === '/')) {
     // The host console moved behind admin auth (/admin/console/<id>). A bare

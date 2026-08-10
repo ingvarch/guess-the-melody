@@ -194,6 +194,42 @@ describe('Worker router', () => {
     expect(Array.from(got)).toEqual(Array.from(payload));
   });
 
+  it('GET /s/<id>/api/track/<id>.mp3 serves the stored content type and honours Range', async () => {
+    const { sessionId } = await createSession();
+    const trackId = 'tr-router-range';
+    const key = `tracks/${trackId}.mp3`;
+    const payload = new Uint8Array([10, 11, 12, 13, 14, 15]);
+    await testEnv.AUDIO.put(key, payload, {
+      httpMetadata: { contentType: 'audio/mp4' },
+    });
+    await insertTrack(testEnv.CATALOG, {
+      id: trackId,
+      genre_slug: 'rock',
+      artist: 'A',
+      title: 'B',
+      year: 2001,
+      preview_url: 'https://example.com/p.m4a',
+      r2_key: key,
+      added_at: 1,
+    });
+
+    const full = await SELF.fetch(
+      `http://localhost/s/${sessionId}/api/track/${trackId}.mp3`,
+    );
+    expect(full.status).toBe(200);
+    expect(full.headers.get('Content-Type')).toBe('audio/mp4');
+    expect(full.headers.get('Accept-Ranges')).toBe('bytes');
+
+    const part = await SELF.fetch(
+      `http://localhost/s/${sessionId}/api/track/${trackId}.mp3`,
+      { headers: { Range: 'bytes=1-3' } },
+    );
+    expect(part.status).toBe(206);
+    expect(part.headers.get('Content-Range')).toBe(`bytes 1-3/${payload.byteLength}`);
+    const got = new Uint8Array(await part.arrayBuffer());
+    expect(Array.from(got)).toEqual([11, 12, 13]);
+  });
+
   it('GET /s/<id>/api/track/<missing>.mp3 returns 404 when the track row is missing', async () => {
     const { sessionId } = await createSession();
     const res = await SELF.fetch(
