@@ -84,6 +84,76 @@
             pointer-events: none;
             z-index: 50;
         }
+
+        /* Seek bar. Interactive during the playing phase: drag to any moment.
+           Thumb is finger-sized on touch, restrained on the projector.
+           touch-action keeps a drag from being stolen by page scrolling. */
+        #scrubber {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.18);
+            outline: none;
+            cursor: pointer;
+            touch-action: none;
+        }
+        #scrubber:disabled { cursor: default; opacity: 0.45; }
+        #scrubber::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #4cd7f6;
+            border: 3px solid rgba(10, 12, 18, 0.9);
+            box-shadow: 0 0 12px rgba(76, 215, 246, 0.55);
+            transition: transform 0.15s ease;
+        }
+        #scrubber::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #4cd7f6;
+            border: 3px solid rgba(10, 12, 18, 0.9);
+            box-shadow: 0 0 12px rgba(76, 215, 246, 0.55);
+        }
+        #scrubber:disabled::-webkit-slider-thumb { box-shadow: none; background: rgba(255, 255, 255, 0.35); }
+        #scrubber:disabled::-moz-range-thumb { box-shadow: none; background: rgba(255, 255, 255, 0.35); }
+        @media (hover: hover) {
+            #scrubber:not(:disabled):hover::-webkit-slider-thumb { transform: scale(1.15); }
+        }
+
+        /* Full-screen tap target while the browser blocks audible playback. */
+        .sound-gate {
+            position: fixed;
+            inset: 0;
+            z-index: 60;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 6vh;
+            background: rgba(0, 0, 0, 0.35);
+            cursor: pointer;
+        }
+        .sound-gate__pill {
+            display: flex;
+            align-items: center;
+            gap: 0.6em;
+            padding: 0.8em 1.6em;
+            border-radius: 999px;
+            background: rgba(20, 20, 28, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #fff;
+            font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+            animation: sound-gate-pulse 2s ease-in-out infinite;
+        }
+        @keyframes sound-gate-pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .sound-gate__pill { animation: none; }
+        }
     </style>
 <script id="tailwind-config">
         tailwind.config = {
@@ -203,8 +273,14 @@
 <h1 class="hidden sm:block absolute left-1/2 -translate-x-1/2 font-display-sm text-2xl md:text-display-sm tracking-tighter text-primary leading-none whitespace-nowrap">Guess The Melody</h1>
 <button id="endgame-btn" type="button" aria-label="Exit" title="Exit to home" class="material-symbols-outlined text-3xl md:text-4xl text-on-surface-variant hover:text-error transition-colors shrink-0">logout</button>
 </header>
+<!-- Failed host actions surface here instead of dying in the console. -->
+<p id="action-error" hidden class="fixed top-20 left-1/2 -translate-x-1/2 z-[70] max-w-[90vw] text-center px-5 py-3 rounded-xl bg-error-container text-on-error-container font-label-mono text-label-mono shadow-lg"></p>
 <!-- Main Content Stage -->
-<main class="relative z-10 min-h-screen flex flex-col items-center justify-center px-margin-mobile md:px-margin-desktop pt-24 md:pt-32 pb-56 md:pb-48">
+<!-- z-50 (above the z-40 scoreboard footer): on short viewports the playback
+     controls overlap the footer, and a child's z-index cannot beat the footer
+     from inside a lower stacking context — the whole stage must sit higher,
+     or the footer glass swallows the scrubber's pointer input. -->
+<main class="relative z-50 min-h-screen flex flex-col items-center justify-center px-margin-mobile md:px-margin-desktop pt-24 md:pt-32 pb-56 md:pb-48">
 <!-- Game State Indicator -->
 <div class="mb-4 md:mb-12 transition-all duration-1000 transform scale-100 opacity-100" id="game-state">
 <p id="phase-label" class="font-label-caps text-label-caps text-on-surface-variant text-center mb-4 tracking-[0.4em]">READY</p>
@@ -246,7 +322,7 @@
 <div class="flex justify-between font-label-mono text-[10px] text-on-surface-variant mb-2">
 <span id="time-readout" class="num">0:00 / 0:30</span>
 </div>
-<input id="scrubber" type="range" min="0" max="30" step="0.1" value="0" aria-label="Playback progress" disabled class="w-full accent-secondary pointer-events-none">
+<input id="scrubber" type="range" min="0" max="30" step="0.1" value="0" aria-label="Playback position, drag to seek" disabled class="w-full">
 </div>
 </div>
 <!-- Reveal button (shown when the clip ends). NEXT lives inside the reveal

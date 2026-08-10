@@ -4,7 +4,7 @@
 // Pure DOM — testable with happy-dom.
 
 import { mulberry32 } from './prng.js';
-import { audioCurrentTime } from './audio-sync.js';
+import { audioCurrentTime, formatClock } from './audio-sync.js';
 
 const CLIP_DURATION_SEC = 30;
 
@@ -39,13 +39,6 @@ function setHidden(el, hidden) {
   if (!el) return;
   if (hidden) el.setAttribute('hidden', '');
   else el.removeAttribute('hidden');
-}
-
-function fmtTime(sec) {
-  const safe = Math.max(0, Math.floor(sec));
-  const m = Math.floor(safe / 60);
-  const s = safe % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 function fmtScore(n) {
@@ -226,11 +219,33 @@ export function renderPlaybackControls(doc, state) {
     playBtn.setAttribute('aria-label', showPause ? 'Pause' : 'Play');
   }
 
-  setHidden(doc.getElementById('replay-btn'), !(playing && ended));
-  // Reveal becomes available at the clip's end OR as soon as the host pauses —
-  // someone guessed early, no reason to wait out the 30s.
+  // Replay and Reveal share the same decision points: the clip ran out, or
+  // the host paused (someone guessed early / wants to start the clip over).
+  setHidden(doc.getElementById('replay-btn'), !(playing && (ended || paused)));
   setHidden(doc.getElementById('reveal-btn'), !(playing && (ended || paused)));
   setHidden(doc.getElementById('next-btn'), !revealed);
+
+  // The scrubber accepts input for the whole playing phase (paused and
+  // time's-up included), so the host can jump anywhere inside the clip.
+  const scrubber = doc.getElementById('scrubber');
+  if (scrubber) scrubber.disabled = !playing;
+}
+
+// Failed host actions used to be swallowed (403s silently, everything else to
+// console.warn), so a display without the session's owner cookie looked alive
+// while every control did nothing. Say so instead.
+export function showActionError(doc, err) {
+  const el = doc.getElementById('action-error');
+  if (!el) return;
+  const msg = err instanceof Error ? err.message : String(err);
+  el.textContent = /\b403\b/.test(msg)
+    ? 'Read-only view — run the game from the host console'
+    : msg;
+  el.removeAttribute('hidden');
+}
+
+export function clearActionError(doc) {
+  doc.getElementById('action-error')?.setAttribute('hidden', '');
 }
 
 function genreName(genres, slug) {
@@ -298,9 +313,10 @@ export function renderClock(doc, state) {
   const scrubber = doc.getElementById('scrubber');
   const timeReadout = doc.getElementById('time-readout');
   const cur = audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC, state.audioPausedTimestamp);
-  if (scrubber) scrubber.value = String(cur);
+  // Mid-drag the thumb belongs to the user's finger, not the clock.
+  if (scrubber && scrubber.dataset.scrubbing === undefined) scrubber.value = String(cur);
   if (timeReadout) {
-    timeReadout.textContent = `${fmtTime(cur)} / ${fmtTime(CLIP_DURATION_SEC)}`;
+    timeReadout.textContent = `${formatClock(cur)} / ${formatClock(CLIP_DURATION_SEC)}`;
   }
 
   const audio = doc.getElementById('audio');

@@ -36,3 +36,57 @@ button, input, select, textarea { font: inherit; color: inherit; }
     transition-duration: 0.001ms !important;
   }
 }
+
+/* Seek bar. Interactive during the playing phase: drag to any moment.
+   Thumb is finger-sized on touch, restrained on the projector. */
+#scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  outline: none;
+  cursor: pointer;
+  touch-action: none;
+}
+
+#scrubber:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+#scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #4cd7f6;
+  border: 3px solid rgba(10, 12, 18, 0.9);
+  box-shadow: 0 0 12px rgba(76, 215, 246, 0.55);
+  transition: transform 0.15s ease;
+}
+
+#scrubber::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #4cd7f6;
+  border: 3px solid rgba(10, 12, 18, 0.9);
+  box-shadow: 0 0 12px rgba(76, 215, 246, 0.55);
+  transition: transform 0.15s ease;
+}
+
+#scrubber:disabled::-webkit-slider-thumb {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+#scrubber:disabled::-moz-range-thumb {
+  box-shadow: none;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+@media (hover: hover) {
+  #scrubber:not(:disabled):hover::-webkit-slider-thumb { transform: scale(1.15); }
+  #scrubber:not(:disabled):hover::-moz-range-thumb { transform: scale(1.15); }
+}

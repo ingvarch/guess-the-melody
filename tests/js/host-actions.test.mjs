@@ -13,6 +13,7 @@ const {
   spin,
   play,
   replay,
+  seek,
   award,
   reveal,
   next,
@@ -120,6 +121,12 @@ test('replay: posts { action: "replay" } with no payload (server stamps now)', a
   const { fetchFn, calls } = captureFetch();
   await replay(fetchFn, 's');
   assert.deepEqual(JSON.parse(calls[0].opts.body), { action: 'replay' });
+});
+
+test('seek: posts positionSec (server stamps now)', async () => {
+  const { fetchFn, calls } = captureFetch();
+  await seek(fetchFn, 's', 12.5);
+  assert.deepEqual(JSON.parse(calls[0].opts.body), { action: 'seek', positionSec: 12.5 });
 });
 
 test('award: posts award with teamId + points', async () => {

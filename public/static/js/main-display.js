@@ -3,7 +3,15 @@
 // Anonymous viewers see the same controls; their POSTs will 403 against the
 // DO owner-cookie check. Acceptable for the MVP — the URL is unguessable.
 
-import { render, renderClock, runSpin, renderPlaybackControls, shouldBeAudible } from './display-ui.js';
+import {
+  render,
+  renderClock,
+  runSpin,
+  renderPlaybackControls,
+  shouldBeAudible,
+  showActionError,
+  clearActionError,
+} from './display-ui.js';
 import { connectStateStream } from './sse.js';
 import { createSoundGate } from './sound-gate.js';
 import {
@@ -17,6 +25,7 @@ import {
   replay,
   pause,
   resume,
+  seek,
   award,
   reveal,
   next,
@@ -36,16 +45,12 @@ function teamId() {
   return 't_' + Math.random().toString(36).slice(2, 10);
 }
 
-function showError(msg) {
-  const mapped = DO_ERRORS[msg] ?? msg;
-  // Display has no dedicated error region; fall back to alert for non-403 errors.
-  // 403s from owner-cookie checks are swallowed in the catch sites below.
-  if (mapped) console.warn('display action error:', mapped);
-}
-
-function silentlyIgnore403(err) {
-  if (err instanceof Error && /\b403\b/.test(err.message)) return;
-  showError(err instanceof Error ? err.message : String(err));
+// Every failed host action is now visible on the page. A silent failure here
+// is indistinguishable from a broken feature — it cost hours of debugging.
+function reportActionError(err) {
+  const raw = err instanceof Error ? err.message : String(err);
+  const mapped = Object.entries(DO_ERRORS).find(([k]) => raw.includes(k))?.[1];
+  showActionError(document, mapped ? new Error(mapped) : err);
 }
 
 function boot() {
@@ -125,7 +130,7 @@ function boot() {
     spinBtn?.addEventListener('click', () => {
       // Empty value = "Surprise me (Auto)" → no genre; the server picks at random.
       const genre = document.getElementById('genre-select')?.value || null;
-      spin(fetch, sessionId, genre).catch(silentlyIgnore403);
+      spin(fetch, sessionId, genre).then(() => clearActionError(document), reportActionError);
     });
 
     const playBtn = document.getElementById('play-btn');
@@ -134,27 +139,44 @@ function boot() {
       // pause/resume during playback. The DO stamps the authoritative `now`.
       const st = view.state;
       if (st.phase === 'spinning') {
-        play(fetch, sessionId).catch(silentlyIgnore403);
+        play(fetch, sessionId).then(() => clearActionError(document), reportActionError);
       } else if (st.phase === 'playing') {
         const act = st.audioPausedTimestamp != null ? resume : pause;
-        act(fetch, sessionId).catch(silentlyIgnore403);
+        act(fetch, sessionId).then(() => clearActionError(document), reportActionError);
       }
     });
 
     const replayBtn = document.getElementById('replay-btn');
     replayBtn?.addEventListener('click', () => {
       // Re-stamp the start timestamp on the DO so every viewer restarts in sync.
-      replay(fetch, sessionId).catch(silentlyIgnore403);
+      replay(fetch, sessionId).then(() => clearActionError(document), reportActionError);
     });
+
+    // Scrubber: jump to any moment in the clip. While the finger is down the
+    // thumb belongs to the user (data-scrubbing stops the clock tick from
+    // fighting it); the POST goes out on release, and the DO restamps the
+    // start so every viewer lands on the same spot.
+    const scrubber = document.getElementById('scrubber');
+    const endScrub = () => { if (scrubber) delete scrubber.dataset.scrubbing; };
+    scrubber?.addEventListener('input', () => {
+      scrubber.dataset.scrubbing = '1';
+    });
+    scrubber?.addEventListener('change', () => {
+      endScrub();
+      seek(fetch, sessionId, Number(scrubber.value)).then(() => clearActionError(document), reportActionError);
+    });
+    // A cancelled drag (scroll steals the pointer) fires no change event;
+    // without this the clock would never move the thumb again.
+    scrubber?.addEventListener('pointercancel', endScrub);
 
     const revealBtn = document.getElementById('reveal-btn');
     revealBtn?.addEventListener('click', () => {
-      reveal(fetch, sessionId).catch(silentlyIgnore403);
+      reveal(fetch, sessionId).then(() => clearActionError(document), reportActionError);
     });
 
     const nextBtn = document.getElementById('next-btn');
     nextBtn?.addEventListener('click', () => {
-      next(fetch, sessionId).catch(silentlyIgnore403);
+      next(fetch, sessionId).then(() => clearActionError(document), reportActionError);
     });
 
     // Exit: leave the game and return to the landing page. The session keeps
@@ -173,7 +195,7 @@ function boot() {
       const id = btn.dataset.teamId;
       const points = Number(btn.dataset.points);
       if (!id || !(points === 1 || points === 2)) return;
-      award(fetch, sessionId, id, points).catch(silentlyIgnore403);
+      award(fetch, sessionId, id, points).then(() => clearActionError(document), reportActionError);
     });
 
     // Teams panel toggle.
@@ -195,7 +217,7 @@ function boot() {
       if (!name) return;
       addTeam(fetch, sessionId, teamId(), name)
         .then(() => { if (input) input.value = ''; })
-        .catch(silentlyIgnore403);
+        .then(() => clearActionError(document), reportActionError);
     });
 
     // Teams list rename/remove.
@@ -206,14 +228,14 @@ function boot() {
       const id = btn.dataset.teamId;
       if (!id) return;
       if (btn.dataset.action === 'remove') {
-        removeTeam(fetch, sessionId, id).catch(silentlyIgnore403);
+        removeTeam(fetch, sessionId, id).then(() => clearActionError(document), reportActionError);
       } else if (btn.dataset.action === 'rename') {
         const current = view.state.teams?.find((t) => t.id === id)?.name ?? '';
         const proposed = prompt('New team name', current);
         if (proposed === null) return;
         const trimmed = proposed.trim();
         if (!trimmed) return;
-        renameTeam(fetch, sessionId, id, trimmed).catch(silentlyIgnore403);
+        renameTeam(fetch, sessionId, id, trimmed).then(() => clearActionError(document), reportActionError);
       }
     });
   }

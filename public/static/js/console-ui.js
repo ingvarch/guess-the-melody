@@ -4,6 +4,10 @@
 // bar effect, and drives the full round — genre pick + Spin, a Play/Stop
 // (pause/resume) toggle, Reveal, and Next — so a phone can run the game alone.
 
+import { audioCurrentTime, formatClock } from './audio-sync.js';
+
+const CLIP_DURATION_SEC = 30;
+
 function setText(doc, id, value) {
   const el = doc.getElementById(id);
   if (el) el.textContent = value;
@@ -88,6 +92,32 @@ function renderScoreboard(doc, teams) {
   }
 }
 
+// Seek bar. This is the host's authoritative playback control: the console is
+// password-gated, so it works from any device, unlike the display's copy which
+// needs the session's owner cookie.
+function renderSeekRow(doc, state) {
+  const playing = state.phase === 'playing';
+  const hasClip = state.audioStartTimestamp != null;
+  setHidden(doc.getElementById('seek-row'), !(playing || (hasClip && state.phase === 'revealed')));
+  const scrubber = doc.getElementById('scrubber');
+  if (scrubber) scrubber.disabled = !playing;
+}
+
+// Position readout, refreshed on a tick (not just on state frames) so the bar
+// advances smoothly between SSE messages.
+export function renderClock(doc, state) {
+  const scrubber = doc.getElementById('scrubber');
+  const cur = audioCurrentTime(
+    Date.now(),
+    state.audioStartTimestamp ?? null,
+    CLIP_DURATION_SEC,
+    state.audioPausedTimestamp,
+  );
+  // Mid-drag the thumb belongs to the host's finger, not the clock.
+  if (scrubber && scrubber.dataset.scrubbing === undefined) scrubber.value = String(cur);
+  setText(doc, 'time-readout', `${formatClock(cur)} / ${formatClock(CLIP_DURATION_SEC)}`);
+}
+
 export function render(doc, { state, answer, genres = [] }) {
   setText(doc, 'console-phase', state.phase);
   setText(doc, 'console-genre', state.selectedGenre ?? '—');
@@ -104,6 +134,11 @@ export function render(doc, { state, answer, genres = [] }) {
   // once revealed. The DO is the final guard on every transition's validity.
   setHidden(doc.getElementById('idle-controls'), state.phase !== 'idle');
   renderPlayButton(doc, state);
+  // `replay` is only a valid transition from `playing`, so the restart control
+  // lives and dies with the running clip.
+  setHidden(doc.getElementById('replay-btn'), state.phase !== 'playing');
+  renderSeekRow(doc, state);
+  renderClock(doc, state);
   setHidden(doc.getElementById('reveal-btn'), state.phase !== 'playing');
   setHidden(doc.getElementById('next-btn'), state.phase !== 'revealed');
 }

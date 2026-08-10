@@ -434,6 +434,43 @@ describe('MelodyRoom DO', () => {
     expect(resumed.audioStartTimestamp as number).toBeGreaterThanOrEqual(startTs);
   });
 
+  it('seek restamps the start with the DO clock and 409s on a bad position', async () => {
+    await seedTrack({ id: 'tr-seek', genre_slug: 'rock' });
+    const stub = roomStub('session-seek');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    const hdr = { 'X-Owner-Token': 'x' };
+
+    await stub.fetch(`${BASE}/state`, {
+      method: 'POST', headers: hdr,
+      body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
+    });
+    const playRes = await stub.fetch(`${BASE}/state`, {
+      method: 'POST', headers: hdr,
+      body: JSON.stringify({ action: 'play' }),
+    });
+    const startTs = ((await playRes.json()) as RoomState).audioStartTimestamp as number;
+
+    // The client-supplied `now: 1` must be overwritten by the DO clock: a
+    // seek to 0 restamps the start, which can then only move forward.
+    const seekRes = await stub.fetch(`${BASE}/state`, {
+      method: 'POST', headers: hdr,
+      body: JSON.stringify({ action: 'seek', positionSec: 0, now: 1 }),
+    });
+    expect(seekRes.status).toBe(200);
+    const sought = (await seekRes.json()) as RoomState;
+    expect(sought.phase).toBe('playing');
+    expect(sought.audioStartTimestamp as number).toBeGreaterThanOrEqual(startTs);
+
+    const bad = await stub.fetch(`${BASE}/state`, {
+      method: 'POST', headers: hdr,
+      body: JSON.stringify({ action: 'seek', positionSec: 'x' }),
+    });
+    expect(bad.status).toBe(409);
+  });
+
   it('pause from idle returns 409 invalid transition', async () => {
     const stub = roomStub('session-pause-idle');
     await stub.fetch(`${BASE}/init`, {

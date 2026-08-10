@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
 
-const { render } = await import('../../public/static/js/console-ui.js');
+const { render, renderClock } = await import('../../public/static/js/console-ui.js');
 
 function makeDoc() {
   const win = new Window();
@@ -25,7 +25,12 @@ function makeDoc() {
     </div>
     <button id="play-btn" hidden><span class="material-symbols-outlined"></span><span class="play-btn__label"></span></button>
     <button id="reveal-btn" hidden></button>
+    <button id="replay-btn" hidden></button>
     <button id="next-btn" hidden></button>
+    <div id="seek-row" hidden>
+      <input id="scrubber" type="range" min="0" max="30" step="0.1" value="0" disabled>
+      <span id="time-readout"></span>
+    </div>
   `;
   return doc;
 }
@@ -161,4 +166,56 @@ test('render: scoreboard lists teams sorted by score desc', () => {
   assert.equal(doc.getElementById('console-rounds').textContent, '2');
   const names = Array.from(doc.querySelectorAll('#console-scoreboard .team__name')).map((n) => n.textContent);
   assert.deepEqual(names, ['Dogs', 'Cats']);
+});
+
+test('seek row: hidden unless a clip is loaded, enabled only while playing', () => {
+  const doc = makeDoc();
+  const row = () => doc.getElementById('seek-row').hasAttribute('hidden');
+  const scrub = () => doc.getElementById('scrubber').disabled;
+
+  render(doc, { state: st({ phase: 'idle' }), answer: null, genres: [] });
+  assert.ok(row(), 'hidden at idle');
+
+  render(doc, { state: st({ phase: 'playing', audioStartTimestamp: Date.now() - 5_000 }), answer: null, genres: [] });
+  assert.ok(!row(), 'shown while playing');
+  assert.ok(!scrub(), 'enabled while playing');
+
+  render(doc, { state: st({ phase: 'revealed', audioStartTimestamp: Date.now() - 5_000 }), answer: null, genres: [] });
+  assert.ok(scrub(), 'disabled once revealed');
+});
+
+test('renderClock: writes the elapsed position and readout, honouring pause', () => {
+  const doc = makeDoc();
+  const now = Date.now();
+
+  renderClock(doc, st({ phase: 'playing', audioStartTimestamp: now - 8_000 }));
+  assert.ok(Math.abs(Number(doc.getElementById('scrubber').value) - 8) < 0.5, 'follows the running clock');
+  assert.equal(doc.getElementById('time-readout').textContent, '0:08 / 0:30');
+
+  // Paused clips freeze at the pause instant, not the wall clock.
+  renderClock(doc, st({ phase: 'playing', audioStartTimestamp: now - 20_000, audioPausedTimestamp: now - 17_000 }));
+  assert.ok(Math.abs(Number(doc.getElementById('scrubber').value) - 3) < 0.2, 'frozen at the pause point');
+});
+
+test('renderClock: leaves the value alone mid-drag', () => {
+  const doc = makeDoc();
+  const s = doc.getElementById('scrubber');
+  s.value = '4';
+  s.dataset.scrubbing = '1';
+  renderClock(doc, st({ phase: 'playing', audioStartTimestamp: Date.now() - 12_000 }));
+  assert.equal(s.value, '4', 'drag wins over the clock');
+});
+
+test('replay button: offered whenever a clip is running, hidden otherwise', () => {
+  const doc = makeDoc();
+  const hidden = () => doc.getElementById('replay-btn').hasAttribute('hidden');
+
+  render(doc, { state: st({ phase: 'idle' }), answer: null, genres: [] });
+  assert.ok(hidden(), 'hidden at idle');
+
+  render(doc, { state: st({ phase: 'playing', audioStartTimestamp: Date.now() - 5_000 }), answer: null, genres: [] });
+  assert.ok(!hidden(), 'shown while playing');
+
+  render(doc, { state: st({ phase: 'revealed' }), answer: null, genres: [] });
+  assert.ok(hidden(), 'hidden once revealed (replay is invalid there)');
 });

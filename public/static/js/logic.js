@@ -6,6 +6,7 @@ const VALID_TRANSITIONS = {
   replay:  new Set(['playing']),
   pause:   new Set(['playing']),
   resume:  new Set(['playing']),
+  seek:    new Set(['playing']),
   reveal:  new Set(['playing']),
   next:    new Set(['playing', 'revealed']),
   award:   new Set(['playing', 'revealed']),
@@ -67,6 +68,19 @@ export function applyAction(state, payload) {
         audioStartTimestamp: state.audioStartTimestamp + pausedFor,
         audioPausedTimestamp: null,
       };
+    }
+
+    case 'seek': {
+      expectPhase('seek', state);
+      if (!Number.isFinite(payload.positionSec)) {
+        throw new Error('seek: positionSec must be a finite number');
+      }
+      // Seeks both ways. A paused clip keeps its frozen clock as the anchor, so
+      // repositioning while paused holds the pause at the new spot. Positions
+      // past the clip's length simply read as "ended" via audioCurrentTime.
+      const frozenNow = state.audioPausedTimestamp ?? payload.now;
+      const target = Math.max(0, payload.positionSec);
+      return { ...state, audioStartTimestamp: frozenNow - target * 1000 };
     }
 
     case 'reveal': {

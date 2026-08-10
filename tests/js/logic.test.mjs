@@ -166,6 +166,67 @@ test('play clears any stale pause timestamp', () => {
   assert.equal(out.audioPausedTimestamp, null);
 });
 
+test('replay from a paused clip restarts playing from zero', () => {
+  let s = applyAction(playingAt(1000), { action: 'pause', now: 6000 });
+  const out = applyAction(s, { action: 'replay', now: 9000 });
+  assert.equal(out.phase, 'playing');
+  assert.equal(out.audioStartTimestamp, 9000);
+  assert.equal(out.audioPausedTimestamp, null);
+});
+
+test('seek: rewinds a running clip by restamping the start', () => {
+  // Started at 1000, now 11000 = position 10s. Seek back to 4s.
+  const s = playingAt(1000);
+  const out = applyAction(s, { action: 'seek', positionSec: 4, now: 11000 });
+  assert.equal(out.phase, 'playing');
+  assert.equal(out.audioStartTimestamp, 7000);
+  assert.equal(out.audioPausedTimestamp, null);
+});
+
+test('seek: jumps forward as well as back', () => {
+  // Position is 10s; asking for 15s must move the clip ahead to 15s.
+  const s = playingAt(1000);
+  const out = applyAction(s, { action: 'seek', positionSec: 15, now: 11000 });
+  assert.equal(out.audioStartTimestamp, -4000);
+});
+
+test('seek: negative positions clamp to zero', () => {
+  const s = playingAt(1000);
+  const out = applyAction(s, { action: 'seek', positionSec: -5, now: 11000 });
+  assert.equal(out.audioStartTimestamp, 11000);
+});
+
+test('seek: while paused repositions but stays paused', () => {
+  // Paused at position 5s (1000 -> 6000). Seek back to 2s: the frozen clock
+  // (pausedAt - start) must now read 2s, and the pause must survive.
+  let s = applyAction(playingAt(1000), { action: 'pause', now: 6000 });
+  const out = applyAction(s, { action: 'seek', positionSec: 2, now: 9000 });
+  assert.equal(out.audioStartTimestamp, 4000);
+  assert.equal(out.audioPausedTimestamp, 6000);
+});
+
+test('seek: forward while paused repositions and stays paused', () => {
+  // Paused at 5s; jumping to 10s must hold the pause at the new position.
+  let s = applyAction(playingAt(1000), { action: 'pause', now: 6000 });
+  const out = applyAction(s, { action: 'seek', positionSec: 10, now: 9000 });
+  assert.equal(out.audioStartTimestamp, -4000);
+  assert.equal(out.audioPausedTimestamp, 6000);
+});
+
+test('seek: rejected outside playing', () => {
+  const idle = initialState();
+  assert.throws(() => applyAction(idle, { action: 'seek', positionSec: 1, now: 1 }));
+  const spinning = applyAction(idle, { action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 1 });
+  assert.throws(() => applyAction(spinning, { action: 'seek', positionSec: 1, now: 1 }));
+});
+
+test('seek: rejects a non-finite position', () => {
+  const s = playingAt(1000);
+  assert.throws(() => applyAction(s, { action: 'seek', now: 2000 }));
+  assert.throws(() => applyAction(s, { action: 'seek', positionSec: 'x', now: 2000 }));
+  assert.throws(() => applyAction(s, { action: 'seek', positionSec: NaN, now: 2000 }));
+});
+
 test('next from a paused clip clears the pause timestamp', () => {
   let s = applyAction(playingAt(1000), { action: 'pause', now: 6000 });
   const out = applyAction(s, { action: 'next' });

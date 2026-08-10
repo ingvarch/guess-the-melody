@@ -27,6 +27,9 @@ function makeDoc() {
       <p class="reveal-card__year"></p>
     </div>
     <audio id="audio" preload="auto"></audio>
+    <input id="scrubber" type="range" min="0" max="30" step="0.1" value="0" disabled>
+    <span id="time-readout"></span>
+    <p id="action-error" hidden></p>
   `;
   const audio = doc.getElementById('audio');
   if (audio) {
@@ -53,7 +56,7 @@ function makeState(overrides = {}) {
 }
 
 const mod = await import('../../public/static/js/display-ui.js');
-const { render, runSpin, shouldBeAudible } = mod;
+const { render, runSpin, renderClock, shouldBeAudible, showActionError, clearActionError } = mod;
 
 const hidden = (doc, id) => doc.getElementById(id).hasAttribute('hidden');
 
@@ -113,8 +116,8 @@ test('playing and paused: Play (resume) + Reveal shown so the host can reveal ea
   assert.equal(btn.querySelector('.material-symbols-outlined').textContent, 'play_arrow');
   // Pausing means someone guessed early -> let the host reveal without waiting.
   assert.ok(!hidden(doc, 'reveal-btn'), 'reveal shown while paused mid-clip');
-  // Replay stays clip-end-only (no point restarting a paused-mid clip).
-  assert.ok(hidden(doc, 'replay-btn'), 'replay hidden while paused mid-clip');
+  // Paused is a decision point: the host can also start the clip over.
+  assert.ok(!hidden(doc, 'replay-btn'), 'replay shown while paused mid-clip');
 });
 
 test('playing and clip ended: play/pause button is hidden', () => {
@@ -323,4 +326,60 @@ test('render never calls audio.play directly (the sound gate owns starting)', ()
   });
   render(doc, { state, genres: [], sessionId: 's' });
   assert.equal(plays, 0);
+});
+
+test('scrubber: enabled only while the clip phase is playing', () => {
+  const doc = makeDoc();
+  render(doc, { state: makeState({ phase: 'idle' }), genres: [], sessionId: 's' });
+  assert.ok(doc.getElementById('scrubber').disabled, 'disabled while idle');
+
+  const playing = makeState({
+    phase: 'playing',
+    currentTrack: { id: 'x', genre: 'rock' },
+    audioStartTimestamp: Date.now() - 5_000,
+  });
+  render(doc, { state: playing, genres: [], sessionId: 's' });
+  assert.ok(!doc.getElementById('scrubber').disabled, 'enabled while playing');
+
+  render(doc, { state: makeState({ phase: 'revealed' }), genres: [], sessionId: 's' });
+  assert.ok(doc.getElementById('scrubber').disabled, 'disabled after reveal');
+});
+
+test('renderClock: leaves the scrubber value alone mid-drag', () => {
+  const doc = makeDoc();
+  const scrub = doc.getElementById('scrubber');
+  const state = makeState({
+    phase: 'playing',
+    audioStartTimestamp: Date.now() - 10_000,
+  });
+
+  scrub.value = '3';
+  scrub.dataset.scrubbing = '1';
+  renderClock(doc, state);
+  assert.equal(scrub.value, '3', 'drag in progress: value untouched');
+
+  delete scrub.dataset.scrubbing;
+  renderClock(doc, state);
+  assert.ok(Math.abs(Number(scrub.value) - 10) < 1, 'drag released: value follows the clock');
+});
+
+test('showActionError: a 403 is explained, not swallowed', () => {
+  const doc = makeDoc();
+  showActionError(doc, new Error('action seek failed: 403 forbidden'));
+  const el = doc.getElementById('action-error');
+  assert.ok(!el.hasAttribute('hidden'), 'error surface becomes visible');
+  assert.match(el.textContent, /host console/i, 'tells the host where the controls live');
+});
+
+test('showActionError: other failures show the raw message', () => {
+  const doc = makeDoc();
+  showActionError(doc, new Error('action seek failed: 409 invalid transition'));
+  assert.match(doc.getElementById('action-error').textContent, /409/);
+});
+
+test('clearActionError: hides the surface again', () => {
+  const doc = makeDoc();
+  showActionError(doc, new Error('boom'));
+  clearActionError(doc);
+  assert.ok(doc.getElementById('action-error').hasAttribute('hidden'));
 });

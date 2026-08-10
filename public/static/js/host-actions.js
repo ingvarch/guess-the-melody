@@ -27,6 +27,7 @@ export const removeTeam = (f, s, id)                   => postAction(f, s, { act
 export const spin       = (f, s, selectedGenre = null) => postAction(f, s, selectedGenre ? { action: 'spin', selectedGenre } : { action: 'spin' });
 export const play       = (f, s)                       => postAction(f, s, { action: 'play', now: Date.now() });
 export const replay     = (f, s)                       => postAction(f, s, { action: 'replay' });
+export const seek       = (f, s, positionSec)          => postAction(f, s, { action: 'seek', positionSec });
 export const pause      = (f, s)                       => postAction(f, s, { action: 'pause' });
 export const resume     = (f, s)                       => postAction(f, s, { action: 'resume' });
 export const award      = (f, s, teamId, points)       => postAction(f, s, { action: 'award', teamId, points });

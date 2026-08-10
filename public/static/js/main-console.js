@@ -7,11 +7,12 @@
 // write to the DO by password — no owner cookie needed, so a phone can drive a
 // game started on a laptop.
 
-import { render } from './console-ui.js';
+import { render, renderClock } from './console-ui.js';
 import { connectStateStream } from './sse.js';
 
 const sessionId = document.querySelector('meta[name="session-id"]')?.content ?? '';
 const ANSWER_POLL_MS = 3000;
+const TICK_MS = 250;
 
 if (!sessionId) {
   document.body.textContent = 'no session id';
@@ -87,10 +88,24 @@ function boot() {
   });
   document.getElementById('reveal-btn')?.addEventListener('click', () => postAction({ action: 'reveal' }));
   document.getElementById('next-btn')?.addEventListener('click', () => postAction({ action: 'next' }));
+  document.getElementById('replay-btn')?.addEventListener('click', () => postAction({ action: 'replay' }));
+
+  // Seek. Authorised by the admin password like every other console action, so
+  // it works from any device — no session owner cookie involved.
+  const scrubber = document.getElementById('scrubber');
+  const endScrub = () => { if (scrubber) delete scrubber.dataset.scrubbing; };
+  scrubber?.addEventListener('input', () => { scrubber.dataset.scrubbing = '1'; });
+  scrubber?.addEventListener('change', () => {
+    endScrub();
+    postAction({ action: 'seek', positionSec: Number(scrubber.value) });
+  });
+  scrubber?.addEventListener('pointercancel', endScrub);
 
   paint();
   connectSse();
   void loadGenres();
   void refreshAnswer();
   setInterval(refreshAnswer, ANSWER_POLL_MS);
+  // Keeps the position readout moving between SSE frames.
+  setInterval(() => renderClock(document, view.state), TICK_MS);
 }
