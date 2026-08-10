@@ -1,19 +1,29 @@
 // Shared R2 audio serving. Correct Content-Type comes from the object's
-// stored httpMetadata; ETag and Accept-Ranges are required for browsers to
-// treat the endpoint as a seekable media source (Safari refuses media from
-// servers that ignore ranges — Range handling itself lands in Task 2).
+// stored httpMetadata; ETag, Accept-Ranges and 206 responses are required for
+// browsers to treat the endpoint as a seekable media source (Safari refuses
+// media from servers that ignore ranges).
+//
+// R2 range semantics, verified against workerd: passing the request Headers as
+// `range` makes R2 parse it and expose the resolved window as `obj.range`.
+// Suffix ranges arrive pre-resolved to offset/length. An out-of-bounds or
+// unparseable Range never throws — R2 falls back to the full extent, so there
+// is no 416 to surface without re-parsing the header ourselves.
 
 export interface ServeAudioOpts {
   cacheControl: string;
 }
 
 export async function serveR2Audio(
-  _req: Request,
+  req: Request,
   bucket: R2Bucket,
   key: string,
   opts: ServeAudioOpts,
 ): Promise<Response> {
-  const obj = await bucket.get(key);
+  const rangeHeader = req.headers.get('range');
+  const obj = await bucket.get(
+    key,
+    rangeHeader === null ? undefined : { range: req.headers },
+  );
   if (obj === null) return new Response('not found', { status: 404 });
 
   const headers = new Headers();
@@ -22,6 +32,28 @@ export async function serveR2Audio(
   headers.set('Cache-Control', opts.cacheControl);
   headers.set('Accept-Ranges', 'bytes');
   headers.set('ETag', obj.httpEtag);
+
+  const range = rangeHeader === null ? null : resolveRange(obj.range, obj.size);
+  if (range) {
+    headers.set('Content-Range', `bytes ${range.start}-${range.end}/${obj.size}`);
+    headers.set('Content-Length', String(range.end - range.start + 1));
+    return new Response(obj.body, { status: 206, headers });
+  }
   headers.set('Content-Length', String(obj.size));
   return new Response(obj.body, { status: 200, headers });
+}
+
+// R2 resolves the parsed Range header into obj.range; turn it back into
+// absolute bounds for the Content-Range header.
+function resolveRange(
+  r: R2Range | undefined,
+  size: number,
+): { start: number; end: number } | null {
+  if (!r) return null;
+  if ('suffix' in r && r.suffix !== undefined) {
+    return { start: Math.max(0, size - r.suffix), end: size - 1 };
+  }
+  const offset = 'offset' in r && r.offset !== undefined ? r.offset : 0;
+  const length = 'length' in r && r.length !== undefined ? r.length : size - offset;
+  return { start: offset, end: offset + length - 1 };
 }

@@ -53,4 +53,58 @@ describe('serveR2Audio', () => {
     });
     expect(res.status).toBe(404);
   });
+
+  it('answers a bytes range with 206 and Content-Range', async () => {
+    await put('audio/mpeg');
+    const res = await serveR2Audio(req({ Range: 'bytes=2-5' }), testEnv.AUDIO, KEY, {
+      cacheControl: 'public, max-age=1',
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers.get('Content-Range')).toBe(`bytes 2-5/${BODY.byteLength}`);
+    expect(res.headers.get('Content-Length')).toBe('4');
+    const got = new Uint8Array(await res.arrayBuffer());
+    expect(Array.from(got)).toEqual([2, 3, 4, 5]);
+  });
+
+  it('answers an open-ended range with 206 to the end', async () => {
+    await put('audio/mpeg');
+    const res = await serveR2Audio(req({ Range: 'bytes=6-' }), testEnv.AUDIO, KEY, {
+      cacheControl: 'public, max-age=1',
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers.get('Content-Range')).toBe(`bytes 6-9/${BODY.byteLength}`);
+  });
+
+  it('answers a suffix range with 206', async () => {
+    await put('audio/mpeg');
+    const res = await serveR2Audio(req({ Range: 'bytes=-3' }), testEnv.AUDIO, KEY, {
+      cacheControl: 'public, max-age=1',
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers.get('Content-Range')).toBe(`bytes 7-9/${BODY.byteLength}`);
+  });
+
+  // Runtime contract, verified against workerd's R2: an out-of-bounds or
+  // unparseable Range is never an error — R2 ignores it and resolves to the
+  // full extent ({offset:0,length:size}). No 416 is reachable without
+  // re-parsing the header, so the helper serves what R2 resolved.
+  it('serves the full extent when the range is out of bounds', async () => {
+    await put('audio/mpeg');
+    const res = await serveR2Audio(req({ Range: 'bytes=100-200' }), testEnv.AUDIO, KEY, {
+      cacheControl: 'public, max-age=1',
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers.get('Content-Range')).toBe(`bytes 0-9/${BODY.byteLength}`);
+    const got = new Uint8Array(await res.arrayBuffer());
+    expect(Array.from(got)).toEqual(Array.from(BODY));
+  });
+
+  it('serves the full extent when the range header is unparseable', async () => {
+    await put('audio/mpeg');
+    const res = await serveR2Audio(req({ Range: 'bytes=garbage' }), testEnv.AUDIO, KEY, {
+      cacheControl: 'public, max-age=1',
+    });
+    expect(res.status).toBe(206);
+    expect(res.headers.get('Content-Range')).toBe(`bytes 0-9/${BODY.byteLength}`);
+  });
 });
