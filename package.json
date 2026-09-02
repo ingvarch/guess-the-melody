@@ -1,6 +1,7 @@
 {
   "name": "guess-the-melody",
   "private": true,
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
@@ -20,7 +21,7 @@
     "happy-dom": "^20.9.0",
     "typescript": "^5.6.0",
     "vitest": "^4.1.7",
-    "wrangler": "^4.95.0"
+    "wrangler": "^4.128.0"
   },
   "dependencies": {
     "qrcode-svg": "^1.1.0"

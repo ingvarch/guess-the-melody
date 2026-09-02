@@ -1,8 +1,34 @@
+# deps
 node_modules/
-.wrangler/
-.dev.vars
-.env
+
+# build / tooling caches
 dist/
+coverage/
+*.tsbuildinfo
+.wrangler/
+.playwright-mcp/
+
+# secrets & local env
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# local agent / editor state
+.claude/settings.local.json
+CLAUDE.local.md
+HANDOFF.md
+docs/plans/
+.idea/
+.vscode/
+
+# generated knowledge graph (contains absolute local paths)
+graphify-out/
+
+# logs & OS junk
 *.log
 .DS_Store
-.playwright-mcp/
+Thumbs.db

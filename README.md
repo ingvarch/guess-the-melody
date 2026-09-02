@@ -52,7 +52,12 @@ bun run deploy
 
 Before first deploy:
 
-1. Create the D1 database and R2 bucket (or use existing ones in `wrangler.toml`).
+1. Create the D1 database and R2 bucket, then copy the returned `database_id`
+   into the `[[d1_databases]]` block of `wrangler.toml`:
+   ```bash
+   wrangler d1 create guess-the-melody-catalog
+   wrangler r2 bucket create guess-the-melody-audio
+   ```
 2. Apply D1 migrations remotely:
    ```bash
    wrangler d1 migrations apply guess-the-melody-catalog --remote
@@ -144,5 +149,22 @@ still failed. Delete the `#done ` prefix to force a re-import of a line.
 ## Project docs
 
 - `CLAUDE.md` — detailed guidance for Claude Code (architecture, testing, conventions)
-- `HANDOFF.md` — implementation phases, open work, lessons learned
-- `docs/plans/` — design documents and roadmap (untracked, see `.gitignore`)
+
+## Disclaimer
+
+A hobby project, built for fun. Not affiliated with, endorsed by, or connected to
+Apple Inc., Apple Music, iTunes, or Spotify AB. All product names, logos, and
+trademarks are the property of their respective owners.
+
+This app hosts no music. It caches the 30-second preview clips returned by the
+public iTunes Search API, so a party game can replay them without hammering the
+upstream service. Spotify links are used only to resolve metadata (artist and
+title), which is then matched against iTunes — no Spotify audio is fetched or
+stored.
+
+You run your own instance, and you are responsible for complying with the terms
+of every service it talks to.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
