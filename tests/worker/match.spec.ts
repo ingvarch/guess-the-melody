@@ -153,3 +153,41 @@ describe('importer/match', () => {
     });
   });
 });
+
+describe('scoreMatch: artist must match when the query names one', () => {
+  const t = (artistName: string, trackName: string) => ({
+    trackId: 1,
+    artistName,
+    trackName,
+    releaseDate: '2020-01-01T00:00:00Z',
+    previewUrl: 'https://x/p.m4a',
+  });
+
+  it('rejects a title-only hit by an unrelated artist', () => {
+    // iTunes is full of cover bands and karaoke cuts carrying the exact title.
+    const q = { artist: 'Tate McRae', title: 'greedy' };
+    expect(scoreMatch(q, t('Julien Laurent', 'Greedy'))).toBeLessThan(50);
+  });
+
+  it('rejects a karaoke rendition credited to a karaoke label', () => {
+    const q = { artist: 'Полина Гагарина', title: 'Нет' };
+    expect(
+      scoreMatch(q, t('Univers Karaoké', 'Нет (Rendu célèbre par Полина Гагарина)')),
+    ).toBeLessThan(50);
+  });
+
+  it('still accepts the real artist', () => {
+    const q = { artist: 'Tate McRae', title: 'greedy' };
+    expect(scoreMatch(q, t('Tate McRae', 'greedy'))).toBe(100);
+  });
+
+  it('still accepts a collaboration credit that extends the artist', () => {
+    const q = { artist: 'Nino Rota', title: 'Love Theme' };
+    expect(scoreMatch(q, t('Nino Rota & Carlo Savina', 'Love Theme'))).toBeGreaterThanOrEqual(50);
+  });
+
+  it('keeps title-only matching for a query with no artist', () => {
+    const q = { artist: '', title: 'greedy' };
+    expect(scoreMatch(q, t('Julien Laurent', 'Greedy'))).toBeGreaterThanOrEqual(50);
+  });
+});

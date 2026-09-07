@@ -156,6 +156,20 @@ describe('importer/itunes', () => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
+    it('retries on 403 (Apple throttles with it) then succeeds', async () => {
+      const mockFetch = vi
+        .fn()
+        .mockResolvedValueOnce(new Response('forbidden', { status: 403 }))
+        .mockResolvedValueOnce(
+          jsonResponse({ resultCount: 1, results: [makeTrack({ trackId: 11 })] }),
+        );
+      vi.stubGlobal('fetch', mockFetch);
+
+      const out = await searchItunes({ term: 'foo' });
+      expect(out.map((t) => t.trackId)).toEqual([11]);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
     it('gives up after exhausting retries on repeated 429', async () => {
       const mockFetch = vi
         .fn()

@@ -1,0 +1,49 @@
+# Import-only config. Identical to wrangler.toml except that CATALOG (D1) and
+# AUDIO (R2) are marked `remote`, so `wrangler dev -c` runs the
+# Worker on this machine while both bindings proxy to production.
+#
+# Why: Apple 403s the iTunes Search API for requests leaving Cloudflare's
+# network, so the importer cannot run on the deployed Worker. Executing locally
+# puts the request on the operator's IP, which Apple serves normally.
+#
+# NEVER deploy with this file. Writes hit production data directly.
+
+name = "guess-the-melody"
+main = "src/index.ts"
+compatibility_date = "2026-05-01"
+
+[assets]
+directory = "public"
+binding = "ASSETS"
+html_handling = "auto-trailing-slash"
+run_worker_first = ["/api/*", "/s/*", "/admin/*"]
+
+[[durable_objects.bindings]]
+name = "MELODY_ROOM"
+class_name = "MelodyRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MelodyRoom"]
+
+[[d1_databases]]
+binding = "CATALOG"
+database_name = "guess-the-melody-catalog"
+database_id = "bac7c385-100c-4b39-9df9-0792133d0774"
+migrations_dir = "db/migrations"
+remote = true
+
+[[r2_buckets]]
+binding = "AUDIO"
+bucket_name = "guess-the-melody-audio"
+remote = true
+
+[[ratelimits]]
+name = "SESSION_RATE_LIMITER"
+namespace_id = "1001"
+simple = { limit = 60, period = 60 }
+
+# Daily sweep of the advisory sessions registry (deletes rows older than 24h).
+# Handled by the `scheduled` export in src/index.ts.
+[triggers]
+crons = ["0 4 * * *"]

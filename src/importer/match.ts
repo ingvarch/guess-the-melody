@@ -45,6 +45,12 @@ export function scoreMatch(q: TrackQuery, t: ItunesTrack): number {
   const titleSub = tt.includes(st) || st.includes(tt);
 
   if (artistSub && titleSub) return 80;
+
+  // A title-only hit is not a match when the query named an artist. iTunes
+  // carries cover bands, karaoke labels and lullaby renditions under the exact
+  // original title, and accepting those imports the wrong recording.
+  if (sa.length > 0 && !artistSub) return 0;
+
   if (artistSub || titleSub) return 50;
   return 0;
 }

@@ -50,11 +50,14 @@ export function parseItunesUrl(url: string): { trackId: number } | null {
   return { trackId: n };
 }
 
-// iTunes throttles ~20 req/min/IP and answers bursts with 429. Back off and
-// retry (honouring Retry-After) rather than failing the import. 503 too.
-const RETRY_STATUSES = new Set([429, 503]);
-const MAX_RETRIES = 4;
-const BASE_DELAY_MS = 500;
+// iTunes throttles ~20 req/min/IP. It answers bursts with 429, but a client
+// that has overrun the limit is put in a penalty box that answers 403 for
+// minutes — the same request succeeds again later, so 403 is a throttle
+// signal here, not a permanent refusal. Back off and retry all three
+// (honouring Retry-After) rather than failing the import.
+const RETRY_STATUSES = new Set([403, 429, 503]);
+const MAX_RETRIES = 6;
+const BASE_DELAY_MS = 2000;
 
 function retryDelayMs(res: Response, attempt: number): number {
   const ra = res.headers.get('retry-after');
