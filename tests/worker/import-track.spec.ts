@@ -90,6 +90,38 @@ describe('importer/import-track', () => {
     vi.unstubAllGlobals();
   });
 
+  it('reports per-phase timings on success', async () => {
+    vi.stubGlobal(
+      'fetch',
+      routedFetch([
+        {
+          match: (u) => u.includes('itunes.apple.com/lookup'),
+          respond: () => jsonResponse(itunesTrackJson),
+        },
+        {
+          match: (u) => u.includes('audio-ssl.itunes.apple.com/preview.m4a'),
+          respond: () => audioResponse(PREVIEW_PAYLOAD),
+        },
+      ]),
+    );
+
+    const out = await importTrack(testEnv, {
+      url: 'https://music.apple.com/us/album/sweet-child-o-mine/716135724?i=716135809',
+      genreSlug: 'rock',
+    });
+
+    expect('id' in out).toBe(true);
+    if ('id' in out) {
+      expect(out.timings).toBeDefined();
+      expect(typeof out.timings.itunesMs).toBe('number');
+      expect(typeof out.timings.r2Ms).toBe('number');
+      expect(typeof out.timings.dbMs).toBe('number');
+      expect(out.timings.itunesMs).toBeGreaterThanOrEqual(0);
+      expect(out.timings.r2Ms).toBeGreaterThanOrEqual(0);
+      expect(out.timings.dbMs).toBeGreaterThanOrEqual(0);
+    }
+  });
+
   it('imports an iTunes URL: D1 row written, R2 preview cached', async () => {
     vi.stubGlobal(
       'fetch',

@@ -17,12 +17,20 @@ export interface CliArgs {
   verbose?: boolean;
 }
 
+export interface ImportTimings {
+  itunesMs: number;
+  r2Ms: number;
+  dbMs: number;
+}
+
 export interface ImportSuccess {
   ok: true;
   id: string;
   artist: string;
   title: string;
   year: number;
+  // Absent when the worker predates the timings field.
+  timings?: ImportTimings;
 }
 
 export interface ImportFailure {
@@ -155,7 +163,7 @@ export async function runFile(
       continue;
     }
     const result = await importLine(c.text);
-    const d = describeResult(result);
+    const d = describeResult(result, c.text);
     const inDb = result.ok || result.code === 'duplicate';
     if (inDb) {
       log(d.level, result.ok ? d.body : `уже в базе: ${c.text}`);
@@ -171,22 +179,36 @@ export async function runFile(
 }
 
 // Log levels drive the coloured tag shown to the user.
-//   ok   → [OK]   green   — imported a new track
-//   skip → [SKIP] orange  — line already #done, no HTTP call
-//   dup  → [DUP]  orange  — track already in the catalogue
-//   err  → [ERR]  red     — genuine failure
+//   ok   → ✔ green   — imported a new track
+//   skip → ↷ orange  — line already #done, no HTTP call
+//   dup  → ⊘ orange  — track already in the catalogue
+//   err  → ✖ red     — genuine failure
 export type LogLevel = 'ok' | 'skip' | 'dup' | 'err';
 
-// Maps an import result to a level + a one-line human body (no timestamp/tag).
-export function describeResult(r: ImportResult): { level: LogLevel; body: string } {
-  if (r.ok) {
-    return { level: 'ok', body: `${r.id} ${r.artist} - ${r.title} (${r.year})` };
-  }
-  if (r.code === 'duplicate') return { level: 'dup', body: JSON.stringify(r.body) };
-  return { level: 'err', body: `${r.code} ${JSON.stringify(r.body)}` };
+// Indent of the breakdown line: past the "[HH:MM:SS] ✔ " prefix.
+const BREAKDOWN_INDENT = ' '.repeat(13);
+
+function breakdown(t: ImportTimings): string {
+  return `\n${BREAKDOWN_INDENT}└─ itunes ${t.itunesMs}ms · r2 ${t.r2Ms}ms · db ${t.dbMs}ms`;
 }
 
-const TAG: Record<LogLevel, string> = { ok: 'OK', skip: 'SKIP', dup: 'DUP', err: 'ERR' };
+// Maps an import result to a level + a human body (no timestamp/tag).
+// `text` is the source line. A failure has no artist/title to report, so
+// without it the log says what went wrong but not to which track.
+export function describeResult(
+  r: ImportResult,
+  text?: string,
+): { level: LogLevel; body: string } {
+  if (r.ok) {
+    const head = `${r.id} ${r.artist} - ${r.title} (${r.year})`;
+    return { level: 'ok', body: r.timings ? head + breakdown(r.timings) : head };
+  }
+  if (r.code === 'duplicate') return { level: 'dup', body: JSON.stringify(r.body) };
+  const where = text === undefined ? '' : `${text} — `;
+  return { level: 'err', body: `${where}${r.code} ${JSON.stringify(r.body)}` };
+}
+
+const TAG: Record<LogLevel, string> = { ok: '✔', skip: '↷', dup: '⊘', err: '✖' };
 // ANSI: green / orange (bright yellow) / red. Tag only — message stays default.
 const COLOR: Record<LogLevel, string> = { ok: '32', skip: '33', dup: '33', err: '31' };
 
@@ -195,12 +217,33 @@ export function nowHHMMSS(d: Date): string {
   return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
 }
 
+// Braille spinner: same cell width in every frame, so the line never jitters.
+export const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+export function spinnerFrame(tick: number): string {
+  return SPINNER_FRAMES[((tick % SPINNER_FRAMES.length) + SPINNER_FRAMES.length) %
+    SPINNER_FRAMES.length]!;
+}
+
+// The transient in-flight line, rewritten in place while the worker works.
+export function formatProgressLine(
+  text: string,
+  elapsedMs: number,
+  tick: number,
+  opts: { time: string; color: boolean },
+): string {
+  const frame = spinnerFrame(tick);
+  const painted = opts.color ? `\x1b[36m${frame}\x1b[0m` : frame;
+  const secs = (elapsedMs / 1000).toFixed(1);
+  return `[${opts.time}] ${painted} ${text}  ${secs}s`;
+}
+
 export function formatLogLine(
   level: LogLevel,
   message: string,
   opts: { time: string; color: boolean },
 ): string {
-  const tag = `[${TAG[level]}]`;
+  const tag = TAG[level];
   const painted = opts.color ? `\x1b[${COLOR[level]}m${tag}\x1b[0m` : tag;
   return `[${opts.time}] ${painted} ${message}`;
 }
@@ -256,8 +299,22 @@ export async function importOne(
   }
 
   if (res.status === 201 && parsed && typeof parsed === 'object' && 'id' in parsed) {
-    const p = parsed as { id: string; artist: string; title: string; year: number };
-    return { ok: true, id: p.id, artist: p.artist, title: p.title, year: p.year };
+    const p = parsed as {
+      id: string;
+      artist: string;
+      title: string;
+      year: number;
+      timings?: ImportTimings;
+    };
+    const out: ImportSuccess = {
+      ok: true,
+      id: p.id,
+      artist: p.artist,
+      title: p.title,
+      year: p.year,
+    };
+    if (p.timings) out.timings = p.timings;
+    return out;
   }
   const code =
     parsed && typeof parsed === 'object' && 'code' in parsed
@@ -298,12 +355,39 @@ export async function main(deps?: { fetchFn?: typeof fetch }): Promise<number> {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
     }
     pendingCalls += 1;
-    return importOne(fetchFn, baseUrl, password, args.genre, text, importOpts);
+    return spin(text, () =>
+      importOne(fetchFn, baseUrl, password, args.genre, text, importOpts),
+    );
   };
 
   // Colour only when stdout is a TTY; piped/redirected output stays plain.
   const color = process.stdout.isTTY === true;
   const verbose = args.verbose === true;
+
+  // Live progress goes to stderr so `… | tee log` keeps a clean result log and
+  // still shows the spinner. Skipped unless stderr is a TTY: the line is
+  // rewritten in place, which turns into thousands of junk lines in a file.
+  const spinner = process.stderr.isTTY === true;
+  const spin = async (text: string, run: () => Promise<ImportResult>): Promise<ImportResult> => {
+    if (!spinner) return run();
+    const started = Date.now();
+    let tick = 0;
+    const draw = () => {
+      const line = formatProgressLine(text, Date.now() - started, tick++, {
+        time: nowHHMMSS(new Date()),
+        color: true,
+      });
+      process.stderr.write(`\r\x1b[2K${line}`);
+    };
+    draw();
+    const timer = setInterval(draw, 100);
+    try {
+      return await run();
+    } finally {
+      clearInterval(timer);
+      process.stderr.write('\r\x1b[2K');
+    }
+  };
   const emit = (level: LogLevel, message: string) => {
     if (!shouldShow(level, verbose)) return;
     process.stdout.write(
@@ -330,7 +414,7 @@ export async function main(deps?: { fetchFn?: typeof fetch }): Promise<number> {
 
   for (const url of args.urls) {
     const result = await paced(url);
-    const d = describeResult(result);
+    const d = describeResult(result, url);
     emit(d.level, d.body);
     totals[d.level] += 1;
     const inDb = result.ok || result.code === 'duplicate';

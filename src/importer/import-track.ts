@@ -30,11 +30,20 @@ export type ImportError =
   | { code: 'duplicate'; message: string; existingId: string }
   | { code: 'unknown_genre'; message: string };
 
+// Wall-clock cost of each outbound phase, so the CLI can show where an import
+// spent its time (and which phase is slow when a batch drags).
+export interface ImportTimings {
+  itunesMs: number;
+  r2Ms: number;
+  dbMs: number;
+}
+
 export interface ImportSuccess {
   id: string;
   artist: string;
   title: string;
   year: number;
+  timings: ImportTimings;
 }
 
 // Provider-agnostic resolved track. itunesId is null for Spotify embed imports
@@ -203,12 +212,14 @@ export async function importTrack(
 
   // 2. Resolve URL → ResolvedTrack (or a typed error). Spotify URLs prefer the
   // embed preview and fall back to an iTunes match.
+  const itunesStart = Date.now();
   const resolved = await resolveTrack(env, {
     ...(opts.url !== undefined ? { url: opts.url } : {}),
     ...(opts.query !== undefined ? { query: opts.query } : {}),
     ...(opts.country !== undefined ? { country: opts.country } : {}),
     ...(opts.itunesIdOverride !== undefined ? { itunesIdOverride: opts.itunesIdOverride } : {}),
   });
+  const itunesMs = Date.now() - itunesStart;
   if (resolved.kind === 'err') return resolved.err;
   const t = resolved.track;
 
@@ -236,6 +247,7 @@ export async function importTrack(
   const id = randomUrlSafe(12);
 
   let r2Key: string;
+  const r2Start = Date.now();
   try {
     r2Key = await downloadPreviewToR2(env, { trackId: id, previewUrl: t.previewUrl });
   } catch (err) {
@@ -245,6 +257,9 @@ export async function importTrack(
     };
   }
 
+  const r2Ms = Date.now() - r2Start;
+
+  const dbStart = Date.now();
   try {
     await insertTrack(env.CATALOG, {
       id,
@@ -280,5 +295,11 @@ export async function importTrack(
     throw err;
   }
 
-  return { id, artist: t.artist, title: t.title, year: t.year };
+  return {
+    id,
+    artist: t.artist,
+    title: t.title,
+    year: t.year,
+    timings: { itunesMs, r2Ms, dbMs: Date.now() - dbStart },
+  };
 }

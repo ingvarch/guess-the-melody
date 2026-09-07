@@ -11,6 +11,9 @@ import {
   markDoneLine,
   runFile,
   importOne,
+  spinnerFrame,
+  SPINNER_FRAMES,
+  formatProgressLine,
 } from '../../src/cli/import.ts';
 
 test('parseArgs: --genre rock URL', () => {
@@ -201,22 +204,22 @@ test('nowHHMMSS: handles two-digit components', () => {
 });
 
 test('formatLogLine: plain (no color) has timestamp and bracketed tag', () => {
-  assert.equal(formatLogLine('ok', 'hello', { time: '12:00:00', color: false }), '[12:00:00] [OK] hello');
+  assert.equal(formatLogLine('ok', 'hello', { time: '12:00:00', color: false }), '[12:00:00] ✔ hello');
 });
 
 test('formatLogLine: color wraps the tag in green for ok', () => {
   const line = formatLogLine('ok', 'hi', { time: '12:00:00', color: true });
-  assert.match(line, /\x1b\[32m\[OK\]\x1b\[0m/);
+  assert.match(line, /\x1b\[32m✔\x1b\[0m/);
 });
 
 test('formatLogLine: skip tag is orange', () => {
   const line = formatLogLine('skip', 'x', { time: '00:00:00', color: true });
-  assert.match(line, /\x1b\[33m\[SKIP\]\x1b\[0m/);
+  assert.match(line, /\x1b\[33m↷\x1b\[0m/);
 });
 
 test('formatLogLine: err tag is red', () => {
   const line = formatLogLine('err', 'x', { time: '00:00:00', color: true });
-  assert.match(line, /\x1b\[31m\[ERR\]\x1b\[0m/);
+  assert.match(line, /\x1b\[31m✖\x1b\[0m/);
 });
 
 test('classifyLine: blank line', () => {
@@ -472,4 +475,75 @@ test('importOne: sends an http line as a url, not a query', async () => {
   await importOne(fetchFn, 'http://base', 'pw', 'rock', 'https://music.apple.com/x?i=1');
   assert.equal(captured.url, 'https://music.apple.com/x?i=1');
   assert.equal(captured.query, undefined);
+});
+
+test('describeResult: error body names the source line', () => {
+  const d = describeResult(
+    { ok: false, code: 'no_preview', body: { message: 'iTunes request failed: 403' } },
+    'Queen — Radio Ga Ga',
+  );
+  assert.equal(d.level, 'err');
+  assert.match(d.body, /Queen — Radio Ga Ga/);
+  assert.match(d.body, /no_preview/);
+  assert.match(d.body, /403/);
+});
+
+test('runFile: failure log names the track that failed', async () => {
+  const logs = [];
+  const importLine = async (text) =>
+    text === 'B — bad'
+      ? { ok: false, code: 'no_preview', body: { message: 'iTunes request failed: 403' } }
+      : { ok: true, id: 'i', artist: 'A', title: 'ok', year: 2000 };
+  const { failures } = await runFile(['A — ok', 'B — bad'], importLine, (_l, m) => logs.push(m));
+  assert.equal(failures, 1);
+  const err = logs.find((m) => m.includes('no_preview'));
+  assert.match(err, /B — bad/);
+});
+
+test('spinnerFrame: cycles braille frames and wraps', () => {
+  const a = spinnerFrame(0);
+  const b = spinnerFrame(1);
+  assert.notEqual(a, b);
+  assert.equal(spinnerFrame(0), spinnerFrame(SPINNER_FRAMES.length));
+  assert.equal(a.length, 1);
+});
+
+test('formatProgressLine: time, spinner, track, elapsed seconds', () => {
+  const s = formatProgressLine('David Bowie — Heroes', 2400, 0, {
+    time: '16:17:03',
+    color: false,
+  });
+  assert.match(s, /16:17:03/);
+  assert.match(s, /David Bowie — Heroes/);
+  assert.match(s, /2\.4s/);
+  assert.ok(s.includes(spinnerFrame(0)));
+});
+
+test('describeResult: success with timings adds a breakdown line', () => {
+  const d = describeResult({
+    ok: true,
+    id: 'abc',
+    artist: 'David Bowie',
+    title: 'Heroes',
+    year: 1977,
+    timings: { itunesMs: 890, r2Ms: 1210, dbMs: 45 },
+  });
+  assert.equal(d.level, 'ok');
+  assert.match(d.body, /itunes 890ms/);
+  assert.match(d.body, /r2 1210ms/);
+  assert.match(d.body, /db 45ms/);
+  assert.match(d.body, /└─/);
+});
+
+test('describeResult: success without timings has no breakdown line', () => {
+  const d = describeResult({ ok: true, id: 'abc', artist: 'Q', title: 'T', year: 1984 });
+  assert.ok(!d.body.includes('└─'));
+});
+
+test('formatLogLine: each level gets its own glyph', () => {
+  const at = (lvl) => formatLogLine(lvl, 'x', { time: '12:00:00', color: false });
+  assert.match(at('ok'), /✔/);
+  assert.match(at('err'), /✖/);
+  assert.match(at('dup'), /⊘/);
+  assert.match(at('skip'), /↷/);
 });
