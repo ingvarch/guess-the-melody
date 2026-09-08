@@ -27,8 +27,30 @@ export function parseQueryLine(line: string): TrackQuery {
   };
 }
 
+// Russian catalogues spell ё as е about as often as not ("Идём на восток" vs
+// iTunes' "Идем на восток!"), so fold it or the two never compare equal.
 function normalise(s: string): string {
-  return s.toLowerCase().trim();
+  return s.toLowerCase().replace(/ё/g, 'е').trim();
+}
+
+// "The Goo Goo Dolls" and "Goo Goo Dolls" are the same band.
+function stripLeadingThe(s: string): string {
+  return s.replace(/^the\s+/, '');
+}
+
+// A rendition of the right song is not the right recording. iTunes marks these
+// in the title; reject them unless the query asked for that rendition.
+const VERSION_MARKER =
+  /\b(live|remix|remaster(ed)?|acoustic|remake|karaoke|karaoké|cover|instrumental|unplugged|demo|reprise|sped up|slowed|edit|version|версия|ремикс|караоке|инструментал)\b/;
+
+// The queried artist must lead the credit, not trail it. iTunes credits tribute
+// acts and lullaby labels as "Celtic Pink Floyd" or "Sparrow Sleeps & The
+// Offspring" — the real name is in there, but the performer is someone else.
+function artistMatches(sa: string, ta: string): boolean {
+  const a = stripLeadingThe(sa);
+  const b = stripLeadingThe(ta);
+  if (a === b) return true;
+  return b.startsWith(a) || a.startsWith(b);
 }
 
 // Score in [0, 100]. 100 = both exact (case-insensitive). 80 = both substring.
@@ -41,18 +63,22 @@ export function scoreMatch(q: TrackQuery, t: ItunesTrack): number {
 
   if (sa === ta && st === tt) return 100;
 
-  const artistSub = ta.includes(sa) || sa.includes(ta);
+  // A rendition marker the query never asked for means a different recording.
+  if (VERSION_MARKER.test(tt) && !VERSION_MARKER.test(st)) return 0;
+
+  const artistSub = artistMatches(sa, ta);
   const titleSub = tt.includes(st) || st.includes(tt);
 
   if (artistSub && titleSub) return 80;
 
-  // A title-only hit is not a match when the query named an artist. iTunes
-  // carries cover bands, karaoke labels and lullaby renditions under the exact
-  // original title, and accepting those imports the wrong recording.
-  if (sa.length > 0 && !artistSub) return 0;
+  // One-sided hits are not matches when the query named an artist. A title-only
+  // hit imports a cover band, karaoke label or lullaby rendition of the right
+  // song; an artist-only hit imports the right performer singing a different
+  // song. Both were observed in production imports.
+  if (sa.length > 0) return 0;
 
-  if (artistSub || titleSub) return 50;
-  return 0;
+  // Title-only query (no artist given): the title is all there is to go on.
+  return titleSub ? 50 : 0;
 }
 
 // Searches iTunes for a free-text query and returns the highest-scoring

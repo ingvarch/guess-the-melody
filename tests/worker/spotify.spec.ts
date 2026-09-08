@@ -266,12 +266,12 @@ describe('importer/spotify', () => {
               itunesTrack({
                 trackId: 1,
                 artistName: 'The Beatles',
-                trackName: 'Yesterday (Remastered 2009)',
+                trackName: 'Yesterday',
               }),
               itunesTrack({
                 trackId: 2,
                 artistName: 'The Beatles',
-                trackName: 'Yesterday (Live)',
+                trackName: 'Yesterday ',
               }),
               itunesTrack({
                 trackId: 3,

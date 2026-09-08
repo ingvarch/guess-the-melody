@@ -191,3 +191,103 @@ describe('scoreMatch: artist must match when the query names one', () => {
     expect(scoreMatch(q, t('Julien Laurent', 'Greedy'))).toBeGreaterThanOrEqual(50);
   });
 });
+
+describe('scoreMatch: title must match too', () => {
+  const t = (artistName: string, trackName: string) => ({
+    trackId: 1,
+    artistName,
+    trackName,
+    releaseDate: '2020-01-01T00:00:00Z',
+    previewUrl: 'https://x/p.m4a',
+  });
+
+  it('rejects the right artist singing a different song', () => {
+    // Mirror of the cover-band hole: an artist-only hit imports the wrong track.
+    const q = { artist: 'Sabrina Carpenter', title: 'Please Please Please' };
+    expect(scoreMatch(q, t('Sabrina Carpenter', 'Skin'))).toBeLessThan(50);
+  });
+
+  it('rejects the right band with an unrelated title', () => {
+    const q = { artist: 'Ленинград', title: 'Экспонат' };
+    expect(scoreMatch(q, t('Ленинград', 'Самая любимая'))).toBeLessThan(50);
+  });
+
+  it('still accepts when both sides correspond', () => {
+    const q = { artist: 'Ленинград', title: 'Экспонат' };
+    expect(scoreMatch(q, t('Ленинград', 'Экспонат (feat. Х)'))).toBeGreaterThanOrEqual(50);
+  });
+});
+
+describe('scoreMatch: ё folds to е', () => {
+  const t = (artistName: string, trackName: string) => ({
+    trackId: 1,
+    artistName,
+    trackName,
+    releaseDate: '2020-01-01T00:00:00Z',
+    previewUrl: 'https://x/p.m4a',
+  });
+
+  it('matches a title iTunes spells with е where the query uses ё', () => {
+    const q = { artist: 'Nogu Svelo!', title: 'Идём на восток' };
+    expect(scoreMatch(q, t('Nogu Svelo!', 'Идем на восток!'))).toBeGreaterThanOrEqual(50);
+  });
+
+  it('folds ё in the artist too', () => {
+    const q = { artist: 'Пётр Налич', title: 'Гитара' };
+    expect(scoreMatch(q, t('Петр Налич', 'Гитара'))).toBeGreaterThanOrEqual(50);
+  });
+});
+
+describe('scoreMatch: version markers and impostor artists', () => {
+  const t = (artistName: string, trackName: string) => ({
+    trackId: 1,
+    artistName,
+    trackName,
+    releaseDate: '2020-01-01T00:00:00Z',
+    previewUrl: 'https://x/p.m4a',
+  });
+
+  it('rejects a live take when the query did not ask for one', () => {
+    const q = { artist: 'Jimi Hendrix', title: 'Hey Joe' };
+    expect(scoreMatch(q, t('Jimi Hendrix', 'Hey Joe (Live)'))).toBeLessThan(50);
+  });
+
+  it('rejects a remake, an acoustic cut and a remix', () => {
+    expect(
+      scoreMatch({ artist: 'София Ротару', title: 'Лаванда' }, t('София Ротару', 'Лаванда (Remake)')),
+    ).toBeLessThan(50);
+    expect(
+      scoreMatch({ artist: 'Три дня дождя', title: 'Демоны' }, t('Три дня дождя', 'Демоны (Acoustic Version)')),
+    ).toBeLessThan(50);
+    expect(
+      scoreMatch({ artist: 'Warren G', title: 'Regulate' }, t('Warren G', 'Regulate (Remix Version)')),
+    ).toBeLessThan(50);
+  });
+
+  it('keeps a live take when the query asks for one', () => {
+    const q = { artist: 'Jimi Hendrix', title: 'Hey Joe (Live)' };
+    expect(scoreMatch(q, t('Jimi Hendrix', 'Hey Joe (Live)'))).toBe(100);
+  });
+
+  it('rejects a tribute band whose name merely ends with the artist', () => {
+    const q = { artist: 'Pink Floyd', title: 'Wish You Were Here' };
+    expect(scoreMatch(q, t('Celtic Pink Floyd', 'Wish You Were Here'))).toBeLessThan(50);
+  });
+
+  it('rejects a lullaby label credited ahead of the real band', () => {
+    const q = { artist: 'The Offspring', title: 'Pretty Fly (For a White Guy)' };
+    expect(
+      scoreMatch(q, t('Sparrow Sleeps & The Offspring', 'Pretty Fly (For A White Guy)')),
+    ).toBeLessThan(50);
+  });
+
+  it('keeps a collaboration credited after the queried artist', () => {
+    const q = { artist: 'Nino Rota', title: 'Love Theme' };
+    expect(scoreMatch(q, t('Nino Rota & Carlo Savina', 'Love Theme'))).toBeGreaterThanOrEqual(50);
+  });
+
+  it('ignores a leading "The" on either side', () => {
+    const q = { artist: 'Goo Goo Dolls', title: 'Iris' };
+    expect(scoreMatch(q, t('The Goo Goo Dolls', 'Iris'))).toBeGreaterThanOrEqual(50);
+  });
+});

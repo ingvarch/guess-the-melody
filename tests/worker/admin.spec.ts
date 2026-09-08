@@ -848,14 +848,14 @@ describe('admin handlers', () => {
                 {
                   trackId: 1,
                   artistName: 'The Beatles',
-                  trackName: 'Yesterday (Remastered)',
+                  trackName: 'Yesterday (Anthology 1)',
                   releaseDate: '1965-08-06',
                   previewUrl: 'https://x.example/1.m4a',
                 },
                 {
                   trackId: 2,
                   artistName: 'The Beatles',
-                  trackName: 'Yesterday (Live)',
+                  trackName: 'Yesterday (Anthology 2)',
                   releaseDate: '1994-01-01',
                   previewUrl: 'https://x.example/2.m4a',
                 },
