@@ -120,6 +120,18 @@ function playingAt(start) {
   return applyAction(s, { action: 'play', now: start });
 }
 
+test('reveal: keeps the clip clock, running or paused', () => {
+  const track = { artist: 'A', title: 'T', year: 2020 };
+  const running = applyAction(playingAt(1000), { action: 'reveal', track });
+  assert.equal(running.audioStartTimestamp, 1000);
+  assert.equal(running.audioPausedTimestamp, null);
+
+  const paused = applyAction(playingAt(1000), { action: 'pause', now: 6000 });
+  const out = applyAction(paused, { action: 'reveal', track });
+  assert.equal(out.audioStartTimestamp, 1000);
+  assert.equal(out.audioPausedTimestamp, 6000);
+});
+
 test('pause: playing stores the pause timestamp, phase stays playing', () => {
   const s = playingAt(1000);
   const out = applyAction(s, { action: 'pause', now: 6000 });

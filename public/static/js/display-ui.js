@@ -8,8 +8,14 @@ import { audioCurrentTime, formatClock } from './audio-sync.js';
 
 const CLIP_DURATION_SEC = 30;
 
+// The clip outlives the reveal: revealing mid-play must not cut the music.
+function hasClip(state) {
+  return (state.phase === 'playing' || state.phase === 'revealed')
+    && state.audioStartTimestamp !== null;
+}
+
 function isClipEnded(state) {
-  if (state.phase !== 'playing' || state.audioStartTimestamp === null) return false;
+  if (!hasClip(state)) return false;
   return audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC, state.audioPausedTimestamp) >= CLIP_DURATION_SEC;
 }
 
@@ -17,8 +23,7 @@ function isClipEnded(state) {
 // The sound gate polls this every tick; starting playback lives there, not in
 // the renderer, because play() needs autoplay-policy handling and retries.
 export function shouldBeAudible(state) {
-  return state.phase === 'playing'
-    && state.audioStartTimestamp !== null
+  return hasClip(state)
     && state.audioPausedTimestamp == null
     && !isClipEnded(state);
 }
@@ -285,13 +290,13 @@ function syncAudioDisplay(doc, state, sessionId) {
   }
 
   const isPaused = state.audioPausedTimestamp != null;
-  if (state.phase === 'playing' && state.audioStartTimestamp !== null && !isPaused) {
+  if (hasClip(state) && !isPaused) {
     const wantTime = audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC);
     if (Math.abs((audio.currentTime ?? 0) - wantTime) > 0.5) {
       try { audio.currentTime = wantTime; } catch { /* not seekable yet */ }
     }
   } else {
-    // Idle, revealed, or explicitly paused: stop playback. A paused clip holds
+    // No clip, or explicitly paused: stop playback. A paused clip holds
     // its position so resume continues from the same spot.
     if (!audio.paused) audio.pause();
   }
@@ -320,7 +325,7 @@ export function renderClock(doc, state) {
   }
 
   const audio = doc.getElementById('audio');
-  if (audio && state.phase === 'playing' && state.audioStartTimestamp !== null) {
+  if (audio && hasClip(state)) {
     const wantTime = audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC, state.audioPausedTimestamp);
     if (Math.abs((audio.currentTime ?? 0) - wantTime) > 0.5) {
       try { audio.currentTime = wantTime; } catch { /* not seekable yet */ }

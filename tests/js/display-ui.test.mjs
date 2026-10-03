@@ -296,7 +296,7 @@ test('audio src set only when changed', () => {
   assert.ok(srcCalls[0].value.includes('tr1'));
 });
 
-test('shouldBeAudible: true only while playing, unpaused, clip not ended', () => {
+test('shouldBeAudible: true while playing, unpaused, clip not ended', () => {
   assert.equal(shouldBeAudible(makeState({
     phase: 'playing',
     audioStartTimestamp: Date.now() - 5_000,
@@ -312,6 +312,66 @@ test('shouldBeAudible: true only while playing, unpaused, clip not ended', () =>
     audioStartTimestamp: Date.now() - 31_000, // past the 30s clip
   })), false);
   assert.equal(shouldBeAudible(makeState({ phase: 'revealed' })), false);
+});
+
+test('shouldBeAudible: a clip revealed mid-play keeps sounding until it ends', () => {
+  assert.equal(shouldBeAudible(makeState({
+    phase: 'revealed',
+    audioStartTimestamp: Date.now() - 5_000,
+  })), true);
+  assert.equal(shouldBeAudible(makeState({
+    phase: 'revealed',
+    audioStartTimestamp: Date.now() - 5_000,
+    audioPausedTimestamp: Date.now() - 1_000,
+  })), false, 'paused before the reveal: stays silent');
+  assert.equal(shouldBeAudible(makeState({
+    phase: 'revealed',
+    audioStartTimestamp: Date.now() - 31_000,
+  })), false, 'clip already ran out');
+});
+
+function trackPauses(doc) {
+  const audio = doc.getElementById('audio');
+  const calls = { pauses: 0 };
+  audio.pause = () => { calls.pauses += 1; };
+  Object.defineProperty(audio, 'paused', { get() { return false; }, configurable: true });
+  return calls;
+}
+
+test('render: revealing mid-clip leaves the audio running', () => {
+  const doc = makeDoc();
+  const calls = trackPauses(doc);
+  const state = makeState({
+    phase: 'revealed',
+    currentTrack: { id: 'x', genre: 'rock' },
+    revealedTrack: { artist: 'A', title: 'T', year: 2000 },
+    audioStartTimestamp: Date.now() - 5_000,
+  });
+  render(doc, { state, genres: [], sessionId: 's' });
+  assert.equal(calls.pauses, 0);
+});
+
+test('render: a clip paused before the reveal stays paused', () => {
+  const doc = makeDoc();
+  const calls = trackPauses(doc);
+  const state = makeState({
+    phase: 'revealed',
+    currentTrack: { id: 'x', genre: 'rock' },
+    revealedTrack: { artist: 'A', title: 'T', year: 2000 },
+    audioStartTimestamp: Date.now() - 5_000,
+    audioPausedTimestamp: Date.now() - 1_000,
+  });
+  render(doc, { state, genres: [], sessionId: 's' });
+  assert.equal(calls.pauses, 1);
+});
+
+test('renderClock: keeps the audio aligned with the shared clock after the reveal', () => {
+  const doc = makeDoc();
+  const audio = doc.getElementById('audio');
+  let seeked = null;
+  Object.defineProperty(audio, 'currentTime', { get() { return 0; }, set(v) { seeked = v; }, configurable: true });
+  renderClock(doc, makeState({ phase: 'revealed', audioStartTimestamp: Date.now() - 5_000 }));
+  assert.ok(seeked !== null && Math.abs(seeked - 5) < 1, `seeked to ${seeked}`);
 });
 
 test('render never calls audio.play directly (the sound gate owns starting)', () => {
