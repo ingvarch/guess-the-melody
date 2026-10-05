@@ -544,6 +544,74 @@ describe('MelodyRoom DO', () => {
     expect(state.genrePicked).toBe(false);
   });
 
+  it('boosted auto spin lands on the favoured genre and still reads as random', async () => {
+    for (let i = 0; i < 20; i++) {
+      await seedTrack({ id: `tr-boost-rock-${i}`, genre_slug: 'rock', title: `Rock ${i}` });
+    }
+    await seedTrack({ id: 'tr-boost-hh', genre_slug: 'hip-hop', title: 'Hip' });
+    const stub = roomStub('session-spin-boost');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'spin', boostGenre: 'hip-hop', boostChance: 1 }),
+    });
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoomState;
+    expect(state.currentTrack!.id).toBe('tr-boost-hh');
+    expect(state.selectedGenre).toBe('hip-hop');
+    // The room must see an ordinary roulette, and the boost must stay out of
+    // the state broadcast to the public display.
+    expect(state.genrePicked).toBe(false);
+    expect(state).not.toHaveProperty('boostGenre');
+    expect(state).not.toHaveProperty('boostChance');
+  });
+
+  it('boosted spin falls back to the whole catalogue once the favoured genre runs dry', async () => {
+    await seedTrack({ id: 'tr-dry-rock', genre_slug: 'rock' });
+    const stub = roomStub('session-spin-boost-dry');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({ action: 'spin', boostGenre: 'hip-hop', boostChance: 1 }),
+    });
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoomState;
+    expect(state.currentTrack!.id).toBe('tr-dry-rock');
+    expect(state.genrePicked).toBe(false);
+  });
+
+  it('an explicit genre beats the boost', async () => {
+    await seedTrack({ id: 'tr-explicit-rock', genre_slug: 'rock', title: 'Rock' });
+    await seedTrack({ id: 'tr-explicit-hh', genre_slug: 'hip-hop', title: 'Hip' });
+    const stub = roomStub('session-spin-boost-explicit');
+    await stub.fetch(`${BASE}/init`, {
+      method: 'POST',
+      body: JSON.stringify({ ownerToken: 'x' }),
+    });
+    const res = await stub.fetch(`${BASE}/state`, {
+      method: 'POST',
+      headers: { 'X-Owner-Token': 'x' },
+      body: JSON.stringify({
+        action: 'spin',
+        selectedGenre: 'rock',
+        boostGenre: 'hip-hop',
+        boostChance: 1,
+      }),
+    });
+    expect(res.status).toBe(200);
+    const state = (await res.json()) as RoomState;
+    expect(state.currentTrack!.id).toBe('tr-explicit-rock');
+    expect(state.genrePicked).toBe(true);
+  });
+
   it('reveal resolves track metadata from D1 (host posts no payload)', async () => {
     await seedTrack({
       id: 'tr-reveal',

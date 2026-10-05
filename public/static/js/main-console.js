@@ -7,7 +7,7 @@
 // write to the DO by password — no owner cookie needed, so a phone can drive a
 // game started on a laptop.
 
-import { render, renderClock } from './console-ui.js';
+import { render, renderClock, spinPayload } from './console-ui.js';
 import { connectStateStream } from './sse.js';
 
 const sessionId = document.querySelector('meta[name="session-id"]')?.content ?? '';
@@ -78,8 +78,7 @@ function boot() {
 
   document.getElementById('spin-btn')?.addEventListener('click', () => {
     // Empty value = Auto: omit selectedGenre so the DO picks a genre at random.
-    const genre = document.getElementById('genre-select')?.value || '';
-    postAction(genre ? { action: 'spin', selectedGenre: genre } : { action: 'spin' });
+    postAction(spinPayload(document));
   });
   document.getElementById('play-btn')?.addEventListener('click', (e) => {
     // Resolved by the renderer from live state: play | pause | resume.

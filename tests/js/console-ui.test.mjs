@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Window } from 'happy-dom';
 
-const { render, renderClock } = await import('../../public/static/js/console-ui.js');
+const { render, renderClock, spinPayload } = await import('../../public/static/js/console-ui.js');
 
 function makeDoc() {
   const win = new Window();
@@ -22,6 +22,13 @@ function makeDoc() {
     <div id="idle-controls" hidden>
       <select id="genre-select"></select>
       <button id="spin-btn"></button>
+      <select id="boost-select"></select>
+      <select id="boost-chance">
+        <option value="0.25">25%</option>
+        <option value="0.5" selected>50%</option>
+        <option value="0.75">75%</option>
+        <option value="1">100%</option>
+      </select>
     </div>
     <button id="play-btn" hidden><span class="material-symbols-outlined"></span><span class="play-btn__label"></span></button>
     <button id="reveal-btn" hidden></button>
@@ -107,6 +114,45 @@ test('render: genre select preserves the host selection across re-renders', () =
   doc.getElementById('genre-select').value = 'rock';
   render(doc, { state: st(), answer: null, genres: GENRES });
   assert.equal(doc.getElementById('genre-select').value, 'rock');
+});
+
+test('render: boost select offers Off plus every genre, preselecting Off', () => {
+  const doc = makeDoc();
+  render(doc, { state: st(), answer: null, genres: GENRES });
+  const opts = Array.from(doc.querySelectorAll('#boost-select option')).map((o) => o.value);
+  assert.deepEqual(opts, ['', 'russian-pop', 'rock']);
+  assert.equal(doc.querySelector('#boost-select option').textContent, 'Off');
+  assert.equal(doc.getElementById('boost-select').value, '');
+});
+
+test('render: boost select preserves the host choice across re-renders', () => {
+  const doc = makeDoc();
+  render(doc, { state: st(), answer: null, genres: GENRES });
+  doc.getElementById('boost-select').value = 'rock';
+  render(doc, { state: st(), answer: null, genres: GENRES });
+  assert.equal(doc.getElementById('boost-select').value, 'rock');
+});
+
+test('spinPayload: plain auto spin when no boost is set', () => {
+  const doc = makeDoc();
+  render(doc, { state: st(), answer: null, genres: GENRES });
+  assert.deepEqual(spinPayload(doc), { action: 'spin' });
+});
+
+test('spinPayload: auto spin carries the boosted genre and its chance', () => {
+  const doc = makeDoc();
+  render(doc, { state: st(), answer: null, genres: GENRES });
+  doc.getElementById('boost-select').value = 'rock';
+  doc.getElementById('boost-chance').value = '0.75';
+  assert.deepEqual(spinPayload(doc), { action: 'spin', boostGenre: 'rock', boostChance: 0.75 });
+});
+
+test('spinPayload: a chosen genre drops the boost', () => {
+  const doc = makeDoc();
+  render(doc, { state: st(), answer: null, genres: GENRES });
+  doc.getElementById('genre-select').value = 'russian-pop';
+  doc.getElementById('boost-select').value = 'rock';
+  assert.deepEqual(spinPayload(doc), { action: 'spin', selectedGenre: 'russian-pop' });
 });
 
 test('render: idle controls (genre + spin) show only at idle', () => {

@@ -9,6 +9,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { getTrack, pickRandomTrack } from './catalog/tracks';
 import { upsertSession } from './catalog/sessions';
+import { boostedGenre } from './spin-boost';
 import type { Env, RoomState } from './types';
 // applyAction is bundled by Wrangler at deploy and resolved by Vitest's
 // workers-pool. Re-implementing it here would split the source of truth.
@@ -189,7 +190,15 @@ export class MelodyRoom extends DurableObject<Env> {
         excludeIds: this.#state.playedTrackIds,
       };
       if (selectedGenre !== undefined) opts.genreSlug = selectedGenre;
-      const picked = await pickRandomTrack(this.env.CATALOG, opts);
+      // The host's explicit genre wins; the boost only steers auto spins. Once
+      // the favoured genre runs dry the spin falls back to the whole catalogue.
+      const boosted =
+        selectedGenre === undefined ? boostedGenre(payload, Math.random()) : undefined;
+      let picked =
+        boosted === undefined
+          ? null
+          : await pickRandomTrack(this.env.CATALOG, { ...opts, genreSlug: boosted });
+      picked ??= await pickRandomTrack(this.env.CATALOG, opts);
       if (picked === null) {
         throw new Error('no tracks available');
       }

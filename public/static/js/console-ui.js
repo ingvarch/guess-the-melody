@@ -29,16 +29,17 @@ function answerText(answer) {
   return `${artist} — ${title}${year ? ` (${year})` : ''}`;
 }
 
-function renderGenres(doc, genres, state) {
-  const select = doc.getElementById('genre-select');
-  if (!select) return;
+// Rebuilds a genre <select> behind an empty first option, keeping the host's
+// choice when that genre still exists.
+function fillGenreSelect(doc, id, emptyLabel, genres) {
+  const select = doc.getElementById(id);
+  if (!select) return null;
   const current = select.value;
   while (select.firstChild) select.removeChild(select.firstChild);
-  // Empty value = auto: the server picks a genre at random.
-  const auto = doc.createElement('option');
-  auto.value = '';
-  auto.textContent = 'Surprise me (Auto)';
-  select.append(auto);
+  const empty = doc.createElement('option');
+  empty.value = '';
+  empty.textContent = emptyLabel;
+  select.append(empty);
   for (const g of genres) {
     const opt = doc.createElement('option');
     opt.value = g.slug;
@@ -46,7 +47,30 @@ function renderGenres(doc, genres, state) {
     select.append(opt);
   }
   if (current && genres.some((g) => g.slug === current)) select.value = current;
-  select.disabled = state.phase !== 'idle';
+  return select;
+}
+
+function renderGenres(doc, genres, state) {
+  // Empty value = auto: the server picks a genre at random.
+  const select = fillGenreSelect(doc, 'genre-select', 'Surprise me (Auto)', genres);
+  if (select) select.disabled = state.phase !== 'idle';
+  // Empty value = no boost: auto spins stay purely random.
+  fillGenreSelect(doc, 'boost-select', 'Off', genres);
+}
+
+// Spin intent read from the idle controls. An auto spin (no genre chosen) may
+// carry a boost: the DO then favours that genre with the given chance while
+// the room still sees a random roulette.
+export function spinPayload(doc) {
+  const genre = doc.getElementById('genre-select')?.value || '';
+  if (genre) return { action: 'spin', selectedGenre: genre };
+  const boostGenre = doc.getElementById('boost-select')?.value || '';
+  if (!boostGenre) return { action: 'spin' };
+  return {
+    action: 'spin',
+    boostGenre,
+    boostChance: Number(doc.getElementById('boost-chance')?.value),
+  };
 }
 
 // Play button doubles as a stop (pause) / resume toggle once a clip runs:

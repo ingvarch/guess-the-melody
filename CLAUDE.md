@@ -157,6 +157,7 @@ guess-the-melody/
 │   ├── id.ts                      # random URL-safe id helper
 │   ├── qr.ts                      # QR code generation
 │   ├── audio-serve.ts             # shared R2 audio serving (Range, ETag, stored type)
+│   ├── spin-boost.ts              # host-private genre boost decision for auto spins
 │   ├── types.ts                   # shared Env interface + state shapes
 │   ├── catalog/
 │   │   ├── genres.ts              # D1 access layer for genres
@@ -232,6 +233,7 @@ guess-the-melody/
         ├── r2.spec.ts
         ├── audio-serve.spec.ts
         ├── audio-type.spec.ts
+        ├── spin-boost.spec.ts
         └── health.spec.ts
 ```
 
@@ -318,6 +320,7 @@ Pinned in `wrangler.toml`. To adopt a newer runtime feature, bump the date and u
 - Workers have a per-invocation CPU-ms limit. The game logic is fast; if a hot path ever grows, profile it, do not add a worker-level cap.
 - The `assets` binding refuses to serve files under `run_worker_first` patterns. Any path we want the Worker to own must match that list.
 - The owner cookie is scoped to the session path — a host opening two sessions in the same browser gets two independent cookies.
+- Auto spin picks a random track, so a genre's chance equals its share of the catalogue. The console's Boost select counters that: the favoured genre and its chance travel inside the spin POST (`boostGenre`, `boostChance`) and are never written to `RoomState`, which is broadcast to the public display. Only spins sent from the console carry a boost, and a console reload resets it to Off.
 - D1 `RANDOM()` is non-deterministic; `pickRandomTrack` uses it and may return different rows on repeated calls with the same `excludeIds`.
 - iTunes metadata fields (release date, artwork, preview URL) can be empty or malformed. The importer validates year bounds (1900..current+2) and falls back gracefully.
 - iTunes Search throttles ~20 req/min/IP and answers bursts with 429. `fetchItunes` retries on 429/503 with backoff (honouring `Retry-After`); the CLI also paces requests via `--delay` (default 500ms). A still-throttled query surfaces as a per-track `no_preview`, not a Worker 500.

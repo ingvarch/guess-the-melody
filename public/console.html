@@ -83,9 +83,22 @@
 <!-- Full round controls: pick a genre + Spin at idle, Play/Stop the clip, then Reveal + advance. -->
 <section class="space-y-3">
 <!-- Idle: choose a genre (or Auto) and spin. Compact row so mobile stays clean. -->
-<div id="idle-controls" hidden class="flex gap-3 items-stretch">
+<div id="idle-controls" hidden class="space-y-3">
+<div class="flex gap-3 items-stretch">
 <select id="genre-select" class="flex-1 min-w-0 rounded-xl bg-surface-container-low border border-outline-variant text-on-surface font-body-md text-body-md px-4 py-3"></select>
 <button id="spin-btn" type="button" class="shrink-0 inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-on-primary font-headline-lg text-headline-lg-mobile hover:scale-[1.02] active:scale-95 transition-all"><span class="material-symbols-outlined">casino</span>SPIN</button>
+</div>
+<!-- Boost: auto spins favour this genre with the chosen chance. Host-only; the room still sees a random roulette. -->
+<div class="flex gap-3 items-center">
+<label for="boost-select" class="shrink-0 font-label-caps text-label-caps text-on-surface-variant tracking-widest">BOOST</label>
+<select id="boost-select" class="flex-1 min-w-0 rounded-xl bg-surface-container-low border border-outline-variant text-on-surface font-body-md text-body-md px-4 py-3"></select>
+<select id="boost-chance" aria-label="Boost chance" class="shrink-0 rounded-xl bg-surface-container-low border border-outline-variant text-on-surface font-body-md text-body-md pl-4 pr-10 py-3">
+<option value="0.25">25%</option>
+<option value="0.5" selected>50%</option>
+<option value="0.75">75%</option>
+<option value="1">100%</option>
+</select>
+</div>
 </div>
 <div class="flex gap-3">
 <button id="play-btn" type="button" hidden class="flex-1 inline-flex items-center justify-center gap-2 py-4 rounded-xl bg-secondary text-on-secondary font-headline-lg text-headline-lg-mobile hover:scale-[1.02] active:scale-95 transition-all"><span class="material-symbols-outlined">play_arrow</span><span class="play-btn__label">PLAY</span></button>
