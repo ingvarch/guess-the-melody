@@ -8,6 +8,7 @@ import {
   renderClock,
   runSpin,
   renderPlaybackControls,
+  showGenreChoice,
   shouldBeAudible,
   showActionError,
   clearActionError,
@@ -32,6 +33,7 @@ import {
 } from './host-actions.js';
 import { attachWaveform } from './waveform.js';
 import { attachTurntable } from './turntable.js';
+import { attachLever } from './lever.js';
 
 const sessionId = document.querySelector('meta[name="session-id"]')?.content ?? '';
 const TICK_MS = 250;
@@ -60,7 +62,7 @@ function boot() {
     return;
   }
 
-  const view = { state: {}, genres: [], sessionId };
+  const view = { state: {}, genres: [], sessionId, picking: false };
   let waveformCtrl = null;
   let prevPhase = null;
 
@@ -78,10 +80,17 @@ function boot() {
   });
 
   function onState() {
+    // The jukebox stays up until its drum stops; only then the Play screen shows.
+    const spinStarted = prevPhase !== 'spinning' && view.state.phase === 'spinning';
+    if (spinStarted) view.picking = true;
     render(document, view);
 
-    if (prevPhase !== 'spinning' && view.state.phase === 'spinning') {
-      void runSpin(document, view.state, view.genres, { getPhase: () => view.state.phase });
+    if (spinStarted) {
+      void runSpin(document, view.state, view.genres, { getPhase: () => view.state.phase })
+        .finally(() => {
+          view.picking = false;
+          render(document, view);
+        });
     }
 
     if (view.state.phase === 'playing') {
@@ -131,12 +140,19 @@ function boot() {
   }
 
   function wireEvents() {
-    const spinBtn = document.getElementById('spin-btn');
-    spinBtn?.addEventListener('click', () => {
-      // Empty value = "Surprise me (Auto)" → no genre; the server picks at random.
-      const genre = document.getElementById('genre-select')?.value || null;
-      spin(fetch, sessionId, genre).then(() => clearActionError(document), reportActionError);
-    });
+    const genreSelect = document.getElementById('genre-select');
+    genreSelect?.addEventListener('change', () => showGenreChoice(document, view.genres));
+
+    const lever = document.getElementById('spin-btn');
+    if (lever) {
+      attachLever(lever, {
+        onPull: () => {
+          // Empty value = "Surprise me (Auto)" → no genre; the server picks at random.
+          const genre = genreSelect?.value || null;
+          spin(fetch, sessionId, genre).then(() => clearActionError(document), reportActionError);
+        },
+      });
+    }
 
     const playBtn = document.getElementById('play-btn');
     playBtn?.addEventListener('click', () => {
@@ -256,7 +272,7 @@ function boot() {
   setInterval(() => {
     renderClock(document, view.state);
     // Surface Reveal/Repeat the moment the 30s clip elapses, without a server msg.
-    renderPlaybackControls(document, view.state);
+    renderPlaybackControls(document, view.state, view.picking);
     gate.sync(shouldBeAudible(view.state));
     deck.set(shouldBeAudible(view.state));
   }, TICK_MS);

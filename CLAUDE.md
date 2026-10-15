@@ -191,7 +191,8 @@ guess-the-melody/
 │           ├── audio-sync.js      # audio time-sync helpers
 │           ├── waveform.js        # analyser ring around the turntable record
 │           ├── turntable.js       # record spin + tonearm cueing motion
-│           ├── genre-drum.js      # genre drum geometry for the spin overlay
+│           ├── genre-drum.js      # genre drum geometry for the jukebox window
+│           ├── lever.js           # jukebox lever: tap or drag down to spin
 │           ├── sse.js             # reconnecting EventSource wrapper
 │           ├── sound-gate.js      # autoplay gate + tap-for-sound overlay
 │           ├── host-actions.js    # game API wrappers
@@ -212,6 +213,7 @@ guess-the-melody/
     │   ├── waveform.test.mjs
     │   ├── turntable.test.mjs
     │   ├── genre-drum.test.mjs
+    │   ├── lever.test.mjs
     │   ├── sse.test.mjs
     │   ├── sound-gate.test.mjs
     │   ├── host-actions.test.mjs

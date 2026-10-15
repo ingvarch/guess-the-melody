@@ -13,13 +13,13 @@ function makeDoc() {
     <ul id="scoreboard-list"></ul>
     <p id="phase-label"></p>
     <h2 id="display-genre"></h2>
-    <div id="spin-card" hidden>
+    <div id="jukebox" hidden>
       <div id="genre-drum"><div data-drum-cylinder></div><div data-drum-cylinder></div></div>
-      <h3 id="spin-card-genre"></h3>
+      <select id="genre-select"></select>
+      <button id="spin-btn"></button>
+      <h3 id="jukebox-genre"></h3>
     </div>
     <div id="turntable" hidden></div>
-    <div id="idle-controls"></div>
-    <button id="spin-btn"></button>
     <div id="phase-controls" hidden></div>
     <button id="play-btn" hidden><span class="material-symbols-outlined">play_arrow</span></button>
     <button id="replay-btn" hidden></button>
@@ -60,7 +60,7 @@ function makeState(overrides = {}) {
 }
 
 const mod = await import('../../public/static/js/display-ui.js');
-const { render, runSpin, renderClock, shouldBeAudible, showActionError, clearActionError } = mod;
+const { render, runSpin, renderClock, renderPlaybackControls, showGenreChoice, shouldBeAudible, showActionError, clearActionError } = mod;
 
 function drumRowTexts(doc) {
   return [...doc.querySelectorAll('[data-drum-cylinder]')].map((c) => [...c.children].map((r) => r.textContent));
@@ -163,7 +163,7 @@ test('revealed: next shown, reveal + repeat hidden', () => {
   assert.ok(hidden(doc, 'replay-btn'), 'repeat hidden when revealed (replay invalid here)');
 });
 
-test('runSpin bails (and leaves the overlay hidden) when the round advances to playing mid-spin', async () => {
+test('runSpin bails when the round advances to playing mid-spin', async () => {
   const doc = makeDoc();
   doc.getElementById('display-genre').textContent = 'KEEP';
   const genres = [
@@ -171,21 +171,38 @@ test('runSpin bails (and leaves the overlay hidden) when the round advances to p
     { slug: 'pop', name: 'Pop' },
   ];
   const state = makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 3 });
-  // getPhase reports 'playing' immediately → runSpin must not touch the headline.
+  // getPhase reports 'playing' immediately → runSpin must not start at all.
   await runSpin(doc, state, genres, { durationMs: 60, settleMs: 10, getPhase: () => 'playing' });
   assert.equal(doc.getElementById('display-genre').textContent, 'KEEP');
-  assert.equal(doc.getElementById('spin-card').hasAttribute('hidden'), true, 'overlay hidden after bail');
+  assert.ok(!doc.getElementById('genre-drum').classList.contains('genre-drum--landed'));
 });
 
-test('render: spinning headline says "Picking Genre..." only for auto spin', () => {
+test('render: once the drum has stopped, the spinning screen names the genre', () => {
   const genres = [{ slug: 'russian-rock', name: 'Русский рок' }];
-  const auto = makeDoc();
-  render(auto, { state: makeState({ phase: 'spinning', selectedGenre: 'russian-rock', genrePicked: false }), genres, sessionId: 's' });
-  assert.equal(auto.getElementById('display-genre').textContent, 'Picking Genre...');
+  for (const genrePicked of [false, true]) {
+    const doc = makeDoc();
+    render(doc, { state: makeState({ phase: 'spinning', selectedGenre: 'russian-rock', genrePicked }), genres, sessionId: 's' });
+    assert.equal(doc.getElementById('display-genre').textContent, 'Русский рок');
+  }
+});
 
-  const picked = makeDoc();
-  render(picked, { state: makeState({ phase: 'spinning', selectedGenre: 'russian-rock', genrePicked: true }), genres, sessionId: 's' });
-  assert.equal(picked.getElementById('display-genre').textContent, 'Русский рок');
+test('render: while the drum picks, the headline is left to runSpin', () => {
+  const doc = makeDoc();
+  doc.getElementById('display-genre').textContent = 'KEEP';
+  const genres = [{ slug: 'pop', name: 'Pop' }];
+  render(doc, { state: makeState({ phase: 'spinning', selectedGenre: 'pop' }), genres, sessionId: 's', picking: true });
+  assert.equal(doc.getElementById('display-genre').textContent, 'KEEP');
+  assert.equal(doc.getElementById('phase-label').textContent, 'ROUND 1');
+});
+
+test('runSpin: the headline says "Picking Genre..." until the drum stops on the genre', async () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }];
+  const state = makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 7 });
+  const spinning = runSpin(doc, state, genres, { durationMs: 40, settleMs: 0 });
+  assert.equal(doc.getElementById('display-genre').textContent, 'Picking Genre...');
+  await spinning;
+  assert.equal(doc.getElementById('display-genre').textContent, 'Pop');
 });
 
 test('render: playing/revealed headline shows the genre name, not the slug', () => {
@@ -228,12 +245,11 @@ test('runSpin in genrePicked mode confirms the chosen genre without cycling', as
     confirmMs: 10,
     getPhase: () => 'spinning',
   });
-  assert.equal(doc.getElementById('spin-card-genre').textContent, 'Jazz');
+  assert.equal(doc.getElementById('jukebox-genre').textContent, 'Jazz');
   assert.equal(doc.getElementById('display-genre').textContent, 'Jazz');
-  assert.equal(doc.getElementById('spin-card').hasAttribute('hidden'), true, 'overlay closes when done');
 });
 
-test('runSpin animates the overlay, settles on the genre, then hides the overlay', async () => {
+test('runSpin spins the jukebox drum and names the genre it stops on', async () => {
   const doc = makeDoc();
   const genres = [
     { slug: 'rock', name: 'Rock' },
@@ -247,11 +263,40 @@ test('runSpin animates the overlay, settles on the genre, then hides the overlay
     currentTrack: { id: 'x', genre: 'pop' },
   });
   await runSpin(doc, state, genres, { durationMs: 60, settleMs: 10 });
-  // Final genre lands in the overlay card AND the underlying headline (so the
-  // normal spinning screen shows it once the overlay closes).
-  assert.equal(doc.getElementById('spin-card-genre').textContent, 'Pop');
+  // Screen readers hear the genre; the headline keeps it for the Play screen.
+  assert.equal(doc.getElementById('jukebox-genre').textContent, 'Pop');
   assert.equal(doc.getElementById('display-genre').textContent, 'Pop');
-  assert.equal(doc.getElementById('spin-card').hasAttribute('hidden'), true, 'overlay closes when done');
+});
+
+test('runSpin pulls the lever for everyone watching', async () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }];
+  const state = makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 7 });
+  await runSpin(doc, state, genres, { durationMs: 20, settleMs: 0 });
+  assert.ok(doc.getElementById('spin-btn').classList.contains('lever--pulling'));
+});
+
+test('runSpin starts from where the idle drum stands and still spins several turns', async () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }, { slug: 'jazz', name: 'Jazz' }];
+  const drum = doc.getElementById('genre-drum');
+  drum.style.setProperty('--spin', '1000deg');
+  const state = makeState({ phase: 'spinning', selectedGenre: 'jazz', spinSeed: 2 });
+  await runSpin(doc, state, genres, { durationMs: 20, settleMs: 0 });
+  const angle = parseFloat(drum.style.getPropertyValue('--spin'));
+  assert.ok(angle - 1000 >= 4 * 360, `turned only ${angle - 1000}deg`);
+  assert.equal(drumFrontGenre(doc), 'Jazz');
+});
+
+test('runSpin ends the hold on the genre as soon as the round moves on', async () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }];
+  const state = makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 7 });
+  const startedAt = Date.now();
+  const getPhase = () => (Date.now() - startedAt < 80 ? 'spinning' : 'playing');
+  // settleMs is far beyond the test timeout: only an early return lets this finish.
+  await runSpin(doc, state, genres, { durationMs: 20, settleMs: 100000, getPhase });
+  assert.equal(drumFrontGenre(doc), 'Pop');
 });
 
 test('runSpin builds the drum from the genre list and stops it on the picked genre', async () => {
@@ -262,7 +307,7 @@ test('runSpin builds the drum from the genre list and stops it on the picked gen
     { slug: 'jazz', name: 'Jazz' },
   ];
   const state = makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 7 });
-  // Two rounds on the same page: the overlay is reused, rows must not pile up.
+  // Two rounds on the same page: the drum is reused, rows must not pile up.
   await runSpin(doc, state, genres, { durationMs: 20, settleMs: 0 });
   await runSpin(doc, state, genres, { durationMs: 20, settleMs: 0 });
 
@@ -286,23 +331,26 @@ test('runSpin stops on the slug when the picked genre is missing from the list',
   assert.equal(doc.getElementById('display-genre').textContent, 'russian-rock');
 });
 
-test('runSpin in genrePicked mode shows the chosen genre on the drum without spinning', async () => {
+test('runSpin in genrePicked mode turns the drum the short way to the chosen genre', async () => {
   const doc = makeDoc();
   const genres = [
     { slug: 'rock', name: 'Rock' },
     { slug: 'pop', name: 'Pop' },
     { slug: 'jazz', name: 'Jazz' },
   ];
+  const drum = doc.getElementById('genre-drum');
+  drum.style.setProperty('--spin', '500deg');
   const state = makeState({ phase: 'spinning', selectedGenre: 'jazz', genrePicked: true, spinSeed: 7 });
   await runSpin(doc, state, genres, { durationMs: 100000, confirmMs: 10, getPhase: () => 'spinning' });
 
-  const drum = doc.getElementById('genre-drum');
   assert.equal(drumFrontGenre(doc), 'Jazz');
-  assert.equal(drum.style.transitionDuration, '0ms', 'no spin animation');
+  const [rows] = drumRowTexts(doc);
+  const turned = Math.abs(parseFloat(drum.style.getPropertyValue('--spin')) - 500);
+  assert.ok(turned <= (360 * genres.length) / rows.length / 2, `no fake draw: turned ${turned}deg`);
   assert.ok(drum.classList.contains('genre-drum--landed'));
 });
 
-test('runSpin stops early and closes the overlay when the round moves to playing mid-spin', async () => {
+test('runSpin stops early when the round moves to playing mid-spin', async () => {
   const doc = makeDoc();
   doc.getElementById('display-genre').textContent = 'KEEP';
   const genres = [
@@ -314,8 +362,8 @@ test('runSpin stops early and closes the overlay when the round moves to playing
   const getPhase = () => (Date.now() - startedAt < 50 ? 'spinning' : 'playing');
   // durationMs is far beyond the test timeout: only an early stop lets this finish.
   await runSpin(doc, state, genres, { durationMs: 100000, settleMs: 100000, getPhase });
-  assert.equal(doc.getElementById('display-genre').textContent, 'KEEP');
-  assert.equal(doc.getElementById('spin-card').hasAttribute('hidden'), true);
+  assert.notEqual(doc.getElementById('display-genre').textContent, 'Pop', 'no landing announced');
+  assert.ok(!doc.getElementById('genre-drum').classList.contains('genre-drum--landed'));
 });
 
 test('scoreboard renders teams in order', () => {
@@ -333,6 +381,82 @@ test('scoreboard renders teams in order', () => {
   assert.equal(items.length, 2);
   assert.ok(items[0].textContent.includes('Alpha'));
   assert.ok(items[0].querySelector('.scoreboard__score').textContent.includes('3'));
+});
+
+test('render: idle shows the jukebox, not the record or the playback panel', () => {
+  const doc = makeDoc();
+  render(doc, { state: makeState({ phase: 'idle' }), genres: [], sessionId: 's' });
+  assert.ok(!hidden(doc, 'jukebox'));
+  assert.ok(hidden(doc, 'turntable'));
+  assert.ok(hidden(doc, 'phase-controls'));
+  assert.equal(doc.getElementById('spin-btn').disabled, false);
+});
+
+test('render: while the drum picks a genre the jukebox stays up and the Play screen waits', () => {
+  const doc = makeDoc();
+  const state = makeState({ phase: 'spinning', selectedGenre: 'pop' });
+  render(doc, { state, genres: [], sessionId: 's', picking: true });
+  assert.ok(!hidden(doc, 'jukebox'));
+  assert.ok(hidden(doc, 'turntable'));
+  assert.ok(hidden(doc, 'phase-controls'));
+  assert.equal(doc.getElementById('spin-btn').disabled, true, 'no second pull mid-spin');
+
+  render(doc, { state, genres: [], sessionId: 's', picking: false });
+  assert.ok(hidden(doc, 'jukebox'));
+  assert.ok(!hidden(doc, 'turntable'));
+  assert.ok(!hidden(doc, 'phase-controls'));
+});
+
+test('renderPlaybackControls: the clock tick keeps the jukebox up while the drum picks', () => {
+  const doc = makeDoc();
+  const state = makeState({ phase: 'spinning', selectedGenre: 'pop' });
+  renderPlaybackControls(doc, state, true);
+  assert.ok(!hidden(doc, 'jukebox'));
+  assert.ok(hidden(doc, 'phase-controls'));
+  renderPlaybackControls(doc, state, false);
+  assert.ok(hidden(doc, 'jukebox'));
+  assert.ok(!hidden(doc, 'phase-controls'));
+});
+
+test('render: the idle drum carries the genres and drifts while the genre is left to chance', () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }];
+  render(doc, { state: makeState({ phase: 'idle' }), genres, sessionId: 's' });
+  const drum = doc.getElementById('genre-drum');
+  const [rows] = drumRowTexts(doc);
+  assert.ok(rows.length >= 20);
+  assert.ok(drum.classList.contains('genre-drum--idle'));
+  assert.ok(!drum.classList.contains('genre-drum--landed'));
+});
+
+test('showGenreChoice: picking a genre in the selector stops the drift and turns the drum to it', () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }, { slug: 'jazz', name: 'Jazz' }];
+  render(doc, { state: makeState({ phase: 'idle' }), genres, sessionId: 's' });
+  doc.getElementById('genre-select').value = 'jazz';
+  showGenreChoice(doc, genres);
+  const drum = doc.getElementById('genre-drum');
+  assert.equal(drumFrontGenre(doc), 'Jazz');
+  assert.ok(drum.classList.contains('genre-drum--landed'));
+  assert.ok(!drum.classList.contains('genre-drum--idle'));
+
+  doc.getElementById('genre-select').value = '';
+  showGenreChoice(doc, genres);
+  assert.ok(drum.classList.contains('genre-drum--idle'), 'back to Auto: drifting again');
+  assert.ok(!drum.classList.contains('genre-drum--landed'));
+});
+
+test('render: re-rendering at idle keeps the drum on the picked genre', () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }];
+  const view = { state: makeState({ phase: 'idle' }), genres, sessionId: 's' };
+  render(doc, view);
+  doc.getElementById('genre-select').value = 'pop';
+  showGenreChoice(doc, genres);
+  const angle = doc.getElementById('genre-drum').style.getPropertyValue('--spin');
+  render(doc, view);
+  assert.equal(doc.getElementById('genre-drum').style.getPropertyValue('--spin'), angle);
+  assert.equal(drumFrontGenre(doc), 'Pop');
 });
 
 test('render: the turntable stays hidden while idle and shows once a round starts', () => {

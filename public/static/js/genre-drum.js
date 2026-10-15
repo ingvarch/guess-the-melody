@@ -19,9 +19,17 @@ export function drumRadiusEm(rowCount, lineEm) {
   return lineEm / (2 * Math.sin(Math.PI / rowCount));
 }
 
-export function pickSpinTarget(genreIndex, genreCount, rowCount, prng) {
+// `from` is where the drum stands now; the spin starts from the next full turn.
+export function pickSpinTarget(genreIndex, genreCount, rowCount, prng, from = 0) {
   const copies = rowCount / genreCount;
   const row = genreIndex + genreCount * Math.floor(prng() * copies);
   const turns = MIN_SPIN_TURNS + Math.floor(prng() * 2);
-  return { row, angle: turns * 360 + rowAngle(row, rowCount) };
+  return { row, angle: Math.ceil(from / 360) * 360 + turns * 360 + rowAngle(row, rowCount) };
+}
+
+// The copy of the genre closest to `from`, so the drum turns the short way.
+export function nearestRowAngle(genreIndex, genreCount, rowCount, from) {
+  const period = (360 * genreCount) / rowCount;
+  const base = rowAngle(genreIndex, rowCount);
+  return base + Math.round((from - base) / period) * period;
 }

@@ -4,7 +4,8 @@
 // Pure DOM — testable with happy-dom.
 
 import { mulberry32 } from './prng.js';
-import { drumRows, rowAngle, drumRadiusEm, pickSpinTarget } from './genre-drum.js';
+import { drumRows, drumRadiusEm, pickSpinTarget, nearestRowAngle } from './genre-drum.js';
+import { pullLever } from './lever.js';
 import { audioCurrentTime, formatClock } from './audio-sync.js';
 
 const CLIP_DURATION_SEC = 30;
@@ -190,25 +191,26 @@ function renderGenres(doc, genres, state) {
 }
 
 // Time-aware control gating. Drives the launch workflow:
-//   spinning  -> PLAY appears (start the clip)
+//   idle      -> the jukebox (genre selector + lever)
+//   spinning  -> the jukebox while the drum picks (`picking`), then PLAY
 //   playing   -> only the visualiser; once the 30s clip ends, REVEAL + REPEAT
 //   revealed  -> NEXT  (REPEAT is unavailable: the `replay` transition in
 //                logic.js is only valid from `playing`)
 // Re-evaluated on every clock tick (not just state changes) so the clip-end
 // transition surfaces the buttons without waiting for a server message.
-export function renderPlaybackControls(doc, state) {
+export function renderPlaybackControls(doc, state, picking = false) {
   const idle = state.phase === 'idle';
   const playing = state.phase === 'playing';
   const revealed = state.phase === 'revealed';
   const ended = isClipEnded(state);
   const paused = state.audioPausedTimestamp != null;
 
-  setHidden(doc.getElementById('idle-controls'), !idle);
+  setHidden(doc.getElementById('jukebox'), !(idle || picking));
 
   const spin = doc.getElementById('spin-btn');
   if (spin) spin.disabled = !idle;
 
-  setHidden(doc.getElementById('phase-controls'), idle);
+  setHidden(doc.getElementById('phase-controls'), idle || picking);
 
   // The play button doubles as a pause/resume toggle once the clip is running:
   //   spinning            -> Play (start the clip)
@@ -259,7 +261,7 @@ function genreName(genres, slug) {
   return genres.find((g) => g.slug === slug)?.name ?? slug;
 }
 
-function renderPhaseLabel(doc, state, genres) {
+function renderPhaseLabel(doc, state, genres, picking) {
   const label = doc.getElementById('phase-label');
   const genre = doc.getElementById('display-genre');
   if (!label || !genre) return;
@@ -268,7 +270,8 @@ function renderPhaseLabel(doc, state, genres) {
     genre.textContent = 'Press SPIN to start';
   } else if (state.phase === 'spinning') {
     label.textContent = `ROUND ${state.playedTrackIds.length + 1}`;
-    genre.textContent = state.genrePicked ? genreName(genres, state.selectedGenre) : 'Picking Genre...';
+    // While the drum turns, runSpin owns the headline.
+    if (!picking) genre.textContent = genreName(genres, state.selectedGenre);
   } else if (state.phase === 'playing') {
     label.textContent = isClipEnded(state) ? "TIME'S UP" : 'NOW PLAYING';
     genre.textContent = genreName(genres, state.selectedGenre);
@@ -334,19 +337,20 @@ export function renderClock(doc, state) {
   }
 }
 
+// `view.picking` is true while the jukebox drum is still choosing the genre.
 export function render(doc, view) {
-  const { state, genres, sessionId } = view;
+  const { state, genres, sessionId, picking = false } = view;
 
   const codeEl = doc.getElementById('session-code');
   if (codeEl) codeEl.textContent = sessionId;
 
-  renderPhaseLabel(doc, state, genres ?? []);
+  renderPhaseLabel(doc, state, genres ?? [], picking);
   renderScoreboard(doc, state);
   renderTeamsList(doc, state);
   renderGenres(doc, genres ?? [], state);
-  renderPlaybackControls(doc, state);
-  // Idle has the round SPIN button; a record above it would be a second disc.
-  setHidden(doc.getElementById('turntable'), state.phase === 'idle');
+  if (state.phase === 'idle') showGenreChoice(doc, genres ?? []);
+  renderPlaybackControls(doc, state, picking);
+  setHidden(doc.getElementById('turntable'), state.phase === 'idle' || picking);
   renderRevealCard(doc, state);
 
   syncAudioDisplay(doc, state, sessionId);
@@ -359,11 +363,15 @@ function wait(ms) {
 
 // Line height of a drum row in em; the radius is sized so rows sit one line apart.
 const DRUM_LINE_EM = 1.2;
+const PICK_TURN_MS = 600;
 
 // Fills both drum layers (dim rows and the bright center band) with the
-// genre names and sizes the cylinder for that many rows.
+// genre names and sizes the cylinder for that many rows. Same names, no rebuild.
 function buildDrum(drum, names) {
   const rows = drumRows(names);
+  const key = names.join('\n');
+  if (drum.dataset.names === key) return rows.length;
+  drum.dataset.names = key;
   for (const cylinder of drum.querySelectorAll('[data-drum-cylinder]')) {
     clearChildren(cylinder);
     rows.forEach((name, i) => {
@@ -380,10 +388,42 @@ function buildDrum(drum, names) {
   return rows.length;
 }
 
+function drumAngle(drum) {
+  return parseFloat(drum.style.getPropertyValue('--spin')) || 0;
+}
+
 // CSS transitions --spin over `ms`; 0 jumps straight there.
 function turnDrum(drum, angle, ms) {
   drum.style.transitionDuration = `${ms}ms`;
   drum.style.setProperty('--spin', `${angle}deg`);
+}
+
+// The idle drift is a CSS animation of --drift on top of --spin. Folds it
+// into --spin and stops it, so the next turn starts where the rows are.
+function stopDrift(drum) {
+  if (!drum.classList.contains('genre-drum--idle')) return;
+  const style = drum.ownerDocument.defaultView.getComputedStyle(drum);
+  const drift = parseFloat(style.getPropertyValue('--drift')) || 0;
+  drum.classList.remove('genre-drum--idle');
+  turnDrum(drum, drumAngle(drum) + drift, 0);
+}
+
+// Idle jukebox: the drum drifts while the genre is left to chance and turns
+// to the genre picked in the selector.
+export function showGenreChoice(doc, genres) {
+  const drum = doc.getElementById('genre-drum');
+  if (!drum || genres.length === 0) return;
+  const rowCount = buildDrum(drum, genres.map((g) => g.name));
+  const index = genres.findIndex((g) => g.slug === doc.getElementById('genre-select')?.value);
+  if (index < 0) {
+    drum.classList.remove('genre-drum--landed');
+    drum.classList.add('genre-drum--idle');
+    return;
+  }
+  stopDrift(drum);
+  void drum.offsetWidth; // commit the start angle so the turn animates from it
+  turnDrum(drum, nearestRowAngle(index, genres.length, rowCount, drumAngle(drum)), PICK_TURN_MS);
+  drum.classList.add('genre-drum--landed');
 }
 
 // Resolves false as soon as keepGoing() turns false, true after `ms`.
@@ -396,15 +436,14 @@ async function waitWhile(ms, keepGoing) {
   return keepGoing();
 }
 
-// "Picking genre" drum: spins a cylinder of genre names and eases it to a stop
-// on the chosen one. Deterministic given spinSeed so every viewer sees the same
-// spin. Leaves the headline showing the selected genre's display name.
+// Pulls the jukebox lever and spins the drum to the chosen genre. The landing
+// row is the same for every viewer (spinSeed); the start is wherever the idle
+// drum stood. Leaves the headline showing the genre's display name.
 export async function runSpin(doc, state, genres, { durationMs = 8000, settleMs = 3000, confirmMs = 1000, getPhase } = {}) {
-  const overlay = doc.getElementById('spin-card');
   const drum = doc.getElementById('genre-drum');
-  const spinText = doc.getElementById('spin-card-genre');
+  const announcer = doc.getElementById('jukebox-genre');
   const headline = doc.getElementById('display-genre');
-  if (!drum || !spinText || state.phase !== 'spinning' || genres.length === 0) return;
+  if (!drum || state.phase !== 'spinning' || genres.length === 0) return;
 
   const names = genres.map((g) => g.name);
   let genreIndex = genres.findIndex((g) => g.slug === state.selectedGenre);
@@ -414,39 +453,35 @@ export async function runSpin(doc, state, genres, { durationMs = 8000, settleMs 
   // The captured `state` is replaced wholesale on each SSE frame, so check the
   // live phase via getPhase: if the round advances to playing mid-spin, bail.
   const stillSpinning = () => (getPhase ? getPhase() === 'spinning' : true);
-  const close = () => setHidden(overlay, true);
-  // Land on the chosen genre — on the drum and on the underlying headline, so
-  // the normal spinning screen shows it once the overlay closes.
   const land = () => {
     drum.classList.add('genre-drum--landed');
-    spinText.textContent = finalName;
+    if (announcer) announcer.textContent = finalName;
     if (headline) headline.textContent = finalName;
   };
 
+  if (!stillSpinning()) return;
+  pullLever(doc.getElementById('spin-btn'));
   const rowCount = buildDrum(drum, names);
+  stopDrift(drum);
   drum.classList.remove('genre-drum--landed');
-  spinText.textContent = '';
-  setHidden(overlay, false);
-  turnDrum(drum, 0, 0);
+  if (announcer) announcer.textContent = '';
   void drum.offsetWidth; // commit the start angle so the spin animates from it
 
-  // Host chose the genre: a random-looking spin would fake a draw. Show the
-  // chosen genre straight away.
+  // Host chose the genre: a random-looking spin would fake a draw. Turn the
+  // short way to it.
   if (state.genrePicked) {
-    if (!stillSpinning()) { close(); return; }
-    turnDrum(drum, rowAngle(genreIndex, rowCount), 0);
+    turnDrum(drum, nearestRowAngle(genreIndex, names.length, rowCount, drumAngle(drum)), PICK_TURN_MS);
     land();
-    await wait(confirmMs);
-    close();
+    await waitWhile(confirmMs, stillSpinning);
     return;
   }
 
-  const { angle } = pickSpinTarget(genreIndex, names.length, rowCount, mulberry32(state.spinSeed || 1));
+  if (headline) headline.textContent = 'Picking Genre...';
+  const { angle } = pickSpinTarget(genreIndex, names.length, rowCount, mulberry32(state.spinSeed || 1), drumAngle(drum));
   turnDrum(drum, angle, durationMs);
-  if (!(await waitWhile(durationMs, stillSpinning))) { close(); return; }
+  if (!(await waitWhile(durationMs, stillSpinning))) return;
   land();
 
-  // Hold briefly so players read the genre, then drop back to the Play screen.
-  await wait(settleMs);
-  close();
+  // Hold briefly so players read the genre, then the Play screen takes over.
+  await waitWhile(settleMs, stillSpinning);
 }

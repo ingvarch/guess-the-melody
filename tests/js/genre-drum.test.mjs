@@ -8,6 +8,7 @@ import {
   rowAngle,
   drumRadiusEm,
   pickSpinTarget,
+  nearestRowAngle,
 } from '../../public/static/js/genre-drum.js';
 
 test('drumRows: repeats the genres whole so the cylinder closes without a seam', () => {
@@ -57,4 +58,28 @@ test('pickSpinTarget: the same seed gives every viewer the same spin', () => {
   const a = pickSpinTarget(1, 6, 24, mulberry32(99));
   const b = pickSpinTarget(1, 6, 24, mulberry32(99));
   assert.deepEqual(a, b);
+});
+
+test('pickSpinTarget: a drum already turned elsewhere still spins several turns and lands on the genre', () => {
+  const names = ['Rock', 'Pop', 'Jazz'];
+  const rows = drumRows(names);
+  for (const from of [37, 359, 1234.5, 7200]) {
+    const { row, angle } = pickSpinTarget(1, names.length, rows.length, mulberry32(4), from);
+    assert.equal(rows[row], 'Pop');
+    assert.ok(angle - from >= MIN_SPIN_TURNS * 360, `from ${from}: only ${angle - from}deg`);
+    const rest = ((angle % 360) + 360) % 360;
+    assert.ok(Math.abs(rest - rowAngle(row, rows.length)) < 1e-9, `from ${from}: rests at ${rest}deg`);
+  }
+});
+
+test('nearestRowAngle: turns to the closest copy of the genre, forward or back', () => {
+  // 3 genres on 21 rows: each genre repeats every 7 copies, 51.43deg apart.
+  const rows = drumRows(['Rock', 'Pop', 'Jazz']);
+  const period = (360 * 3) / rows.length;
+  const front = (angle) => rows[Math.round((((angle % 360) + 360) % 360) / (360 / rows.length)) % rows.length];
+  for (const from of [0, 10, 200, -30, 1000]) {
+    const angle = nearestRowAngle(2, 3, rows.length, from);
+    assert.equal(front(angle), 'Jazz', `from ${from}`);
+    assert.ok(Math.abs(angle - from) <= period / 2 + 1e-9, `from ${from}: turned ${angle - from}deg`);
+  }
 });
