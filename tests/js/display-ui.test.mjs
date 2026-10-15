@@ -60,7 +60,7 @@ function makeState(overrides = {}) {
 }
 
 const mod = await import('../../public/static/js/display-ui.js');
-const { render, runSpin, renderClock, renderPlaybackControls, showGenreChoice, shouldBeAudible, deckMode, needleAt, paintProgress, showActionError, clearActionError } = mod;
+const { render, runSpin, renderClock, renderPlaybackControls, showGenreChoice, shouldBeAudible, deckMode, needleAt, paintProgress, reserveScoreboard, showActionError, clearActionError } = mod;
 
 function drumRowTexts(doc) {
   return [...doc.querySelectorAll('[data-drum-cylinder]')].map((c) => [...c.children].map((r) => r.textContent));
@@ -746,4 +746,18 @@ test('runSpin: the spin sound stops when the round moves on mid-spin', async () 
   const getPhase = () => (Date.now() - startedAt < 50 ? 'spinning' : 'playing');
   await runSpin(doc, makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 3 }), genres, { durationMs: 100000, settleMs: 100000, getPhase, sound });
   assert.equal(sound.calls[0].stopped, true);
+});
+
+test('reserveScoreboard: the stage keeps clear of the scoreboard, exactly as tall as it is now', () => {
+  const doc = makeDoc();
+  const board = doc.createElement('footer');
+  board.id = 'scoreboard';
+  doc.body.append(board);
+  let height = 33;
+  board.getBoundingClientRect = () => ({ height });
+  reserveScoreboard(doc);
+  assert.equal(doc.documentElement.style.getPropertyValue('--scoreboard-h'), '33px', 'no teams yet: a thin strip');
+  height = 166;
+  reserveScoreboard(doc);
+  assert.equal(doc.documentElement.style.getPropertyValue('--scoreboard-h'), '166px', 'four teams');
 });

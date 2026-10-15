@@ -333,6 +333,15 @@ function renderRevealCard(doc, state) {
   }
 }
 
+// The scoreboard is fixed over the bottom of the page and grows with the
+// teams; the stage reserves exactly its height (--scoreboard-h), so the
+// jukebox and the record take whatever is left.
+export function reserveScoreboard(doc) {
+  const board = doc.getElementById('scoreboard');
+  if (!board) return;
+  doc.documentElement.style.setProperty('--scoreboard-h', `${Math.ceil(board.getBoundingClientRect().height)}px`);
+}
+
 // Lights the ring around the record up to the scrubber's position.
 export function paintProgress(doc) {
   const scrubber = doc.getElementById('scrubber');

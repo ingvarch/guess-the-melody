@@ -128,6 +128,9 @@
             width: var(--jb);
             aspect-ratio: 200 / 272;
         }
+        /* The stage stops above the scoreboard: display-ui measures its height
+           into --scoreboard-h as teams come and go. */
+        .stage { padding-bottom: calc(var(--scoreboard-h, 12rem) + 1.25rem); }
         /* Light the cabinet throws on the wall behind it. */
         .jukebox__body::before {
             content: "";
@@ -206,6 +209,16 @@
             opacity: 0;
             animation: jukebox-note 7s ease-in-out var(--d) infinite;
             pointer-events: none;
+        }
+        .jukebox__note--pink { --x: -26%; --y: 13.4%; --c: #f751a1; --d: 0s; }
+        .jukebox__note--cyan { --x: 104%; --y: 0%; --c: #4cd7f6; --d: 2.3s; }
+        .jukebox__note--amber { --x: -18%; --y: 55.9%; --c: #ffe27a; --d: 4.6s; }
+        /* On a phone the cabinet stays centred with just the lever's room on
+           each side, and the notes rise from the empty corner beside the arch. */
+        @media (max-width: 639px) {
+            .jukebox__body { --jb: max(13rem, min(100cqh * 200 / 272, 100cqw / 1.4)); }
+            .jukebox__note--pink { --x: 0%; --y: 0%; }
+            .jukebox__note--amber { display: none; }
         }
         @keyframes jukebox-note {
             0% { opacity: 0; transform: translateY(30%) rotate(-10deg); }
@@ -314,7 +327,10 @@
             justify-content: center;
         }
         .turntable__deck {
-            --deck: calc(min(100cqh, 100cqw) / 1.5);
+            /* The ring is 1.5x the record; sideways the tonearm reaches
+               further, 0.86 of the record right of its center, and may use
+               the page's side margin (1.25rem on a phone). */
+            --deck: min(100cqh / 1.5, (50cqw + 1.25rem) / 0.86);
             position: relative;
             flex: none;
             width: var(--deck);
@@ -682,7 +698,7 @@
      controls overlap the footer, and a child's z-index cannot beat the footer
      from inside a lower stacking context — the whole stage must sit higher,
      or the footer glass swallows the scrubber's pointer input. -->
-<main class="relative z-50 min-h-screen flex flex-col items-center justify-center px-margin-mobile md:px-margin-desktop pt-24 md:pt-32 pb-56 md:pb-48">
+<main class="stage relative z-50 min-h-screen flex flex-col items-center justify-center px-margin-mobile md:px-margin-desktop pt-24 md:pt-32">
 <!-- Game State Indicator -->
 <div class="mb-4 md:mb-12 transition-all duration-1000 transform scale-100 opacity-100" id="game-state">
 <p id="phase-label" class="font-label-caps text-label-caps text-on-surface-variant text-center mb-4 tracking-[0.4em]">READY</p>
@@ -863,9 +879,9 @@
 </div>
 <select id="genre-select" aria-label="Genre"
   class="jukebox__select font-label-mono uppercase focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:cursor-not-allowed"></select>
-<svg class="jukebox__note" style="--x: -26%; --y: 13.4%; --c: #f751a1; --d: 0s" viewBox="0 0 24 32" aria-hidden="true"><ellipse cx="8.5" cy="25" rx="5.2" ry="3.8" transform="rotate(-20 8.5 25)"/><rect x="12" y="4" width="2" height="21"/><path d="M14 4c0 5 7 5 6.5 13-1-4.5-3.5-6-6.5-6z"/></svg>
-<svg class="jukebox__note" style="--x: 104%; --y: 0%; --c: #4cd7f6; --d: 2.3s" viewBox="0 0 30 32" aria-hidden="true"><ellipse cx="6.5" cy="26" rx="5" ry="3.6" transform="rotate(-20 6.5 26)"/><ellipse cx="22.5" cy="22" rx="5" ry="3.6" transform="rotate(-20 22.5 22)"/><rect x="10" y="6" width="2" height="20"/><rect x="26" y="2" width="2" height="20"/><path d="M10 6 28 1.5V6L10 10.5z"/></svg>
-<svg class="jukebox__note" style="--x: -18%; --y: 55.9%; --c: #ffe27a; --d: 4.6s" viewBox="0 0 24 32" aria-hidden="true"><ellipse cx="8.5" cy="25" rx="5.2" ry="3.8" transform="rotate(-20 8.5 25)"/><rect x="12" y="4" width="2" height="21"/><path d="M14 4c0 5 7 5 6.5 13-1-4.5-3.5-6-6.5-6z"/></svg>
+<svg class="jukebox__note jukebox__note--pink" viewBox="0 0 24 32" aria-hidden="true"><ellipse cx="8.5" cy="25" rx="5.2" ry="3.8" transform="rotate(-20 8.5 25)"/><rect x="12" y="4" width="2" height="21"/><path d="M14 4c0 5 7 5 6.5 13-1-4.5-3.5-6-6.5-6z"/></svg>
+<svg class="jukebox__note jukebox__note--cyan" viewBox="0 0 30 32" aria-hidden="true"><ellipse cx="6.5" cy="26" rx="5" ry="3.6" transform="rotate(-20 6.5 26)"/><ellipse cx="22.5" cy="22" rx="5" ry="3.6" transform="rotate(-20 22.5 22)"/><rect x="10" y="6" width="2" height="20"/><rect x="26" y="2" width="2" height="20"/><path d="M10 6 28 1.5V6L10 10.5z"/></svg>
+<svg class="jukebox__note jukebox__note--amber" viewBox="0 0 24 32" aria-hidden="true"><ellipse cx="8.5" cy="25" rx="5.2" ry="3.8" transform="rotate(-20 8.5 25)"/><rect x="12" y="4" width="2" height="21"/><path d="M14 4c0 5 7 5 6.5 13-1-4.5-3.5-6-6.5-6z"/></svg>
 <button id="spin-btn" type="button" aria-label="Spin" class="lever">
 <span class="lever__mount"></span>
 <span class="lever__rod"></span>
@@ -909,7 +925,7 @@
 </div>
 </main>
 <!-- Scoreboard Footer (display-ui replaces children from state.teams) -->
-<footer class="fixed bottom-0 w-full bg-surface-container-lowest/50 backdrop-blur-3xl border-t border-outline-variant/10 px-margin-mobile md:px-margin-desktop py-4 md:py-10 z-40 max-h-[40vh] overflow-y-auto">
+<footer id="scoreboard" class="fixed bottom-0 w-full bg-surface-container-lowest/50 backdrop-blur-3xl border-t border-outline-variant/10 px-margin-mobile md:px-margin-desktop py-4 md:py-10 z-40 max-h-[40vh] overflow-y-auto">
 <ul id="scoreboard-list" class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-gutter max-w-screen-2xl mx-auto h-full items-end list-none p-0 m-0">
 <!-- Stitch sample team cards (template; display-ui replaces from real state) -->
 <li class="space-y-4">

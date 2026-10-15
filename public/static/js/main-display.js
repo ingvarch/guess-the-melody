@@ -15,6 +15,7 @@ import {
   paintProgress,
   showActionError,
   clearActionError,
+  reserveScoreboard,
 } from './display-ui.js';
 import { connectStateStream } from './sse.js';
 import { createSoundGate } from './sound-gate.js';
@@ -330,6 +331,9 @@ function boot() {
       }
     });
   }
+
+  const scoreboard = document.getElementById('scoreboard');
+  if (scoreboard) new ResizeObserver(() => reserveScoreboard(document)).observe(scoreboard);
 
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState !== 'visible') return;
