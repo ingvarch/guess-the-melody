@@ -11,7 +11,7 @@ import {
   showGenreChoice,
   shouldBeAudible,
   recordTurns,
-  paintScrubber,
+  paintProgress,
   showActionError,
   clearActionError,
 } from './display-ui.js';
@@ -37,6 +37,7 @@ import { attachWaveform } from './waveform.js';
 import { attachTurntable } from './turntable.js';
 import { attachLever } from './lever.js';
 import { createCuePlayer, playCue } from './jukebox-sound.js';
+import { attachRingSeek } from './ring-seek.js';
 
 const sessionId = document.querySelector('meta[name="session-id"]')?.content ?? '';
 const TICK_MS = 250;
@@ -197,23 +198,39 @@ function boot() {
       replay(fetch, sessionId).then(() => clearActionError(document), reportActionError);
     });
 
-    // Scrubber: jump to any moment in the clip. While the finger is down the
-    // thumb belongs to the user (data-scrubbing stops the clock tick from
-    // fighting it); the POST goes out on release, and the DO restamps the
-    // start so every viewer lands on the same spot.
+    // Seeking: drag around the ring that circles the record, or use the
+    // hidden range input from the keyboard. While seeking, the position
+    // belongs to the user (data-scrubbing stops the clock tick from fighting
+    // it); the POST goes out on release, and the DO restamps the start so
+    // every viewer lands on the same spot.
     const scrubber = document.getElementById('scrubber');
     const endScrub = () => { if (scrubber) delete scrubber.dataset.scrubbing; };
-    scrubber?.addEventListener('input', () => {
+    const scrubTo = (sec) => {
+      scrubber.value = String(sec);
       scrubber.dataset.scrubbing = '1';
-      paintScrubber(scrubber);
-    });
-    scrubber?.addEventListener('change', () => {
+      paintProgress(document);
+    };
+    const commitSeek = () => {
       endScrub();
       seek(fetch, sessionId, Number(scrubber.value)).then(() => clearActionError(document), reportActionError);
-    });
-    // A cancelled drag (scroll steals the pointer) fires no change event;
-    // without this the clock would never move the thumb again.
-    scrubber?.addEventListener('pointercancel', endScrub);
+    };
+    scrubber?.addEventListener('input', () => scrubTo(scrubber.value));
+    scrubber?.addEventListener('change', commitSeek);
+
+    const ring = document.getElementById('progress-ring');
+    if (ring && scrubber) {
+      const toSec = (share) => share * Number(scrubber.max);
+      attachRingSeek(ring, {
+        enabled: () => !scrubber.disabled,
+        onScrub: (share) => scrubTo(toSec(share)),
+        onSeek: (share) => {
+          scrubTo(toSec(share));
+          commitSeek();
+        },
+        // Without this the clock would never move the ring again.
+        onCancel: endScrub,
+      });
+    }
 
     const revealBtn = document.getElementById('reveal-btn');
     revealBtn?.addEventListener('click', () => {

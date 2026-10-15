@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { attachWaveform, ringBar, ringBin } from '../../public/static/js/waveform.js';
+import { attachWaveform, ringBar, ringBin, ringGeometry, PROGRESS_RING_OUTER } from '../../public/static/js/waveform.js';
 
 // `window` is read at call time. Bun shares one global object across test
 // files, so it is installed only for the duration of the call — a leaked
@@ -96,4 +96,16 @@ test('the jukebox sound can share the ring: the context and the analyser input a
     if (hadRaf) globalThis.requestAnimationFrame = prevRaf;
     else delete globalThis.requestAnimationFrame;
   }
+});
+
+test('ringGeometry: the bars start past the progress ring and stay on the canvas', () => {
+  const size = 1440;
+  const unit = size / 150; // the canvas spans 150 record units, the record radius is 50
+  const ring = ringGeometry(size);
+  assert.equal(ring.cx, size / 2);
+  assert.equal(ring.cy, size / 2);
+  assert.ok(ring.inner > PROGRESS_RING_OUTER * unit, 'a gap between the progress ring and the bars');
+  assert.ok(PROGRESS_RING_OUTER > 50, 'the progress ring sits outside the record');
+  assert.ok(ring.inner + ring.reach <= size / 2, 'full bars stay on the canvas');
+  assert.ok(ring.reach > 10 * unit, 'room for the bars to move');
 });

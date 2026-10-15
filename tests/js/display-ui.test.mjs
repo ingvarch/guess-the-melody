@@ -19,11 +19,11 @@ function makeDoc() {
       <button id="spin-btn"></button>
       <h3 id="jukebox-genre"></h3>
     </div>
-    <div id="turntable" hidden></div>
+    <div id="turntable" hidden><div id="progress-ring"></div></div>
     <div id="phase-controls" hidden></div>
-    <button id="play-btn" hidden><span class="material-symbols-outlined">play_arrow</span></button>
-    <button id="replay-btn" hidden></button>
-    <button id="reveal-btn" hidden></button>
+    <button id="play-btn"><span class="material-symbols-outlined">play_arrow</span></button>
+    <button id="replay-btn"></button>
+    <button id="reveal-btn"></button>
     <button id="next-btn" hidden></button>
     <div id="reveal-card" hidden>
       <p class="reveal-card__artist"></p>
@@ -60,7 +60,7 @@ function makeState(overrides = {}) {
 }
 
 const mod = await import('../../public/static/js/display-ui.js');
-const { render, runSpin, renderClock, renderPlaybackControls, showGenreChoice, shouldBeAudible, recordTurns, paintScrubber, showActionError, clearActionError } = mod;
+const { render, runSpin, renderClock, renderPlaybackControls, showGenreChoice, shouldBeAudible, recordTurns, paintProgress, showActionError, clearActionError } = mod;
 
 function drumRowTexts(doc) {
   return [...doc.querySelectorAll('[data-drum-cylinder]')].map((c) => [...c.children].map((r) => r.textContent));
@@ -77,67 +77,54 @@ function drumFrontGenre(doc) {
 
 const hidden = (doc, id) => doc.getElementById(id).hasAttribute('hidden');
 
-test('playing but clip not ended: reveal + repeat hidden', () => {
+const enabled = (doc, id) => !hidden(doc, id) && !doc.getElementById(id).disabled;
+const disabled = (doc, id) => !hidden(doc, id) && doc.getElementById(id).disabled;
+
+test('before Play: the three keys are on screen, only Play works', () => {
   const doc = makeDoc();
-  const state = makeState({
-    phase: 'playing',
-    currentTrack: { id: 'x', genre: 'rock' },
-    audioStartTimestamp: Date.now() - 5_000, // 5s in
-  });
-  render(doc, { state, genres: [], sessionId: 's' });
-  assert.ok(hidden(doc, 'reveal-btn'), 'reveal hidden mid-clip');
-  assert.ok(hidden(doc, 'replay-btn'), 'repeat hidden mid-clip');
-  assert.ok(hidden(doc, 'next-btn'), 'next hidden mid-clip');
+  render(doc, { state: makeState({ phase: 'spinning', selectedGenre: 'rock', currentTrack: { id: 'x', genre: 'rock' } }), genres: [], sessionId: 's' });
+  assert.ok(enabled(doc, 'play-btn'));
+  assert.ok(disabled(doc, 'replay-btn'), 'replay is only valid while playing');
+  assert.ok(disabled(doc, 'reveal-btn'), 'reveal is only valid while playing');
 });
 
-test('playing and clip ended: reveal + repeat shown, next still hidden', () => {
-  const doc = makeDoc();
-  const state = makeState({
-    phase: 'playing',
-    currentTrack: { id: 'x', genre: 'rock' },
-    audioStartTimestamp: Date.now() - 31_000, // past 30s clip
-  });
-  render(doc, { state, genres: [], sessionId: 's' });
-  assert.ok(!hidden(doc, 'reveal-btn'), 'reveal shown after clip end');
-  assert.ok(!hidden(doc, 'replay-btn'), 'repeat shown after clip end');
-  assert.ok(hidden(doc, 'next-btn'), 'next still hidden before reveal');
-});
-
-test('playing and running: play-btn shows as a Pause control', () => {
+test('playing: Reveal and start-over work while the music runs, Play shows Pause', () => {
   const doc = makeDoc();
   const state = makeState({
     phase: 'playing',
     currentTrack: { id: 'x', genre: 'rock' },
     audioStartTimestamp: Date.now() - 5_000,
-    audioPausedTimestamp: null,
   });
   render(doc, { state, genres: [], sessionId: 's' });
   const btn = doc.getElementById('play-btn');
-  assert.ok(!hidden(doc, 'play-btn'), 'play/pause button visible while playing');
+  assert.ok(enabled(doc, 'play-btn'));
   assert.equal(btn.querySelector('.material-symbols-outlined').textContent, 'pause');
   assert.equal(btn.getAttribute('aria-label'), 'Pause');
+  // Like the host console: revealing mid-clip keeps the music going.
+  assert.ok(enabled(doc, 'reveal-btn'));
+  assert.ok(enabled(doc, 'replay-btn'));
+  assert.ok(hidden(doc, 'next-btn'), 'next lives in the reveal card');
 });
 
-test('playing and paused: Play (resume) + Reveal shown so the host can reveal early', () => {
+test('playing and paused: Play resumes', () => {
   const doc = makeDoc();
   const now = Date.now();
   const state = makeState({
     phase: 'playing',
     currentTrack: { id: 'x', genre: 'rock' },
     audioStartTimestamp: now - 5_000,
-    audioPausedTimestamp: now - 1_000, // paused 4s in
+    audioPausedTimestamp: now - 1_000,
   });
   render(doc, { state, genres: [], sessionId: 's' });
   const btn = doc.getElementById('play-btn');
-  assert.ok(!hidden(doc, 'play-btn'), 'resume button visible while paused');
+  assert.ok(enabled(doc, 'play-btn'));
   assert.equal(btn.querySelector('.material-symbols-outlined').textContent, 'play_arrow');
-  // Pausing means someone guessed early -> let the host reveal without waiting.
-  assert.ok(!hidden(doc, 'reveal-btn'), 'reveal shown while paused mid-clip');
-  // Paused is a decision point: the host can also start the clip over.
-  assert.ok(!hidden(doc, 'replay-btn'), 'replay shown while paused mid-clip');
+  assert.equal(btn.getAttribute('aria-label'), 'Play');
+  assert.ok(enabled(doc, 'reveal-btn'));
+  assert.ok(enabled(doc, 'replay-btn'));
 });
 
-test('playing and clip ended: play/pause button is hidden', () => {
+test('playing and clip ended: nothing left to play or pause, start-over and Reveal still work', () => {
   const doc = makeDoc();
   const state = makeState({
     phase: 'playing',
@@ -145,10 +132,12 @@ test('playing and clip ended: play/pause button is hidden', () => {
     audioStartTimestamp: Date.now() - 31_000,
   });
   render(doc, { state, genres: [], sessionId: 's' });
-  assert.ok(hidden(doc, 'play-btn'), 'no play/pause once the clip has ended');
+  assert.ok(disabled(doc, 'play-btn'));
+  assert.ok(enabled(doc, 'reveal-btn'));
+  assert.ok(enabled(doc, 'replay-btn'));
 });
 
-test('revealed: next shown, reveal + repeat hidden', () => {
+test('revealed: next shown, the keys rest', () => {
   const doc = makeDoc();
   const state = makeState({
     phase: 'revealed',
@@ -158,9 +147,10 @@ test('revealed: next shown, reveal + repeat hidden', () => {
   });
   render(doc, { state, genres: [], sessionId: 's' });
   assert.ok(!hidden(doc, 'next-btn'), 'next shown when revealed');
-  assert.ok(hidden(doc, 'reveal-btn'), 'reveal hidden when revealed');
-  // Repeat must be hidden: the `replay` transition is only valid from `playing`.
-  assert.ok(hidden(doc, 'replay-btn'), 'repeat hidden when revealed (replay invalid here)');
+  assert.ok(disabled(doc, 'reveal-btn'));
+  // The `replay` transition is only valid from `playing`.
+  assert.ok(disabled(doc, 'replay-btn'));
+  assert.ok(disabled(doc, 'play-btn'));
 });
 
 test('runSpin bails when the round advances to playing mid-spin', async () => {
@@ -636,19 +626,18 @@ test('recordTurns: from the Play press, through the record cue, until a pause or
   assert.equal(recordTurns(makeState({ phase: 'spinning' })), false, 'before Play');
 });
 
-test('renderClock: lights the progress bar up to the clip position', () => {
+test('renderClock: lights the ring around the record up to the clip position', () => {
   const doc = makeDoc();
   renderClock(doc, makeState({ phase: 'playing', audioStartTimestamp: Date.now() - 15_000 }));
-  const progress = Number(doc.getElementById('scrubber').style.getPropertyValue('--progress'));
+  const progress = Number(doc.getElementById('progress-ring').style.getPropertyValue('--progress'));
   assert.ok(Math.abs(progress - 0.5) < 0.02, `progress ${progress}`);
 });
 
-test('paintScrubber: mid-drag the bar follows the finger', () => {
+test('paintProgress: mid-drag the ring follows the finger', () => {
   const doc = makeDoc();
-  const scrub = doc.getElementById('scrubber');
-  scrub.value = '6';
-  paintScrubber(scrub);
-  assert.equal(Number(scrub.style.getPropertyValue('--progress')), 0.2);
+  doc.getElementById('scrubber').value = '6';
+  paintProgress(doc);
+  assert.equal(Number(doc.getElementById('progress-ring').style.getPropertyValue('--progress')), 0.2);
 });
 
 test('renderClock: leaves the scrubber value alone mid-drag', () => {

@@ -199,11 +199,13 @@ function renderGenres(doc, genres, state) {
 // Time-aware control gating. Drives the launch workflow:
 //   idle      -> the jukebox (genre selector + lever)
 //   spinning  -> the jukebox while the drum picks (`picking`), then PLAY
-//   playing   -> only the visualiser; once the 30s clip ends, REVEAL + REPEAT
+//   playing   -> PAUSE/PLAY, REPEAT and REVEAL; revealing mid-clip keeps the
+//                music going, as from the host console
 //   revealed  -> NEXT  (REPEAT is unavailable: the `replay` transition in
 //                logic.js is only valid from `playing`)
-// Re-evaluated on every clock tick (not just state changes) so the clip-end
-// transition surfaces the buttons without waiting for a server message.
+// The three keys stay on screen; a key whose action is not available yet is
+// disabled. Re-evaluated on every clock tick (not just state changes) so the
+// clip end updates the keys without waiting for a server message.
 export function renderPlaybackControls(doc, state, picking = false) {
   const idle = state.phase === 'idle';
   const playing = state.phase === 'playing';
@@ -222,21 +224,20 @@ export function renderPlaybackControls(doc, state, picking = false) {
   //   spinning            -> Play (start the clip)
   //   playing, running    -> Pause
   //   playing, paused     -> Play (resume)
-  //   playing, ended      -> hidden (Reveal/Replay take over)
+  //   playing, ended      -> disabled (Reveal/Replay take over)
   const playBtn = doc.getElementById('play-btn');
-  const showPlayBtn = state.phase === 'spinning' || (playing && !ended);
-  setHidden(playBtn, !showPlayBtn);
   if (playBtn) {
+    playBtn.disabled = !(state.phase === 'spinning' || (playing && !ended));
     const showPause = playing && !paused && !ended;
     const icon = playBtn.querySelector('.material-symbols-outlined');
     if (icon) icon.textContent = showPause ? 'pause' : 'play_arrow';
     playBtn.setAttribute('aria-label', showPause ? 'Pause' : 'Play');
   }
 
-  // Replay and Reveal share the same decision points: the clip ran out, or
-  // the host paused (someone guessed early / wants to start the clip over).
-  setHidden(doc.getElementById('replay-btn'), !(playing && (ended || paused)));
-  setHidden(doc.getElementById('reveal-btn'), !(playing && (ended || paused)));
+  const replayBtn = doc.getElementById('replay-btn');
+  if (replayBtn) replayBtn.disabled = !playing;
+  const revealBtn = doc.getElementById('reveal-btn');
+  if (revealBtn) revealBtn.disabled = !playing;
   setHidden(doc.getElementById('next-btn'), !revealed);
 
   // The scrubber accepts input for the whole playing phase (paused and
@@ -324,9 +325,12 @@ function renderRevealCard(doc, state) {
   }
 }
 
-// Lights the progress bar up to the scrubber's position.
-export function paintScrubber(scrubber) {
-  scrubber.style.setProperty('--progress', String(Number(scrubber.value) / Number(scrubber.max)));
+// Lights the ring around the record up to the scrubber's position.
+export function paintProgress(doc) {
+  const scrubber = doc.getElementById('scrubber');
+  const ring = doc.getElementById('progress-ring');
+  if (!scrubber || !ring) return;
+  ring.style.setProperty('--progress', String(Number(scrubber.value) / Number(scrubber.max)));
 }
 
 export function renderClock(doc, state) {
@@ -336,7 +340,7 @@ export function renderClock(doc, state) {
   // Mid-drag the thumb belongs to the user's finger, not the clock.
   if (scrubber && scrubber.dataset.scrubbing === undefined) {
     scrubber.value = String(cur);
-    paintScrubber(scrubber);
+    paintProgress(doc);
   }
   if (timeReadout) {
     timeReadout.textContent = `${formatClock(cur)} / ${formatClock(CLIP_DURATION_SEC)}`;

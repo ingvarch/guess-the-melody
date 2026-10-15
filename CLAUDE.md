@@ -190,6 +190,7 @@ guess-the-melody/
 │           ├── prng.js            # mulberry32 PRNG
 │           ├── audio-sync.js      # audio time-sync helpers
 │           ├── waveform.js        # analyser ring around the turntable record
+│           ├── ring-seek.js       # seek by dragging around the record's progress ring
 │           ├── turntable.js       # record spin + tonearm cueing motion
 │           ├── genre-drum.js      # genre drum geometry for the jukebox window
 │           ├── lever.js           # jukebox lever: tap or drag down to spin
@@ -212,6 +213,7 @@ guess-the-melody/
     │   ├── prng.test.mjs
     │   ├── audio-sync.test.mjs
     │   ├── waveform.test.mjs
+    │   ├── ring-seek.test.mjs
     │   ├── turntable.test.mjs
     │   ├── genre-drum.test.mjs
     │   ├── lever.test.mjs

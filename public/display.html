@@ -321,8 +321,19 @@
             width: var(--deck);
             height: var(--deck);
         }
-        /* 1.5x the record: waveform.js draws its ring from the record edge out. */
+        /* 1.5x the record: waveform.js draws its bars past the progress ring. */
         .turntable__ring { position: absolute; left: -25%; top: -25%; width: 150%; height: 150%; pointer-events: none; }
+        /* Clip progress as amber LED segments around the record, lit up to
+           --progress (display-ui paints it). Its outer edge is
+           PROGRESS_RING_OUTER in waveform.js. Drag around it to seek. */
+        .progress-ring { position: absolute; left: -25%; top: -25%; width: 150%; height: 150%; overflow: visible; pointer-events: none; }
+        .progress-ring__track, .progress-ring__lit { stroke-dasharray: 4 2; }
+        .progress-ring__track { stroke: rgba(255, 226, 122, 0.14); }
+        .progress-ring__lit { stroke: #ffe27a; }
+        .progress-ring__mask { stroke-dasharray: calc(var(--progress, 0) * 100) 100; }
+        .progress-ring__hit { pointer-events: stroke; cursor: pointer; }
+        /* The seek slider is hidden; show its keyboard focus on the ring. */
+        main:has(#scrubber:focus-visible) .progress-ring__track { stroke: rgba(76, 215, 246, 0.6); }
         .turntable__record { position: absolute; inset: 0; border-radius: 50%; }
         .turntable__vinyl {
             position: absolute;
@@ -404,20 +415,42 @@
             z-index: 50;
         }
 
-        /* Jukebox control deck: chunky keys in chrome bezels and an amber
-           display with the clip clock. --key is the key size; it follows the
-           screen height. */
+        /* Under the record: the clip clock, then the jukebox keys. --key is the
+           key size; it follows the screen height. */
+        .jb-controls {
+            --key: clamp(2.75rem, 7vh, 6rem);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: calc(var(--key) * 0.16);
+        }
+        /* The clip clock on a small amber display. */
+        .jb-time {
+            padding: calc(var(--key) * 0.08) calc(var(--key) * 0.32);
+            border: calc(var(--key) * 0.04) solid transparent;
+            border-radius: 999px;
+            background:
+                linear-gradient(180deg, #0e0a04, #1a1408) padding-box,
+                linear-gradient(180deg, #eef8fd, #9fb6c3 50%, #5b7282) border-box;
+            box-shadow: inset 0 0 calc(var(--key) * 0.15) rgba(0, 0, 0, 0.9);
+            font-family: "JetBrains Mono", ui-monospace, monospace;
+            font-weight: 700;
+            font-size: calc(var(--key) * 0.26);
+            line-height: 1.2;
+            letter-spacing: 0.08em;
+            white-space: nowrap;
+            color: #ffe27a;
+            text-shadow: 0 0 0.5em rgba(255, 226, 122, 0.7);
+        }
+        /* Jukebox key deck: chunky keys in chrome bezels on a wood face. */
         .jb-deck {
-            --key: clamp(3rem, 7vh, 6rem);
             position: relative;
             display: flex;
             align-items: center;
-            gap: calc(var(--key) * 0.3);
-            width: 100%;
-            max-width: max(42rem, var(--key) * 11);
-            padding: calc(var(--key) * 0.22) calc(var(--key) * 0.28);
+            gap: calc(var(--key) * 0.35);
+            padding: calc(var(--key) * 0.16) calc(var(--key) * 0.32) calc(var(--key) * 0.2);
             border: calc(var(--key) * 0.07) solid transparent;
-            border-radius: calc(var(--key) * 0.36);
+            border-radius: calc(var(--key) * 0.4);
             background:
                 linear-gradient(180deg, #5b2234, #3d1424 55%, #260b16) padding-box,
                 linear-gradient(180deg, #eef8fd, #9fb6c3 45%, #5b7282) border-box;
@@ -427,18 +460,12 @@
                 12px 0 40px -10px rgba(76, 215, 246, 0.4),
                 inset 0 calc(var(--key) * 0.04) calc(var(--key) * 0.15) rgba(0, 0, 0, 0.6);
         }
-        /* A phone fits three keys and the clock at the 44px tap minimum. */
-        @media (max-width: 639px) { .jb-deck { --key: 2.75rem; } }
-        @media (max-width: 359px) {
-            .jb-deck { gap: calc(var(--key) * 0.15); padding-inline: calc(var(--key) * 0.18); }
-            .jb-deck .jb-display { padding: 0 calc(var(--key) * 0.12); }
-        }
         /* Neon tube along the top of the deck. */
         .jb-deck::before {
             content: "";
             position: absolute;
-            left: 8%;
-            right: 8%;
+            left: 12%;
+            right: 12%;
             top: calc(var(--key) * 0.07);
             height: 2px;
             border-radius: 2px;
@@ -449,123 +476,55 @@
             --cap: #f751a1;
             --cap-hi: #ffd9e4;
             --cap-lo: #8c0053;
+            --size: var(--key);
             position: relative;
             flex: none;
             display: grid;
             place-items: center;
-            width: var(--key);
-            height: var(--key);
-            border-radius: calc(var(--key) * 0.24);
+            width: var(--size);
+            height: var(--size);
+            border-radius: calc(var(--size) * 0.24);
             background: linear-gradient(180deg, #eef8fd, #9fb6c3 50%, #5b7282);
             box-shadow:
-                0 calc(var(--key) * 0.08) 0 #2a3640,
-                0 calc(var(--key) * 0.12) calc(var(--key) * 0.2) rgba(0, 0, 0, 0.6);
+                0 calc(var(--size) * 0.08) 0 #2a3640,
+                0 calc(var(--size) * 0.12) calc(var(--size) * 0.2) rgba(0, 0, 0, 0.6);
             transition: transform 0.08s ease, box-shadow 0.08s ease;
             -webkit-tap-highlight-color: transparent;
         }
+        .jb-key--main { --size: calc(var(--key) * 1.2); }
         .jb-key--amber { --cap: #ffc93c; --cap-hi: #fff3c4; --cap-lo: #9a6400; }
         .jb-key--cyan { --cap: #4cd7f6; --cap-hi: #d2f7ff; --cap-lo: #00616f; }
-        /* A key with words on it; narrow screens show only its icon. */
-        .jb-key--wide {
-            width: auto;
-            grid-auto-flow: column;
-            gap: calc(var(--key) * 0.12);
-            padding: 0 calc(var(--key) * 0.32);
-        }
-        .jb-key__text {
-            position: relative;
-            font-family: "Sora", system-ui, sans-serif;
-            font-weight: 800;
-            font-size: calc(var(--key) * 0.26);
-            letter-spacing: 0.02em;
-            color: rgba(0, 31, 38, 0.9);
-            white-space: nowrap;
-        }
         /* The glowing cap inside the chrome bezel. */
         .jb-key::before {
             content: "";
             position: absolute;
-            inset: calc(var(--key) * 0.09);
-            border-radius: calc(var(--key) * 0.17);
+            inset: calc(var(--size) * 0.09);
+            border-radius: calc(var(--size) * 0.17);
             background: radial-gradient(circle at 35% 25%, #fff 0 6%, var(--cap-hi) 16%, var(--cap) 58%, var(--cap-lo));
             box-shadow:
-                0 0 calc(var(--key) * 0.3) color-mix(in srgb, var(--cap) 60%, transparent),
-                inset 0 calc(var(--key) * -0.04) calc(var(--key) * 0.08) rgba(0, 0, 0, 0.3);
+                0 0 calc(var(--size) * 0.3) color-mix(in srgb, var(--cap) 60%, transparent),
+                inset 0 calc(var(--size) * -0.04) calc(var(--size) * 0.08) rgba(0, 0, 0, 0.3);
         }
         .jb-key .material-symbols-outlined {
             position: relative;
-            font-size: calc(var(--key) * 0.5);
+            font-size: calc(var(--size) * 0.5);
             color: rgba(35, 0, 22, 0.85);
             font-variation-settings: 'FILL' 1;
         }
-        .jb-key:active {
-            transform: translateY(calc(var(--key) * 0.06));
+        .jb-key:not(:disabled):active {
+            transform: translateY(calc(var(--size) * 0.06));
             box-shadow:
-                0 calc(var(--key) * 0.02) 0 #2a3640,
-                0 calc(var(--key) * 0.05) calc(var(--key) * 0.1) rgba(0, 0, 0, 0.6);
+                0 calc(var(--size) * 0.02) 0 #2a3640,
+                0 calc(var(--size) * 0.05) calc(var(--size) * 0.1) rgba(0, 0, 0, 0.6);
         }
+        /* A key whose action is not available yet: the light behind the cap is off. */
+        .jb-key:disabled { cursor: default; }
+        .jb-key:disabled::before { filter: grayscale(0.85) brightness(0.5); box-shadow: none; }
+        .jb-key:disabled .material-symbols-outlined { opacity: 0.45; }
         @media (hover: hover) {
-            .jb-key:hover::before { filter: brightness(1.12); }
+            .jb-key:not(:disabled):hover::before { filter: brightness(1.12); }
         }
         .jb-key:focus-visible { outline: 2px solid #4cd7f6; outline-offset: 3px; }
-        .jb-display {
-            flex: 1;
-            min-width: 0;
-            height: var(--key);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: calc(var(--key) * 0.06);
-            padding: 0 calc(var(--key) * 0.24);
-            border: calc(var(--key) * 0.05) solid transparent;
-            border-radius: calc(var(--key) * 0.16);
-            background:
-                linear-gradient(180deg, #0e0a04, #1a1408) padding-box,
-                linear-gradient(180deg, #eef8fd, #9fb6c3 50%, #5b7282) border-box;
-            box-shadow: inset 0 0 calc(var(--key) * 0.25) rgba(0, 0, 0, 0.9);
-        }
-        .jb-display:has(#scrubber:focus-visible) { outline: 2px solid #4cd7f6; outline-offset: 3px; }
-        .jb-display__time {
-            font-family: "JetBrains Mono", ui-monospace, monospace;
-            font-weight: 700;
-            font-size: calc(var(--key) * 0.24);
-            line-height: 1;
-            letter-spacing: 0.08em;
-            white-space: nowrap;
-            color: #ffe27a;
-            text-shadow: 0 0 0.5em rgba(255, 226, 122, 0.7);
-        }
-        /* Seek bar as a row of amber LED segments, lit up to --progress
-           (display-ui paints it). Drag anywhere along it to seek; the box is
-           taller than the drawn bar so a finger can hit it. touch-action keeps
-           a drag from being stolen by page scrolling. */
-        #scrubber {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 100%;
-            height: calc(var(--key) * 0.36);
-            margin: 0;
-            background: linear-gradient(90deg, #ffe27a calc(var(--progress, 0) * 100%), rgba(255, 226, 122, 0.16) 0) center / 100% 45% no-repeat;
-            -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 calc(var(--key) * 0.09), transparent 0 calc(var(--key) * 0.13));
-            mask-image: repeating-linear-gradient(90deg, #000 0 calc(var(--key) * 0.09), transparent 0 calc(var(--key) * 0.13));
-            outline: none;
-            cursor: pointer;
-            touch-action: none;
-        }
-        #scrubber:disabled { cursor: default; opacity: 0.45; }
-        #scrubber::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: calc(var(--key) * 0.2);
-            height: calc(var(--key) * 0.36);
-            background: transparent;
-            border: 0;
-        }
-        #scrubber::-moz-range-thumb {
-            width: calc(var(--key) * 0.2);
-            height: calc(var(--key) * 0.36);
-            background: transparent;
-            border: 0;
-        }
 
         /* Full-screen tap target while the browser blocks audible playback. */
         .sound-gate {
@@ -756,6 +715,24 @@
 <div class="turntable__sheen"></div>
 <div class="turntable__groove"></div>
 </div>
+<svg id="progress-ring" class="progress-ring" viewBox="-75 -75 150 150">
+<defs>
+<filter id="progress-glow" x="-20%" y="-20%" width="140%" height="140%">
+<feGaussianBlur stdDeviation="1.2" result="blur"/>
+<feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+</filter>
+<mask id="progress-mask" maskUnits="userSpaceOnUse" x="-75" y="-75" width="150" height="150">
+<circle class="progress-ring__mask" r="54" pathLength="100" fill="none" stroke="#fff" stroke-width="8" transform="rotate(-90)"/>
+</mask>
+</defs>
+<circle class="progress-ring__track" r="54" pathLength="360" fill="none" stroke-width="2.5" transform="rotate(-90)"/>
+<g filter="url(#progress-glow)">
+<g mask="url(#progress-mask)">
+<circle class="progress-ring__lit" r="54" pathLength="360" fill="none" stroke-width="2.5" transform="rotate(-90)"/>
+</g>
+</g>
+<circle class="progress-ring__hit" r="54" fill="none" stroke="transparent" stroke-width="14"/>
+</svg>
 <svg class="turntable__arm" viewBox="0 0 136 120">
 <defs>
 <filter id="turntable-glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="1.6"/></filter>
@@ -899,25 +876,24 @@
 <h3 id="jukebox-genre" class="sr-only" aria-live="polite"></h3>
 </div>
 </div>
-<!-- Playback controls as a jukebox deck (visible during spinning/playing/revealed). -->
-<div id="phase-controls" hidden class="jb-deck">
+<!-- Under the record: the clip clock and the jukebox keys (visible during
+     spinning/playing/revealed). NEXT lives inside the reveal overlay so it
+     sits above the z-60 layer and stays clickable. -->
+<div id="phase-controls" hidden class="jb-controls">
 <audio id="audio" preload="auto" crossorigin="anonymous"></audio>
-<button id="replay-btn" type="button" aria-label="Replay" hidden class="jb-key jb-key--amber">
+<span id="time-readout" class="jb-time num">0:00 / 0:30</span>
+<div class="jb-deck">
+<button id="replay-btn" type="button" aria-label="Replay" class="jb-key jb-key--amber">
 <span class="material-symbols-outlined">replay</span>
 </button>
-<button id="play-btn" type="button" aria-label="Play" hidden class="jb-key">
+<button id="play-btn" type="button" aria-label="Play" class="jb-key jb-key--main">
 <span class="material-symbols-outlined">play_arrow</span>
 </button>
-<!-- Shown once the clip ends or is paused. NEXT lives inside the reveal
-     overlay so it sits above the z-60 layer and stays clickable. -->
-<button id="reveal-btn" type="button" aria-label="Reveal track" hidden class="jb-key jb-key--cyan jb-key--wide">
+<button id="reveal-btn" type="button" aria-label="Reveal track" class="jb-key jb-key--cyan">
 <span class="material-symbols-outlined">visibility</span>
-<span class="jb-key__text hidden sm:inline">REVEAL TRACK</span>
 </button>
-<div class="jb-display">
-<span id="time-readout" class="jb-display__time num">0:00 / 0:30</span>
-<input id="scrubber" type="range" min="0" max="30" step="0.1" value="0" aria-label="Playback position, drag to seek" disabled>
 </div>
+<input id="scrubber" type="range" min="0" max="30" step="0.1" value="0" aria-label="Playback position, drag to seek" disabled class="sr-only">
 </div>
 <!-- REVEAL STATE -->
 <div id="reveal-card" hidden class="fixed inset-0 z-[60] bg-background/95 backdrop-blur-2xl flex flex-col items-center justify-center transition-opacity duration-700">

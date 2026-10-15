@@ -17,6 +17,17 @@ export function ringBin(i, count) {
   return i <= count / 2 ? i : count - i;
 }
 
+// Outer edge of the progress ring (#progress-ring in display.html), in record
+// units: the record radius is 50 and the canvas, 1.5x the record, spans 150.
+export const PROGRESS_RING_OUTER = 56;
+
+// Where the bars sit on a canvas `size` pixels across: they start just past
+// the progress ring and reach almost to the canvas edge.
+export function ringGeometry(size) {
+  const unit = size / 150;
+  return { cx: size / 2, cy: size / 2, inner: (PROGRESS_RING_OUTER + 3) * unit, reach: 15 * unit, count: 64 };
+}
+
 export function attachWaveform({ audioEl, canvas }) {
   if (!canvas || !audioEl) return { stop: () => {}, suspended: () => false };
 
@@ -47,14 +58,7 @@ export function attachWaveform({ audioEl, canvas }) {
   if (!c2d) return { stop: () => {}, suspended: () => false };
 
   let running = true;
-  // The canvas is 1.5x the record (CSS inset: -25%), so the record edge is at width / 3.
-  const ring = {
-    cx: canvas.width / 2,
-    cy: canvas.height / 2,
-    inner: canvas.width / 3 + canvas.width / 60,
-    reach: canvas.width / 6 - canvas.width / 30,
-    count: 64,
-  };
+  const ring = ringGeometry(canvas.width);
 
   function draw() {
     if (!running) return;
