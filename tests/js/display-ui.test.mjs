@@ -13,7 +13,10 @@ function makeDoc() {
     <ul id="scoreboard-list"></ul>
     <p id="phase-label"></p>
     <h2 id="display-genre"></h2>
-    <div id="spin-card" hidden><h3 id="spin-card-genre"></h3></div>
+    <div id="spin-card" hidden>
+      <div id="genre-drum"><div data-drum-cylinder></div><div data-drum-cylinder></div></div>
+      <h3 id="spin-card-genre"></h3>
+    </div>
     <div id="idle-controls"></div>
     <button id="spin-btn"></button>
     <div id="phase-controls" hidden></div>
@@ -57,6 +60,19 @@ function makeState(overrides = {}) {
 
 const mod = await import('../../public/static/js/display-ui.js');
 const { render, runSpin, renderClock, shouldBeAudible, showActionError, clearActionError } = mod;
+
+function drumRowTexts(doc) {
+  return [...doc.querySelectorAll('[data-drum-cylinder]')].map((c) => [...c.children].map((r) => r.textContent));
+}
+
+// The genre the drum shows at the front once it stops.
+function drumFrontGenre(doc) {
+  const [rows] = drumRowTexts(doc);
+  const angle = parseFloat(doc.getElementById('genre-drum').style.getPropertyValue('--spin'));
+  const step = 360 / rows.length;
+  const row = Math.round((((angle % 360) + 360) % 360) / step) % rows.length;
+  return rows[row];
+}
 
 const hidden = (doc, id) => doc.getElementById(id).hasAttribute('hidden');
 
@@ -235,6 +251,70 @@ test('runSpin animates the overlay, settles on the genre, then hides the overlay
   assert.equal(doc.getElementById('spin-card-genre').textContent, 'Pop');
   assert.equal(doc.getElementById('display-genre').textContent, 'Pop');
   assert.equal(doc.getElementById('spin-card').hasAttribute('hidden'), true, 'overlay closes when done');
+});
+
+test('runSpin builds the drum from the genre list and stops it on the picked genre', async () => {
+  const doc = makeDoc();
+  const genres = [
+    { slug: 'rock', name: 'Rock' },
+    { slug: 'pop', name: 'Pop' },
+    { slug: 'jazz', name: 'Jazz' },
+  ];
+  const state = makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 7 });
+  // Two rounds on the same page: the overlay is reused, rows must not pile up.
+  await runSpin(doc, state, genres, { durationMs: 20, settleMs: 0 });
+  await runSpin(doc, state, genres, { durationMs: 20, settleMs: 0 });
+
+  const [muted, lens] = drumRowTexts(doc);
+  assert.ok(muted.length >= 20 && muted.length % genres.length === 0, `rows: ${muted.length}`);
+  muted.forEach((name, i) => assert.equal(name, genres[i % genres.length].name));
+  assert.deepEqual(lens, muted, 'the highlight layer carries the same rows');
+  assert.equal(drumFrontGenre(doc), 'Pop');
+  assert.ok(doc.getElementById('genre-drum').classList.contains('genre-drum--landed'), 'center row lights up once stopped');
+});
+
+test('runSpin stops on the slug when the picked genre is missing from the list', async () => {
+  const doc = makeDoc();
+  const genres = [
+    { slug: 'rock', name: 'Rock' },
+    { slug: 'pop', name: 'Pop' },
+  ];
+  const state = makeState({ phase: 'spinning', selectedGenre: 'russian-rock', spinSeed: 5 });
+  await runSpin(doc, state, genres, { durationMs: 20, settleMs: 0 });
+  assert.equal(drumFrontGenre(doc), 'russian-rock');
+  assert.equal(doc.getElementById('display-genre').textContent, 'russian-rock');
+});
+
+test('runSpin in genrePicked mode shows the chosen genre on the drum without spinning', async () => {
+  const doc = makeDoc();
+  const genres = [
+    { slug: 'rock', name: 'Rock' },
+    { slug: 'pop', name: 'Pop' },
+    { slug: 'jazz', name: 'Jazz' },
+  ];
+  const state = makeState({ phase: 'spinning', selectedGenre: 'jazz', genrePicked: true, spinSeed: 7 });
+  await runSpin(doc, state, genres, { durationMs: 100000, confirmMs: 10, getPhase: () => 'spinning' });
+
+  const drum = doc.getElementById('genre-drum');
+  assert.equal(drumFrontGenre(doc), 'Jazz');
+  assert.equal(drum.style.transitionDuration, '0ms', 'no spin animation');
+  assert.ok(drum.classList.contains('genre-drum--landed'));
+});
+
+test('runSpin stops early and closes the overlay when the round moves to playing mid-spin', async () => {
+  const doc = makeDoc();
+  doc.getElementById('display-genre').textContent = 'KEEP';
+  const genres = [
+    { slug: 'rock', name: 'Rock' },
+    { slug: 'pop', name: 'Pop' },
+  ];
+  const state = makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 3 });
+  const startedAt = Date.now();
+  const getPhase = () => (Date.now() - startedAt < 50 ? 'spinning' : 'playing');
+  // durationMs is far beyond the test timeout: only an early stop lets this finish.
+  await runSpin(doc, state, genres, { durationMs: 100000, settleMs: 100000, getPhase });
+  assert.equal(doc.getElementById('display-genre').textContent, 'KEEP');
+  assert.equal(doc.getElementById('spin-card').hasAttribute('hidden'), true);
 });
 
 test('scoreboard renders teams in order', () => {

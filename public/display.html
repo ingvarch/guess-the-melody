@@ -46,13 +46,68 @@
         #reveal-card:not([hidden]) #next-btn            { animation: reveal-line 0.6s cubic-bezier(0.16,1,0.3,1) 0.65s both; }
         /* Headline cross-fade while the genre slot-machine cycles. */
         #display-genre { transition: opacity 0.12s ease; }
-        /* Spin overlay: the card scales in on open; the genre text cross-fades
-           as the slot-machine cycles. */
-        #spin-card:not([hidden]) .spin-card__box { animation: reveal-in 0.4s cubic-bezier(0.16,1,0.3,1) both; }
-        #spin-card-genre { transition: opacity 0.12s ease; }
-        /* Host-picked genre: no slot-machine, just a confident pop on the name. */
-        #spin-card.spin-card--confirm #spin-card-genre { animation: genre-confirm 0.5s cubic-bezier(0.16,1,0.3,1) both; }
-        @keyframes genre-confirm { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+        /* Genre drum: a 3D cylinder of genre names. runSpin sets --step, --r and
+           --line for the row count and transitions --spin to the picked row.
+           Two copies of the cylinder: dim rows above and below, and a bright
+           "lens" clipped to the center band. */
+        @property --spin { syntax: '<angle>'; inherits: true; initial-value: 0deg; }
+        #spin-card:not([hidden]) .genre-drum { animation: reveal-in 0.4s cubic-bezier(0.16,1,0.3,1) both; }
+        .genre-drum {
+            position: relative;
+            height: calc(var(--line, 1.2em) * 5);
+            font-size: clamp(2.25rem, 7vw, 5rem);
+            line-height: var(--line, 1.2em);
+            overflow: hidden;
+            transition-property: --spin;
+            transition-timing-function: cubic-bezier(0.25, 0.6, 0.3, 1);
+        }
+        .genre-drum__stage { position: absolute; inset: 0; perspective: calc(var(--r) * 6); }
+        .genre-drum__dim {
+            color: rgba(203, 195, 215, 0.4);
+            --window: linear-gradient(to bottom,
+                transparent 0,
+                #000 calc(50% - 2.2em),
+                #000 calc(50% - 1.5em),
+                transparent calc(50% - 0.5em),
+                transparent calc(50% + 0.5em),
+                #000 calc(50% + 1.5em),
+                #000 calc(50% + 2.2em),
+                transparent 100%);
+            -webkit-mask-image: var(--window);
+            mask-image: var(--window);
+        }
+        .genre-drum__lens { clip-path: inset(calc(50% - var(--line) / 2) 0); }
+        .genre-drum__cylinder {
+            position: absolute;
+            inset: 0;
+            transform-style: preserve-3d;
+            transform: translateZ(calc(-1 * var(--r))) rotateX(var(--spin));
+        }
+        .genre-drum__row {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            margin-top: calc(var(--line) / -2);
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            backface-visibility: hidden;
+            transform: rotateX(calc(-1 * var(--i) * var(--step))) translateZ(var(--r));
+        }
+        .genre-drum--landed .genre-drum__lens { animation: drum-land 0.5s cubic-bezier(0.16,1,0.3,1) both; }
+        .genre-drum--landed .genre-drum__lens .genre-drum__row {
+            background: linear-gradient(90deg, #d0bcff, #4cd7f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        @keyframes drum-land { from { transform: scale(1.08); } to { transform: scale(1); } }
+        @media (prefers-reduced-motion: reduce) {
+            .genre-drum { transition-duration: 0ms !important; }
+            #spin-card:not([hidden]) .genre-drum, .genre-drum--landed .genre-drum__lens { animation: none; }
+        }
         /* Visualiser bars idle low; they come alive only while a clip plays. */
         @keyframes bar-rest { 0%,100% { opacity: 0.5; } }
         body:not([data-phase="playing"]) .visualizer-bar { opacity: 0.45; }
@@ -226,14 +281,14 @@
                       "gutter": "24px"
               },
               "fontFamily": {
-                      "body-lg": ["Plus Jakarta Sans"],
-                      "headline-lg": ["Sora"],
-                      "body-md": ["Plus Jakarta Sans"],
-                      "display-lg": ["Sora"],
-                      "label-mono": ["JetBrains Mono"],
-                      "label-caps": ["JetBrains Mono"],
-                      "headline-lg-mobile": ["Sora"],
-                      "display-sm": ["Sora"]
+                      "body-lg": ["Plus Jakarta Sans", "system-ui", "sans-serif"],
+                      "headline-lg": ["Sora", "system-ui", "sans-serif"],
+                      "body-md": ["Plus Jakarta Sans", "system-ui", "sans-serif"],
+                      "display-lg": ["Sora", "system-ui", "sans-serif"],
+                      "label-mono": ["JetBrains Mono", "ui-monospace", "monospace"],
+                      "label-caps": ["JetBrains Mono", "ui-monospace", "monospace"],
+                      "headline-lg-mobile": ["Sora", "system-ui", "sans-serif"],
+                      "display-sm": ["Sora", "system-ui", "sans-serif"]
               },
               "fontSize": {
                       "body-lg": ["18px", {"lineHeight": "1.6", "fontWeight": "400"}],
@@ -335,13 +390,17 @@
                 REVEAL TRACK
             </button>
 </div>
-<!-- SPIN STATE: a card (genre slot-machine) on a dimmed backdrop. runSpin shows
-     it while picking, cycles the words, holds 3s, then closes to the Play screen. -->
+<!-- SPIN STATE: the genre drum on a dimmed backdrop. runSpin shows it while
+     picking, spins it to the chosen genre, holds 3s, then closes to the Play screen. -->
 <div id="spin-card" hidden class="fixed inset-0 z-[60] flex items-center justify-center p-margin-mobile">
-<div class="absolute inset-0 bg-background/80 backdrop-blur-sm"></div>
-<div class="spin-card__box glass-card relative z-10 w-full max-w-md rounded-2xl px-8 py-12 text-center shadow-2xl flex flex-col items-center">
+<div class="absolute inset-0 bg-background/95 backdrop-blur-2xl"></div>
+<div class="relative z-10 w-full max-w-5xl flex flex-col items-center">
 <span class="font-label-caps text-label-caps text-secondary tracking-[0.5em] mb-6 block">PICKING GENRE</span>
-<h3 id="spin-card-genre" class="font-display-lg text-4xl sm:text-5xl text-on-surface uppercase tracking-tight break-words"></h3>
+<div id="genre-drum" class="genre-drum w-full font-display-lg font-extrabold uppercase tracking-tight" aria-hidden="true">
+<div class="genre-drum__stage genre-drum__dim"><div class="genre-drum__cylinder" data-drum-cylinder></div></div>
+<div class="genre-drum__stage genre-drum__lens text-on-surface"><div class="genre-drum__cylinder" data-drum-cylinder></div></div>
+</div>
+<h3 id="spin-card-genre" class="sr-only" aria-live="polite"></h3>
 </div>
 </div>
 <!-- REVEAL STATE -->

@@ -4,6 +4,7 @@
 // Pure DOM — testable with happy-dom.
 
 import { mulberry32 } from './prng.js';
+import { drumRows, rowAngle, drumRadiusEm, pickSpinTarget } from './genre-drum.js';
 import { audioCurrentTime, formatClock } from './audio-sync.js';
 
 const CLIP_DURATION_SEC = 30;
@@ -354,76 +355,94 @@ function wait(ms) {
   return new Promise((res) => setTimeout(res, ms));
 }
 
-// "Picking genre" slot-machine: cycle genre names on the headline, decelerating
-// to a stop on the chosen one. Deterministic given spinSeed so every viewer
-// (display + spectators) lands on the same sequence. Resolves with the headline
-// showing the selected genre's display name.
-// Builds the spin cadence as fractions of the total spin time: a long burst of
-// equal fast flips, then a decelerating tail whose steps grow super-linearly so
-// it visibly eases to a stop. Tuned for ~2s fast + ~6s slowing at durationMs=8000.
-function buildSpinCadence() {
-  const FAST_FLIPS = 32;
-  const SLOW_FLIPS = 16;
-  const fastBudget = 0.25; // share of total spent flipping fast
-  const slowBudget = 1 - fastBudget;
-  const fast = Array.from({ length: FAST_FLIPS }, () => fastBudget / FAST_FLIPS);
-  const weights = Array.from({ length: SLOW_FLIPS }, (_, i) => (i + 1) ** 1.7);
-  const wsum = weights.reduce((a, b) => a + b, 0);
-  const slow = weights.map((w) => (slowBudget * w) / wsum);
-  return [...fast, ...slow];
+// Line height of a drum row in em; the radius is sized so rows sit one line apart.
+const DRUM_LINE_EM = 1.2;
+
+// Fills both drum layers (dim rows and the bright center band) with the
+// genre names and sizes the cylinder for that many rows.
+function buildDrum(drum, names) {
+  const rows = drumRows(names);
+  for (const cylinder of drum.querySelectorAll('[data-drum-cylinder]')) {
+    clearChildren(cylinder);
+    rows.forEach((name, i) => {
+      const row = drum.ownerDocument.createElement('span');
+      row.className = 'genre-drum__row';
+      row.style.setProperty('--i', String(i));
+      row.textContent = name;
+      cylinder.append(row);
+    });
+  }
+  drum.style.setProperty('--step', `${360 / rows.length}deg`);
+  drum.style.setProperty('--line', `${DRUM_LINE_EM}em`);
+  drum.style.setProperty('--r', `${drumRadiusEm(rows.length, DRUM_LINE_EM)}em`);
+  return rows.length;
 }
 
+// CSS transitions --spin over `ms`; 0 jumps straight there.
+function turnDrum(drum, angle, ms) {
+  drum.style.transitionDuration = `${ms}ms`;
+  drum.style.setProperty('--spin', `${angle}deg`);
+}
+
+// Resolves false as soon as keepGoing() turns false, true after `ms`.
+async function waitWhile(ms, keepGoing) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    if (!keepGoing()) return false;
+    await wait(Math.min(100, end - Date.now()));
+  }
+  return keepGoing();
+}
+
+// "Picking genre" drum: spins a cylinder of genre names and eases it to a stop
+// on the chosen one. Deterministic given spinSeed so every viewer sees the same
+// spin. Leaves the headline showing the selected genre's display name.
 export async function runSpin(doc, state, genres, { durationMs = 8000, settleMs = 3000, confirmMs = 1000, getPhase } = {}) {
   const overlay = doc.getElementById('spin-card');
+  const drum = doc.getElementById('genre-drum');
   const spinText = doc.getElementById('spin-card-genre');
   const headline = doc.getElementById('display-genre');
-  if (!spinText || state.phase !== 'spinning' || genres.length === 0) return;
+  if (!drum || !spinText || state.phase !== 'spinning' || genres.length === 0) return;
 
-  const selected = genres.find((g) => g.slug === state.selectedGenre);
-  const finalName = selected?.name ?? state.selectedGenre ?? '—';
+  const names = genres.map((g) => g.name);
+  let genreIndex = genres.findIndex((g) => g.slug === state.selectedGenre);
+  if (genreIndex < 0) genreIndex = names.push(state.selectedGenre ?? '—') - 1;
+  const finalName = names[genreIndex];
 
   // The captured `state` is replaced wholesale on each SSE frame, so check the
   // live phase via getPhase: if the round advances to playing mid-spin, bail.
   const stillSpinning = () => (getPhase ? getPhase() === 'spinning' : true);
-  const close = () => {
-    overlay?.classList.remove('spin-card--confirm');
-    setHidden(overlay, true);
-  };
-
-  setHidden(overlay, false);
-
-  // Host chose the genre: cycling through names reveals nothing. Show the chosen
-  // genre with a brief pop instead of a fake random draw.
-  if (state.genrePicked) {
-    if (!stillSpinning()) { close(); return; }
+  const close = () => setHidden(overlay, true);
+  // Land on the chosen genre — on the drum and on the underlying headline, so
+  // the normal spinning screen shows it once the overlay closes.
+  const land = () => {
+    drum.classList.add('genre-drum--landed');
     spinText.textContent = finalName;
     if (headline) headline.textContent = finalName;
-    overlay?.classList.add('spin-card--confirm');
+  };
+
+  const rowCount = buildDrum(drum, names);
+  drum.classList.remove('genre-drum--landed');
+  spinText.textContent = '';
+  setHidden(overlay, false);
+  turnDrum(drum, 0, 0);
+  void drum.offsetWidth; // commit the start angle so the spin animates from it
+
+  // Host chose the genre: a random-looking spin would fake a draw. Show the
+  // chosen genre straight away.
+  if (state.genrePicked) {
+    if (!stillSpinning()) { close(); return; }
+    turnDrum(drum, rowAngle(genreIndex, rowCount), 0);
+    land();
     await wait(confirmMs);
     close();
     return;
   }
 
-  const prng = mulberry32(state.spinSeed || 1);
-  // Cadence = fractions of durationMs. ~2s of rapid flips up front, then a long
-  // (~5-6s) deceleration easing to a stop on the chosen genre.
-  const cadence = buildSpinCadence();
-  let prevIdx = -1;
-  for (const frac of cadence) {
-    if (!stillSpinning()) { close(); return; }
-    let idx;
-    do { idx = Math.floor(prng() * genres.length); }
-    while (idx === prevIdx && genres.length > 1);
-    prevIdx = idx;
-    spinText.textContent = genres[idx].name;
-    await wait(Math.max(16, Math.round(frac * durationMs)));
-  }
-  if (!stillSpinning()) { close(); return; }
-
-  // Land on the chosen genre — in the card and on the underlying headline, so
-  // the normal spinning screen shows it once the overlay closes.
-  spinText.textContent = finalName;
-  if (headline) headline.textContent = finalName;
+  const { angle } = pickSpinTarget(genreIndex, names.length, rowCount, mulberry32(state.spinSeed || 1));
+  turnDrum(drum, angle, durationMs);
+  if (!(await waitWhile(durationMs, stillSpinning))) { close(); return; }
+  land();
 
   // Hold briefly so players read the genre, then drop back to the Play screen.
   await wait(settleMs);
