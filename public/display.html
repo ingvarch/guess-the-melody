@@ -116,8 +116,10 @@
             position: relative;
             width: var(--deck);
             height: var(--deck);
-            margin-top: calc(var(--deck) * 0.1);
+            /* Room for the analyser ring, which reaches ~22% of the record past its edge. */
+            margin-top: calc(var(--deck) * 0.25);
         }
+        @media (min-width: 640px) { .turntable { margin-top: calc(var(--deck) * 0.1); } }
         /* 1.5x the record: waveform.js draws its ring from the record edge out. */
         .turntable__ring { position: absolute; left: -25%; top: -25%; width: 150%; height: 150%; pointer-events: none; }
         .turntable__record { position: absolute; inset: 0; border-radius: 50%; }
@@ -455,14 +457,14 @@
 </button>
 </div>
 <!-- Playback Controls (visible during spinning/playing/revealed) -->
-<div id="phase-controls" hidden class="glass-card rounded-xl p-6 flex flex-wrap items-center justify-between gap-6 w-full max-w-2xl">
+<div id="phase-controls" hidden class="glass-card rounded-xl p-4 sm:p-6 flex flex-wrap items-center justify-between gap-4 sm:gap-6 w-full max-w-2xl">
 <audio id="audio" preload="auto" crossorigin="anonymous"></audio>
 <div class="flex items-center gap-4">
-<button id="replay-btn" type="button" aria-label="Replay" hidden class="w-12 h-12 rounded-full flex items-center justify-center border border-outline-variant text-on-surface-variant hover:text-primary transition-colors">
+<button id="replay-btn" type="button" aria-label="Replay" hidden class="w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center border border-outline-variant text-on-surface-variant hover:text-primary transition-colors">
 <span class="material-symbols-outlined">replay</span>
 </button>
-<button id="play-btn" type="button" aria-label="Play" hidden class="w-16 h-16 rounded-full flex items-center justify-center bg-secondary text-on-secondary hover:glow-secondary-soft transition-all">
-<span class="material-symbols-outlined text-4xl" data-weight="fill">play_arrow</span>
+<button id="play-btn" type="button" aria-label="Play" hidden class="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center bg-secondary text-on-secondary hover:glow-secondary-soft transition-all">
+<span class="material-symbols-outlined text-3xl sm:text-4xl" data-weight="fill">play_arrow</span>
 </button>
 </div>
 <div class="flex-1 max-w-md">
