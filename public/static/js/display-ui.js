@@ -21,13 +21,19 @@ function isClipEnded(state) {
   return audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC, state.audioPausedTimestamp) >= CLIP_DURATION_SEC;
 }
 
+// The record turns from the Play press on: first while the jukebox puts it
+// on (the music starts at audioStartTimestamp), then under the music.
+export function recordTurns(state) {
+  return hasClip(state)
+    && state.audioPausedTimestamp == null
+    && !isClipEnded(state);
+}
+
 // True while the shared state says the clip must be audible on this screen.
 // The sound gate polls this every tick; starting playback lives there, not in
 // the renderer, because play() needs autoplay-policy handling and retries.
 export function shouldBeAudible(state) {
-  return hasClip(state)
-    && state.audioPausedTimestamp == null
-    && !isClipEnded(state);
+  return recordTurns(state) && Date.now() >= state.audioStartTimestamp;
 }
 
 const TEAM_ICONS = ['rocket_launch', 'electric_bolt', 'auto_awesome', 'texture', 'bolt', 'flare', 'whatshot', 'star'];
@@ -318,12 +324,20 @@ function renderRevealCard(doc, state) {
   }
 }
 
+// Lights the progress bar up to the scrubber's position.
+export function paintScrubber(scrubber) {
+  scrubber.style.setProperty('--progress', String(Number(scrubber.value) / Number(scrubber.max)));
+}
+
 export function renderClock(doc, state) {
   const scrubber = doc.getElementById('scrubber');
   const timeReadout = doc.getElementById('time-readout');
   const cur = audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC, state.audioPausedTimestamp);
   // Mid-drag the thumb belongs to the user's finger, not the clock.
-  if (scrubber && scrubber.dataset.scrubbing === undefined) scrubber.value = String(cur);
+  if (scrubber && scrubber.dataset.scrubbing === undefined) {
+    scrubber.value = String(cur);
+    paintScrubber(scrubber);
+  }
   if (timeReadout) {
     timeReadout.textContent = `${formatClock(cur)} / ${formatClock(CLIP_DURATION_SEC)}`;
   }

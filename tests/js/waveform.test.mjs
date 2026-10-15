@@ -75,3 +75,25 @@ test('stop clears the ring, so no frozen bars stay around a still record', () =>
     else delete globalThis.requestAnimationFrame;
   }
 });
+
+test('the jukebox sound can share the ring: the context and the analyser input are exposed', () => {
+  const canvas = { width: 720, height: 720, getContext: () => ({ clearRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {} }) };
+  const analyser = { frequencyBinCount: 64, connect() {}, getByteFrequencyData() {} };
+  class FakeAudioContext {
+    state = 'running';
+    destination = {};
+    createMediaElementSource() { return { connect() {} }; }
+    createAnalyser() { return analyser; }
+  }
+  const hadRaf = 'requestAnimationFrame' in globalThis;
+  const prevRaf = globalThis.requestAnimationFrame;
+  globalThis.requestAnimationFrame = () => 0;
+  try {
+    const ctrl = withWindow({ AudioContext: FakeAudioContext }, () => attachWaveform({ audioEl: {}, canvas }));
+    assert.ok(ctrl.context instanceof FakeAudioContext);
+    assert.equal(ctrl.input, analyser);
+  } finally {
+    if (hadRaf) globalThis.requestAnimationFrame = prevRaf;
+    else delete globalThis.requestAnimationFrame;
+  }
+});

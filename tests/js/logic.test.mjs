@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { applyAction } from '../../public/static/js/logic.js';
+import { applyAction, RECORD_CUE_MS } from '../../public/static/js/logic.js';
 import { initialState, addTeam } from '../../public/static/js/state.js';
 
 test('spin: idle -> spinning, fills currentTrack and spinSeed', () => {
@@ -47,13 +47,14 @@ test('spin: invalid from non-idle', () => {
   }));
 });
 
-test('play: spinning -> playing, sets audioStartTimestamp', () => {
+test('play: spinning -> playing, the music starts once the jukebox has put the record on', () => {
   const s = applyAction(initialState(), {
     action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 1,
   });
   const out = applyAction(s, { action: 'play', now: 1234567890 });
   assert.equal(out.phase, 'playing');
-  assert.equal(out.audioStartTimestamp, 1234567890);
+  assert.ok(RECORD_CUE_MS >= 1000, 'long enough to hear the record go on');
+  assert.equal(out.audioStartTimestamp, 1234567890 + RECORD_CUE_MS);
 });
 
 test('reveal: playing -> revealed, stores revealedTrack', () => {
@@ -113,11 +114,12 @@ test('replay: rejected outside playing', () => {
   assert.throws(() => applyAction(spinning, { action: 'replay', now: 1 }));
 });
 
+// A playing clip whose music started at `start`.
 function playingAt(start) {
   let s = applyAction(initialState(), {
     action: 'spin', selectedGenre: 'rock', trackId: 'abc', spinSeed: 1,
   });
-  return applyAction(s, { action: 'play', now: start });
+  return applyAction(s, { action: 'play', now: start - RECORD_CUE_MS });
 }
 
 test('reveal: keeps the clip clock, running or paused', () => {

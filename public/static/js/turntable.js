@@ -5,8 +5,8 @@
 
 const DEG_PER_SEC = 200; // 33 1/3 rpm
 const SPEED_TAU_SEC = 0.35;
-const LIFT_SEC = 0.25;
-const SWING_SEC = 0.9;
+export const LIFT_SEC = 0.25;
+export const SWING_SEC = 0.9;
 
 export const RESTING_DECK = Object.freeze({ speed: 0, angle: 0, arm: 0, lift: 0 });
 

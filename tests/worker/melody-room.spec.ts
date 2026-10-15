@@ -403,6 +403,7 @@ describe('MelodyRoom DO', () => {
       body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
     });
     // Client passes now: 1, but the DO must overwrite it with its own clock.
+    const beforePlay = Date.now();
     const playRes = await stub.fetch(`${BASE}/state`, {
       method: 'POST', headers: hdr,
       body: JSON.stringify({ action: 'play', now: 1 }),
@@ -421,7 +422,8 @@ describe('MelodyRoom DO', () => {
     const paused = (await pauseRes.json()) as RoomState;
     expect(paused.phase).toBe('playing');
     expect(typeof paused.audioPausedTimestamp).toBe('number');
-    expect(paused.audioPausedTimestamp as number).toBeGreaterThanOrEqual(startTs);
+    // Pausing during the record cue lands before the music start, never before play.
+    expect(paused.audioPausedTimestamp as number).toBeGreaterThanOrEqual(beforePlay);
 
     const resumeRes = await stub.fetch(`${BASE}/state`, {
       method: 'POST', headers: hdr,
@@ -447,14 +449,14 @@ describe('MelodyRoom DO', () => {
       method: 'POST', headers: hdr,
       body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
     });
-    const playRes = await stub.fetch(`${BASE}/state`, {
+    const beforePlay = Date.now();
+    await stub.fetch(`${BASE}/state`, {
       method: 'POST', headers: hdr,
       body: JSON.stringify({ action: 'play' }),
     });
-    const startTs = ((await playRes.json()) as RoomState).audioStartTimestamp as number;
 
     // The client-supplied `now: 1` must be overwritten by the DO clock: a
-    // seek to 0 restamps the start, which can then only move forward.
+    // seek to 0 restamps the start at the DO's now, never before play.
     const seekRes = await stub.fetch(`${BASE}/state`, {
       method: 'POST', headers: hdr,
       body: JSON.stringify({ action: 'seek', positionSec: 0, now: 1 }),
@@ -462,7 +464,7 @@ describe('MelodyRoom DO', () => {
     expect(seekRes.status).toBe(200);
     const sought = (await seekRes.json()) as RoomState;
     expect(sought.phase).toBe('playing');
-    expect(sought.audioStartTimestamp as number).toBeGreaterThanOrEqual(startTs);
+    expect(sought.audioStartTimestamp as number).toBeGreaterThanOrEqual(beforePlay);
 
     const bad = await stub.fetch(`${BASE}/state`, {
       method: 'POST', headers: hdr,
@@ -665,6 +667,7 @@ describe('MelodyRoom DO', () => {
       headers: { 'X-Owner-Token': 'x' },
       body: JSON.stringify({ action: 'spin', selectedGenre: 'rock' }),
     });
+    const beforePlay = Date.now();
     const played = (await (await stub.fetch(`${BASE}/state`, {
       method: 'POST',
       headers: { 'X-Owner-Token': 'x' },
@@ -681,8 +684,8 @@ describe('MelodyRoom DO', () => {
     expect(res.status).toBe(200);
     const state = (await res.json()) as RoomState;
     expect(state.phase).toBe('playing');
-    // Replay re-stamps with a fresh server clock, no earlier than the play stamp.
-    expect(state.audioStartTimestamp).toBeGreaterThanOrEqual(played.audioStartTimestamp!);
+    // Replay re-stamps with a fresh server clock, no earlier than play.
+    expect(state.audioStartTimestamp).toBeGreaterThanOrEqual(beforePlay);
   });
 
   it('writes a registry snapshot to D1 on mutation when initialised with a sessionId', async () => {

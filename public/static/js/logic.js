@@ -1,5 +1,8 @@
 import { addTeam, renameTeam, removeTeam, awardPoints, initialState } from './state.js';
 
+// Play gives the jukebox time to put the record on before the music starts.
+export const RECORD_CUE_MS = 2000;
+
 const VALID_TRANSITIONS = {
   spin:    new Set(['idle']),
   play:    new Set(['spinning']),
@@ -42,7 +45,7 @@ export function applyAction(state, payload) {
 
     case 'play': {
       expectPhase('play', state);
-      return { ...state, phase: 'playing', audioStartTimestamp: payload.now, audioPausedTimestamp: null };
+      return { ...state, phase: 'playing', audioStartTimestamp: payload.now + RECORD_CUE_MS, audioPausedTimestamp: null };
     }
 
     case 'replay': {

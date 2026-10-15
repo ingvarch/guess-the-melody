@@ -10,6 +10,8 @@ import {
   renderPlaybackControls,
   showGenreChoice,
   shouldBeAudible,
+  recordTurns,
+  paintScrubber,
   showActionError,
   clearActionError,
 } from './display-ui.js';
@@ -34,6 +36,7 @@ import {
 import { attachWaveform } from './waveform.js';
 import { attachTurntable } from './turntable.js';
 import { attachLever } from './lever.js';
+import { createCuePlayer, playCue } from './jukebox-sound.js';
 
 const sessionId = document.querySelector('meta[name="session-id"]')?.content ?? '';
 const TICK_MS = 250;
@@ -74,10 +77,31 @@ function boot() {
     getWaveform: () => waveformCtrl,
   });
 
-  // The record turns exactly while the clip should be heard.
+  // The record turns from the Play press: the jukebox puts it on, then the
+  // clip plays.
   const deck = attachTurntable(document.getElementById('turntable'), {
     reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
+
+  // The record going on plays through the ring's audio context, which the
+  // sound gate unlocks.
+  const cue = createCuePlayer({
+    play: (inSec) => (waveformCtrl ? playCue(waveformCtrl.context, waveformCtrl.input, inSec) : null),
+  });
+
+  function syncSound() {
+    gate.sync(shouldBeAudible(view.state));
+    deck.set(recordTurns(view.state));
+    cue.sync(view.state, Date.now());
+  }
+
+  // The clock tick can land up to TICK_MS after the music start; start it on time.
+  let musicTimer = null;
+  function armMusicStart() {
+    clearTimeout(musicTimer);
+    const wait = view.state.audioStartTimestamp - Date.now();
+    if (view.state.phase === 'playing' && wait > 0) musicTimer = setTimeout(syncSound, wait);
+  }
 
   function onState() {
     // The jukebox stays up until its drum stops; only then the Play screen shows.
@@ -110,8 +134,8 @@ function boot() {
     }
 
     prevPhase = view.state.phase;
-    gate.sync(shouldBeAudible(view.state));
-    deck.set(shouldBeAudible(view.state));
+    syncSound();
+    armMusicStart();
   }
 
   async function init() {
@@ -181,6 +205,7 @@ function boot() {
     const endScrub = () => { if (scrubber) delete scrubber.dataset.scrubbing; };
     scrubber?.addEventListener('input', () => {
       scrubber.dataset.scrubbing = '1';
+      paintScrubber(scrubber);
     });
     scrubber?.addEventListener('change', () => {
       endScrub();
@@ -273,8 +298,7 @@ function boot() {
     renderClock(document, view.state);
     // Surface Reveal/Repeat the moment the 30s clip elapses, without a server msg.
     renderPlaybackControls(document, view.state, view.picking);
-    gate.sync(shouldBeAudible(view.state));
-    deck.set(shouldBeAudible(view.state));
+    syncSound();
   }, TICK_MS);
 }
 

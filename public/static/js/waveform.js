@@ -114,5 +114,6 @@ export function attachWaveform({ audioEl, canvas }) {
     return ctx.state === 'suspended';
   }
 
-  return { stop, start, resume, suspended };
+  // Other sounds (the jukebox cue) play into the analyser, so the ring shows them too.
+  return { stop, start, resume, suspended, context: ctx, input: analyser };
 }

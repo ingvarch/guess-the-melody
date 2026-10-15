@@ -60,7 +60,7 @@ function makeState(overrides = {}) {
 }
 
 const mod = await import('../../public/static/js/display-ui.js');
-const { render, runSpin, renderClock, renderPlaybackControls, showGenreChoice, shouldBeAudible, showActionError, clearActionError } = mod;
+const { render, runSpin, renderClock, renderPlaybackControls, showGenreChoice, shouldBeAudible, recordTurns, paintScrubber, showActionError, clearActionError } = mod;
 
 function drumRowTexts(doc) {
   return [...doc.querySelectorAll('[data-drum-cylinder]')].map((c) => [...c.children].map((r) => r.textContent));
@@ -616,6 +616,39 @@ test('scrubber: enabled only while the clip phase is playing', () => {
 
   render(doc, { state: makeState({ phase: 'revealed' }), genres: [], sessionId: 's' });
   assert.ok(doc.getElementById('scrubber').disabled, 'disabled after reveal');
+});
+
+test('shouldBeAudible: silent while the jukebox puts the record on', () => {
+  const cueing = makeState({ phase: 'playing', audioStartTimestamp: Date.now() + 1_500 });
+  assert.equal(shouldBeAudible(cueing), false);
+  const started = makeState({ phase: 'playing', audioStartTimestamp: Date.now() - 100 });
+  assert.equal(shouldBeAudible(started), true);
+});
+
+test('recordTurns: from the Play press, through the record cue, until a pause or the clip end', () => {
+  const now = Date.now();
+  assert.equal(recordTurns(makeState({ phase: 'playing', audioStartTimestamp: now + 1_500 })), true, 'cue');
+  assert.equal(recordTurns(makeState({ phase: 'playing', audioStartTimestamp: now - 5_000 })), true, 'music');
+  assert.equal(recordTurns(makeState({
+    phase: 'playing', audioStartTimestamp: now - 5_000, audioPausedTimestamp: now - 1_000,
+  })), false, 'paused');
+  assert.equal(recordTurns(makeState({ phase: 'playing', audioStartTimestamp: now - 31_000 })), false, 'ended');
+  assert.equal(recordTurns(makeState({ phase: 'spinning' })), false, 'before Play');
+});
+
+test('renderClock: lights the progress bar up to the clip position', () => {
+  const doc = makeDoc();
+  renderClock(doc, makeState({ phase: 'playing', audioStartTimestamp: Date.now() - 15_000 }));
+  const progress = Number(doc.getElementById('scrubber').style.getPropertyValue('--progress'));
+  assert.ok(Math.abs(progress - 0.5) < 0.02, `progress ${progress}`);
+});
+
+test('paintScrubber: mid-drag the bar follows the finger', () => {
+  const doc = makeDoc();
+  const scrub = doc.getElementById('scrubber');
+  scrub.value = '6';
+  paintScrubber(scrub);
+  assert.equal(Number(scrub.style.getPropertyValue('--progress')), 0.2);
 });
 
 test('renderClock: leaves the scrubber value alone mid-drag', () => {
