@@ -345,6 +345,8 @@ export function render(doc, view) {
   renderTeamsList(doc, state);
   renderGenres(doc, genres ?? [], state);
   renderPlaybackControls(doc, state);
+  // Idle has the round SPIN button; a record above it would be a second disc.
+  setHidden(doc.getElementById('turntable'), state.phase === 'idle');
   renderRevealCard(doc, state);
 
   syncAudioDisplay(doc, state, sessionId);

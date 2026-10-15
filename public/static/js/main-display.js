@@ -31,6 +31,7 @@ import {
   next,
 } from './host-actions.js';
 import { attachWaveform } from './waveform.js';
+import { attachTurntable } from './turntable.js';
 
 const sessionId = document.querySelector('meta[name="session-id"]')?.content ?? '';
 const TICK_MS = 250;
@@ -71,10 +72,13 @@ function boot() {
     getWaveform: () => waveformCtrl,
   });
 
+  // The record turns exactly while the clip should be heard.
+  const deck = attachTurntable(document.getElementById('turntable'), {
+    reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  });
+
   function onState() {
     render(document, view);
-    // Expose phase to the inline visualiser so the bars react only while playing.
-    document.body.dataset.phase = view.state.phase ?? '';
 
     if (prevPhase !== 'spinning' && view.state.phase === 'spinning') {
       void runSpin(document, view.state, view.genres, { getPhase: () => view.state.phase });
@@ -98,6 +102,7 @@ function boot() {
 
     prevPhase = view.state.phase;
     gate.sync(shouldBeAudible(view.state));
+    deck.set(shouldBeAudible(view.state));
   }
 
   async function init() {
@@ -253,6 +258,7 @@ function boot() {
     // Surface Reveal/Repeat the moment the 30s clip elapses, without a server msg.
     renderPlaybackControls(document, view.state);
     gate.sync(shouldBeAudible(view.state));
+    deck.set(shouldBeAudible(view.state));
   }, TICK_MS);
 }
 

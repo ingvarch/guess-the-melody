@@ -4,7 +4,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { attachWaveform } from '../../public/static/js/waveform.js';
+import { attachWaveform, ringBar, ringBin } from '../../public/static/js/waveform.js';
 
 // `window` is read at call time. Bun shares one global object across test
 // files, so it is installed only for the duration of the call — a leaked
@@ -30,4 +30,48 @@ test('missing canvas: noop controller with suspended() === false', () => {
 test('no AudioContext: noop controller with suspended() === false', () => {
   const ctrl = withWindow({}, () => attachWaveform({ audioEl: {}, canvas: {} }));
   assert.equal(ctrl.suspended(), false);
+});
+
+function assertNear(actual, expected) {
+  for (const k of Object.keys(expected)) {
+    assert.ok(Math.abs(actual[k] - expected[k]) < 1e-9, `${k}: ${actual[k]} vs ${expected[k]}`);
+  }
+}
+
+test('ringBar: bars start at the record edge and grow outward with the level', () => {
+  const ring = { cx: 100, cy: 100, inner: 50, reach: 30, count: 4 };
+  assertNear(ringBar(0, 0, ring), { x1: 100, y1: 50, x2: 100, y2: 50 });
+  assertNear(ringBar(0, 255, ring), { x1: 100, y1: 50, x2: 100, y2: 20 });
+  assertNear(ringBar(1, 255, ring), { x1: 150, y1: 100, x2: 180, y2: 100 });
+});
+
+test('ringBin: both halves of the ring mirror the same low and mid bins', () => {
+  assert.equal(ringBin(0, 64), 0);
+  assert.equal(ringBin(1, 64), 1);
+  assert.equal(ringBin(63, 64), 1);
+  assert.equal(ringBin(32, 64), 32);
+});
+
+test('stop clears the ring, so no frozen bars stay around a still record', () => {
+  const calls = [];
+  const c2d = { clearRect: () => calls.push('clear'), beginPath() {}, moveTo() {}, lineTo() {}, stroke() {} };
+  const canvas = { width: 720, height: 720, getContext: () => c2d };
+  class FakeAudioContext {
+    state = 'running';
+    destination = {};
+    createMediaElementSource() { return { connect() {} }; }
+    createAnalyser() { return { frequencyBinCount: 64, connect() {}, getByteFrequencyData() {} }; }
+  }
+  const hadRaf = 'requestAnimationFrame' in globalThis;
+  const prevRaf = globalThis.requestAnimationFrame;
+  globalThis.requestAnimationFrame = () => 0;
+  try {
+    const ctrl = withWindow({ AudioContext: FakeAudioContext }, () => attachWaveform({ audioEl: {}, canvas }));
+    calls.length = 0;
+    ctrl.stop();
+    assert.deepEqual(calls, ['clear']);
+  } finally {
+    if (hadRaf) globalThis.requestAnimationFrame = prevRaf;
+    else delete globalThis.requestAnimationFrame;
+  }
 });

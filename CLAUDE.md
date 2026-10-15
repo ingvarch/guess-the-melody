@@ -189,7 +189,9 @@ guess-the-melody/
 │           ├── state.js           # state shape + mutators
 │           ├── prng.js            # mulberry32 PRNG
 │           ├── audio-sync.js      # audio time-sync helpers
-│           ├── waveform.js        # canvas waveform visualiser
+│           ├── waveform.js        # analyser ring around the turntable record
+│           ├── turntable.js       # record spin + tonearm cueing motion
+│           ├── genre-drum.js      # genre drum geometry for the spin overlay
 │           ├── sse.js             # reconnecting EventSource wrapper
 │           ├── sound-gate.js      # autoplay gate + tap-for-sound overlay
 │           ├── host-actions.js    # game API wrappers
@@ -208,6 +210,8 @@ guess-the-melody/
     │   ├── prng.test.mjs
     │   ├── audio-sync.test.mjs
     │   ├── waveform.test.mjs
+    │   ├── turntable.test.mjs
+    │   ├── genre-drum.test.mjs
     │   ├── sse.test.mjs
     │   ├── sound-gate.test.mjs
     │   ├── host-actions.test.mjs

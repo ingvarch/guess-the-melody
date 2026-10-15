@@ -17,6 +17,7 @@ function makeDoc() {
       <div id="genre-drum"><div data-drum-cylinder></div><div data-drum-cylinder></div></div>
       <h3 id="spin-card-genre"></h3>
     </div>
+    <div id="turntable" hidden></div>
     <div id="idle-controls"></div>
     <button id="spin-btn"></button>
     <div id="phase-controls" hidden></div>
@@ -332,6 +333,14 @@ test('scoreboard renders teams in order', () => {
   assert.equal(items.length, 2);
   assert.ok(items[0].textContent.includes('Alpha'));
   assert.ok(items[0].querySelector('.scoreboard__score').textContent.includes('3'));
+});
+
+test('render: the turntable stays hidden while idle and shows once a round starts', () => {
+  const doc = makeDoc();
+  render(doc, { state: makeState({ phase: 'idle' }), genres: [], sessionId: 's' });
+  assert.ok(hidden(doc, 'turntable'));
+  render(doc, { state: makeState({ phase: 'spinning', selectedGenre: 'pop' }), genres: [], sessionId: 's' });
+  assert.ok(!hidden(doc, 'turntable'));
 });
 
 test('reveal card hidden outside revealed', () => {

@@ -108,9 +108,70 @@
             .genre-drum { transition-duration: 0ms !important; }
             #spin-card:not([hidden]) .genre-drum, .genre-drum--landed .genre-drum__lens { animation: none; }
         }
-        /* Visualiser bars idle low; they come alive only while a clip plays. */
-        @keyframes bar-rest { 0%,100% { opacity: 0.5; } }
-        body:not([data-phase="playing"]) .visualizer-bar { opacity: 0.45; }
+        /* Turntable. turntable.js sets --disc-angle (label rotation), --arm
+           (0 on the rest, 1 on the record), --lift (0 lowered, 1 raised) and
+           --contact (1 while the needle sits in the groove). */
+        .turntable {
+            --deck: clamp(9rem, 27vh, 17rem);
+            position: relative;
+            width: var(--deck);
+            height: var(--deck);
+            margin-top: calc(var(--deck) * 0.1);
+        }
+        /* 1.5x the record: waveform.js draws its ring from the record edge out. */
+        .turntable__ring { position: absolute; left: -25%; top: -25%; width: 150%; height: 150%; pointer-events: none; }
+        .turntable__record { position: absolute; inset: 0; border-radius: 50%; }
+        .turntable__vinyl {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle closest-side, transparent 60%, rgba(0, 0, 0, 0.6) 60.5% 61.5%, transparent 62% 79%, rgba(0, 0, 0, 0.6) 79.5% 80.5%, transparent 81%),
+                repeating-radial-gradient(circle closest-side, rgba(255, 255, 255, 0.045) 0 1px, transparent 1px 3px),
+                radial-gradient(circle closest-side, #1e1d25 0%, #111116 70%, #09090c 100%);
+            box-shadow:
+                0 0 0 1px rgba(208, 188, 255, calc(0.18 + 0.3 * var(--contact, 0))),
+                0 0 calc(24px + 40px * var(--contact, 0)) rgba(208, 188, 255, calc(0.12 + 0.3 * var(--contact, 0))),
+                inset 0 0 0 3px rgba(0, 0, 0, 0.6);
+        }
+        .turntable__label { position: absolute; inset: 0; transform: rotate(var(--disc-angle, 0deg)); }
+        /* Light reflects off a fixed spot while the record turns under it. */
+        .turntable__sheen {
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: conic-gradient(from 20deg, transparent 0deg, rgba(255, 255, 255, 0.08) 28deg, transparent 56deg 180deg, rgba(255, 255, 255, 0.06) 208deg, transparent 236deg);
+            -webkit-mask-image: radial-gradient(circle closest-side, transparent 35%, #000 36%);
+            mask-image: radial-gradient(circle closest-side, transparent 35%, #000 36%);
+            pointer-events: none;
+        }
+        /* The groove under the needle lights up while it plays. */
+        .turntable__groove {
+            position: absolute;
+            inset: 7%;
+            border-radius: 50%;
+            border: 1px solid rgba(76, 215, 246, 0.7);
+            box-shadow: 0 0 14px rgba(76, 215, 246, 0.55), inset 0 0 14px rgba(76, 215, 246, 0.35);
+            opacity: calc(var(--contact, 0) * 0.6);
+        }
+        .turntable__arm {
+            position: absolute;
+            left: 0;
+            top: -10%;
+            width: 136%;
+            height: 120%;
+            overflow: visible;
+            pointer-events: none;
+            filter: drop-shadow(calc(2px + 6px * var(--lift, 0)) calc(3px + 9px * var(--lift, 0)) calc(3px + 6px * var(--lift, 0)) rgba(0, 0, 0, 0.6));
+        }
+        /* Rest at 6.6deg, on the record at 21.1deg: the stylus lands on the
+           groove at 43% of the record radius. */
+        .turntable__tonearm {
+            transform-box: view-box;
+            transform-origin: 114px 14px;
+            transform: rotate(calc(6.6deg + var(--arm, 0) * 14.5deg)) scale(calc(1 + var(--lift, 0) * 0.025));
+        }
+        .turntable__contact { opacity: var(--contact, 0); }
         .glow-primary-soft { box-shadow: 0 0 30px rgba(208, 188, 255, 0.4); }
         .glow-secondary-soft { box-shadow: 0 0 20px rgba(76, 215, 246, 0.4); }
         .glass-card {
@@ -126,9 +187,6 @@
         }
         .glow-track-fill {
             box-shadow: 0 0 15px rgba(76, 215, 246, 0.6);
-        }
-        .visualizer-bar {
-            transition: height 0.1s ease;
         }
         .film-grain::after {
             content: "";
@@ -346,16 +404,47 @@
                 Picking Genre...
             </h2>
 </div>
-<!-- Central Visualizer (waveform canvas overlays decorative bars) -->
-<div id="visualizer" class="relative w-full max-w-5xl h-24 sm:h-64 flex items-end justify-center space-x-2 mb-4 md:mb-12 overflow-hidden">
-<div class="visualizer-bar w-2 bg-primary/20 rounded-full h-12"></div>
-<div class="visualizer-bar w-2 bg-primary/40 rounded-full h-24"></div>
-<div class="visualizer-bar w-2 bg-primary/60 rounded-full h-48"></div>
-<div class="visualizer-bar w-3 bg-secondary glow-track-fill rounded-full h-64"></div>
-<div class="visualizer-bar w-2 bg-primary/60 rounded-full h-48"></div>
-<div class="visualizer-bar w-2 bg-primary/40 rounded-full h-24"></div>
-<div class="visualizer-bar w-2 bg-primary/20 rounded-full h-12"></div>
-<canvas id="waveform" width="1024" height="256" aria-hidden="true" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+<!-- Turntable: the record spins while the clip is audible and the tonearm
+     cues it (turntable.js); the canvas ring follows the music (waveform.js).
+     The arm SVG uses record units: 1 unit = 1% of the record, record center (50, 60). -->
+<div id="turntable" hidden class="turntable mb-6 md:mb-12" aria-hidden="true">
+<canvas id="waveform" width="720" height="720" class="turntable__ring"></canvas>
+<div class="turntable__record">
+<div class="turntable__vinyl"></div>
+<svg class="turntable__label" viewBox="0 0 100 100">
+<defs>
+<linearGradient id="turntable-label-fill" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#d0bcff"/>
+<stop offset="1" stop-color="#4cd7f6"/>
+</linearGradient>
+<path id="turntable-label-path" d="M 50 50 m -12.5 0 a 12.5 12.5 0 1 1 25 0 a 12.5 12.5 0 1 1 -25 0"/>
+</defs>
+<circle cx="50" cy="50" r="17" fill="url(#turntable-label-fill)"/>
+<circle cx="50" cy="50" r="16" fill="none" stroke="#131315" stroke-opacity="0.25" stroke-width="0.3"/>
+<text font-family="JetBrains Mono, ui-monospace, monospace" font-weight="700" font-size="3" fill="#23005c" fill-opacity="0.8"><textPath href="#turntable-label-path" textLength="77" lengthAdjust="spacing">GUESS THE MELODY &#8226; GUESS THE MELODY &#8226;</textPath></text>
+<circle cx="50" cy="50" r="1.8" fill="#131315"/>
+</svg>
+<div class="turntable__sheen"></div>
+<div class="turntable__groove"></div>
+</div>
+<svg class="turntable__arm" viewBox="0 0 136 120">
+<defs>
+<filter id="turntable-glow" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="1.6"/></filter>
+</defs>
+<circle cx="114" cy="14" r="9" fill="#1c1b21" stroke="#d0bcff" stroke-opacity="0.35" stroke-width="0.6"/>
+<g class="turntable__tonearm">
+<rect x="110" y="1" width="8" height="9" rx="2" fill="#2a2930" stroke="#d0bcff" stroke-opacity="0.3" stroke-width="0.5"/>
+<line x1="114" y1="14" x2="114" y2="89" stroke="#d9d3e4" stroke-width="2" stroke-linecap="round"/>
+<g transform="rotate(25 114 89)">
+<rect x="110.5" y="87" width="7" height="14" rx="1.5" fill="#222129" stroke="#4cd7f6" stroke-width="0.6"/>
+<g class="turntable__contact">
+<circle cx="114" cy="101" r="3" fill="#4cd7f6" filter="url(#turntable-glow)"/>
+<circle cx="114" cy="101" r="0.9" fill="#e6fbff"/>
+</g>
+</g>
+<circle cx="114" cy="14" r="3.6" fill="#d0bcff"/>
+</g>
+</svg>
 </div>
 <!-- Idle controls: SPIN + genre selector. Visible when phase === 'idle'. -->
 <div id="idle-controls" hidden class="flex flex-col items-center gap-8 w-full max-w-2xl">
@@ -456,43 +545,6 @@
 <ul id="award-teams" class="list-none p-0 m-0"></ul>
 </div>
 </div>
-<!-- Scripts for Visualizer & Screen Transitions -->
-<script>
-        const barsContainer = document.getElementById('visualizer');
-        if (barsContainer) {
-            // Generate dynamic visualizer bars (keep canvas overlay if present)
-            function createBars() {
-                const canvas = barsContainer.querySelector('canvas');
-                barsContainer.innerHTML = '';
-                for (let i = 0; i < 40; i++) {
-                    const bar = document.createElement('div');
-                    bar.className = 'visualizer-bar w-3 rounded-full';
-                    if (i % 5 === 0) {
-                        bar.classList.add('bg-secondary', 'glow-track-fill');
-                    } else if (i % 3 === 0) {
-                        bar.classList.add('bg-primary');
-                    } else {
-                        bar.classList.add('bg-primary/20');
-                    }
-                    barsContainer.appendChild(bar);
-                }
-                if (canvas) barsContainer.appendChild(canvas);
-            }
-
-            function animateBars() {
-                const playing = document.body.dataset.phase === 'playing';
-                const bars = barsContainer.querySelectorAll('.visualizer-bar');
-                bars.forEach(bar => {
-                    // React only while a clip plays; otherwise settle to a calm baseline.
-                    const height = playing ? Math.random() * 240 + 20 : 16;
-                    bar.style.height = `${height}px`;
-                });
-            }
-
-            createBars();
-            setInterval(animateBars, 150);
-        }
-    </script>
 <!-- Shown while the browser blocks audible playback; the whole overlay is the tap target. -->
 <div id="sound-gate" class="sound-gate" hidden>
   <div class="sound-gate__pill">
