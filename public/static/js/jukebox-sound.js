@@ -1,25 +1,33 @@
-// The jukebox putting the record on, synthesised with Web Audio: the record
+// Jukebox sounds, synthesised with Web Audio. The record cue: the record
 // drops onto the platter, the motor spins up, the tonearm swings over and the
-// needle lands, then a little crackle runs on into the music. The sounds
-// follow the deck's motion (turntable.js), which starts at the Play press.
-// Times are seconds relative to the music start.
+// needle lands, then the record crackles until the music starts and a little
+// after. The cue follows the deck's motion (turntable.js), which starts at the
+// Play press; its times are seconds relative to the music start. A pause
+// lifts the needle off the record and Play drops it back on.
 
 import { RECORD_CUE_MS } from './logic.js';
 import { LIFT_SEC, SWING_SEC } from './turntable.js';
 
 const CUE_SEC = RECORD_CUE_MS / 1000;
 const NEEDLE_AT = 2 * LIFT_SEC + SWING_SEC - CUE_SEC;
+// How long the crackle runs on under the music, fading out.
+const CRACKLE_TAIL_SEC = 1;
 // A screen hears of the press a little late; sounds that late still play.
 const LATE_SEC = 0.3;
-const CUE_VOLUME = 0.8;
+const VOLUME = 0.8;
 
 export const CUE_SOUNDS = Object.freeze([
   { kind: 'drop', at: -CUE_SEC },
   { kind: 'motor', at: -CUE_SEC, dur: CUE_SEC + 0.4 },
   { kind: 'servo', at: -CUE_SEC + LIFT_SEC, dur: SWING_SEC },
   { kind: 'needle', at: NEEDLE_AT },
-  { kind: 'crackle', at: NEEDLE_AT, dur: 1.6 },
+  { kind: 'crackle', at: NEEDLE_AT, dur: -NEEDLE_AT + CRACKLE_TAIL_SEC },
 ]);
+
+const NEEDLE_SOUNDS = {
+  lift: [{ kind: 'lift', inSec: 0 }],
+  drop: [{ kind: 'needle', inSec: 0 }, { kind: 'crackle', inSec: 0, dur: 0.7 }],
+};
 
 // The sounds still ahead when the music starts in `musicInSec`: when each
 // starts from now and, for long ones, how much of it is left.
@@ -139,6 +147,13 @@ const SOUNDS = {
     tick(ctx, out, t, 1500, 0.4, 0.008, 'highpass');
   },
 
+  // The stylus leaves the groove: a pop, a short scratch and a light knock.
+  lift(ctx, out, t) {
+    tick(ctx, out, t, 1800, 0.35, 0.012, 'highpass');
+    tick(ctx, out, t, 3200, 0.18, 0.09);
+    thump(ctx, out, t, 90, 120, 0.15, 0.08);
+  },
+
   // Surface noise: a soft hiss with random pops, fading out under the music.
   crackle(ctx, out, t, dur) {
     let pop = 0;
@@ -158,16 +173,27 @@ const SOUNDS = {
   },
 };
 
-// Plays the cue into `out` for music starting in `musicInSec`. A locked
-// context would play it late, after an unlock, so it plays nothing instead.
-export function playCue(ctx, out, musicInSec) {
+// Plays the planned sounds into `out` through one gain, so stop() cuts them
+// all. A locked context would play them late, after an unlock, so it plays
+// nothing instead.
+function playPlan(ctx, out, plan) {
   if (ctx.state !== 'running') return null;
   const master = ctx.createGain();
-  master.gain.value = CUE_VOLUME;
+  master.gain.value = VOLUME;
   master.connect(out);
   const t0 = ctx.currentTime;
-  for (const { kind, inSec, dur } of cueSchedule(musicInSec)) SOUNDS[kind](ctx, master, t0 + inSec, dur);
+  for (const { kind, inSec, dur } of plan) SOUNDS[kind](ctx, master, t0 + inSec, dur);
   return { stop: () => master.disconnect() };
+}
+
+// The record cue for music starting in `musicInSec`.
+export function playCue(ctx, out, musicInSec) {
+  return playPlan(ctx, out, cueSchedule(musicInSec));
+}
+
+// `kind`: 'lift' (the needle comes off the record) or 'drop' (it goes back on).
+export function playNeedle(ctx, out, kind) {
+  return playPlan(ctx, out, NEEDLE_SOUNDS[kind]);
 }
 
 // Starts the cue once per Play press and stops it if the press is undone: a
@@ -187,6 +213,20 @@ export function createCuePlayer({ play }) {
         const handle = play((start - now) / 1000);
         if (handle) current = { start, handle };
       }
+    },
+  };
+}
+
+// Plays the needle sounds as the needle moves (display-ui needleAt): leaving
+// the groove lifts it, coming back from a pause drops it on. The record cue
+// lands the needle with its own sound.
+export function createNeedleSounds({ play }) {
+  let last = null;
+  return {
+    sync(at) {
+      if (last === 'groove' && at !== 'groove') play('lift');
+      else if (last === 'lifted' && at === 'groove') play('drop');
+      last = at;
     },
   };
 }

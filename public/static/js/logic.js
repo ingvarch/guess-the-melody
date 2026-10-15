@@ -1,7 +1,8 @@
 import { addTeam, renameTeam, removeTeam, awardPoints, initialState } from './state.js';
+import { audioCurrentTime, CLIP_DURATION_SEC } from './audio-sync.js';
 
 // Play gives the jukebox time to put the record on before the music starts.
-export const RECORD_CUE_MS = 2000;
+export const RECORD_CUE_MS = 2600;
 
 const VALID_TRANSITIONS = {
   spin:    new Set(['idle']),
@@ -50,7 +51,11 @@ export function applyAction(state, payload) {
 
     case 'replay': {
       expectPhase('replay', state);
-      return { ...state, audioStartTimestamp: payload.now, audioPausedTimestamp: null };
+      // A clip that ran out has its tonearm back on the rest: put the record
+      // on again, as Play does. Otherwise the needle goes straight back.
+      const at = audioCurrentTime(payload.now, state.audioStartTimestamp, CLIP_DURATION_SEC, state.audioPausedTimestamp);
+      const cue = at >= CLIP_DURATION_SEC ? RECORD_CUE_MS : 0;
+      return { ...state, audioStartTimestamp: payload.now + cue, audioPausedTimestamp: null };
     }
 
     case 'pause': {

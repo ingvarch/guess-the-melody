@@ -1,5 +1,7 @@
 // Turntable motion for the display: the platter spins up and down, and the
 // tonearm lifts, swings and lowers the way a real deck cues a record.
+// Modes: 'play' (needle in the groove), 'cue' (record turning, needle held up
+// over it, like a cue lever) and 'stop' (arm on its rest, platter still).
 // stepDeck is pure; attachTurntable drives it frame by frame and writes the
 // result into CSS custom properties.
 
@@ -15,8 +17,8 @@ function approach(value, target, maxStep) {
 }
 
 // `arm`: 0 = on the rest, 1 = on the record. `lift`: 0 = lowered, 1 = raised.
-export function stepDeck(deck, dt, on) {
-  const target = on ? 1 : 0;
+export function stepDeck(deck, dt, mode) {
+  const target = mode === 'stop' ? 0 : 1;
   let speed = deck.speed + (target - deck.speed) * (1 - Math.exp(-dt / SPEED_TAU_SEC));
   if (Math.abs(speed - target) < 0.005) speed = target;
   const angle = (deck.angle + speed * DEG_PER_SEC * dt) % 360;
@@ -26,13 +28,13 @@ export function stepDeck(deck, dt, on) {
     if (lift < 1) lift = approach(lift, 1, dt / LIFT_SEC);
     else arm = approach(arm, target, dt / SWING_SEC);
   } else {
-    lift = approach(lift, 0, dt / LIFT_SEC);
+    lift = approach(lift, mode === 'cue' ? 1 : 0, dt / LIFT_SEC);
   }
   return { speed, angle, arm, lift };
 }
 
-function isSettled(deck, on) {
-  return deck.speed === 0 && deck.lift === 0 && deck.arm === (on ? 1 : 0);
+function isStill(deck) {
+  return deck.speed === 0 && deck.lift === 0 && deck.arm === 0;
 }
 
 function smoothstep(x) {
@@ -55,7 +57,7 @@ export function deckStyle(deck) {
 
 export function attachTurntable(el, { raf = (cb) => requestAnimationFrame(cb), reduceMotion = false } = {}) {
   let deck = RESTING_DECK;
-  let on = false;
+  let mode = 'stop';
   let looping = false;
   let last = null;
 
@@ -67,9 +69,9 @@ export function attachTurntable(el, { raf = (cb) => requestAnimationFrame(cb), r
     // Capped so a frame after a hidden tab does not jump the deck.
     const dt = last === null ? 0 : Math.min(0.1, (t - last) / 1000);
     last = t;
-    deck = stepDeck(deck, dt, on);
+    deck = stepDeck(deck, dt, mode);
     paint();
-    if (on || !isSettled(deck, on)) {
+    if (mode !== 'stop' || !isStill(deck)) {
       raf(frame);
     } else {
       looping = false;
@@ -80,10 +82,10 @@ export function attachTurntable(el, { raf = (cb) => requestAnimationFrame(cb), r
   paint();
   return {
     set(next) {
-      if (next === on) return;
-      on = next;
+      if (next === mode) return;
+      mode = next;
       if (reduceMotion) {
-        deck = { ...deck, speed: 0, arm: on ? 1 : 0, lift: 0 };
+        deck = { ...deck, speed: 0, arm: mode === 'stop' ? 0 : 1, lift: mode === 'cue' ? 1 : 0 };
         paint();
         return;
       }

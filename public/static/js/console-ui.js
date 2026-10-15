@@ -4,9 +4,8 @@
 // bar effect, and drives the full round — genre pick + Spin, a Play/Stop
 // (pause/resume) toggle, Reveal, and Next — so a phone can run the game alone.
 
-import { audioCurrentTime, formatClock } from './audio-sync.js';
+import { audioCurrentTime, formatClock, CLIP_DURATION_SEC } from './audio-sync.js';
 
-const CLIP_DURATION_SEC = 30;
 
 function setText(doc, id, value) {
   const el = doc.getElementById(id);

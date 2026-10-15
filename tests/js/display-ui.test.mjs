@@ -60,7 +60,7 @@ function makeState(overrides = {}) {
 }
 
 const mod = await import('../../public/static/js/display-ui.js');
-const { render, runSpin, renderClock, renderPlaybackControls, showGenreChoice, shouldBeAudible, recordTurns, paintProgress, showActionError, clearActionError } = mod;
+const { render, runSpin, renderClock, renderPlaybackControls, showGenreChoice, shouldBeAudible, deckMode, needleAt, paintProgress, showActionError, clearActionError } = mod;
 
 function drumRowTexts(doc) {
   return [...doc.querySelectorAll('[data-drum-cylinder]')].map((c) => [...c.children].map((r) => r.textContent));
@@ -615,15 +615,27 @@ test('shouldBeAudible: silent while the jukebox puts the record on', () => {
   assert.equal(shouldBeAudible(started), true);
 });
 
-test('recordTurns: from the Play press, through the record cue, until a pause or the clip end', () => {
+test('deckMode: plays from the Play press, holds the needle up on pause, stops at the clip end', () => {
   const now = Date.now();
-  assert.equal(recordTurns(makeState({ phase: 'playing', audioStartTimestamp: now + 1_500 })), true, 'cue');
-  assert.equal(recordTurns(makeState({ phase: 'playing', audioStartTimestamp: now - 5_000 })), true, 'music');
-  assert.equal(recordTurns(makeState({
+  assert.equal(deckMode(makeState({ phase: 'playing', audioStartTimestamp: now + 1_500 })), 'play', 'record cue');
+  assert.equal(deckMode(makeState({ phase: 'playing', audioStartTimestamp: now - 5_000 })), 'play', 'music');
+  assert.equal(deckMode(makeState({
     phase: 'playing', audioStartTimestamp: now - 5_000, audioPausedTimestamp: now - 1_000,
-  })), false, 'paused');
-  assert.equal(recordTurns(makeState({ phase: 'playing', audioStartTimestamp: now - 31_000 })), false, 'ended');
-  assert.equal(recordTurns(makeState({ phase: 'spinning' })), false, 'before Play');
+  })), 'cue', 'paused: the record keeps turning under the raised needle');
+  assert.equal(deckMode(makeState({ phase: 'playing', audioStartTimestamp: now - 31_000 })), 'stop', 'ended');
+  assert.equal(deckMode(makeState({ phase: 'spinning' })), 'stop', 'before Play');
+});
+
+test('needleAt: in the groove while the music sounds, lifted on pause, elsewhere otherwise', () => {
+  const now = Date.now();
+  assert.equal(needleAt(makeState({ phase: 'playing', audioStartTimestamp: now - 5_000 })), 'groove');
+  assert.equal(needleAt(makeState({ phase: 'revealed', audioStartTimestamp: now - 5_000 })), 'groove', 'the music outlives the reveal');
+  assert.equal(needleAt(makeState({
+    phase: 'playing', audioStartTimestamp: now - 5_000, audioPausedTimestamp: now - 1_000,
+  })), 'lifted');
+  assert.equal(needleAt(makeState({ phase: 'playing', audioStartTimestamp: now + 1_500 })), 'away', 'still on its way during the record cue');
+  assert.equal(needleAt(makeState({ phase: 'playing', audioStartTimestamp: now - 31_000 })), 'away', 'ended');
+  assert.equal(needleAt(makeState({ phase: 'idle' })), 'away');
 });
 
 test('renderClock: lights the ring around the record up to the clip position', () => {

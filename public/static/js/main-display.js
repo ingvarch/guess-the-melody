@@ -10,7 +10,8 @@ import {
   renderPlaybackControls,
   showGenreChoice,
   shouldBeAudible,
-  recordTurns,
+  deckMode,
+  needleAt,
   paintProgress,
   showActionError,
   clearActionError,
@@ -36,7 +37,7 @@ import {
 import { attachWaveform } from './waveform.js';
 import { attachTurntable } from './turntable.js';
 import { attachLever } from './lever.js';
-import { createCuePlayer, playCue } from './jukebox-sound.js';
+import { createCuePlayer, playCue, createNeedleSounds, playNeedle } from './jukebox-sound.js';
 import { attachRingSeek } from './ring-seek.js';
 
 const sessionId = document.querySelector('meta[name="session-id"]')?.content ?? '';
@@ -79,21 +80,25 @@ function boot() {
   });
 
   // The record turns from the Play press: the jukebox puts it on, then the
-  // clip plays.
+  // clip plays. A pause lifts the needle while the record keeps turning.
   const deck = attachTurntable(document.getElementById('turntable'), {
     reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
 
-  // The record going on plays through the ring's audio context, which the
-  // sound gate unlocks.
+  // The record going on and the needle coming off and back play through the
+  // ring's audio context, which the sound gate unlocks.
   const cue = createCuePlayer({
     play: (inSec) => (waveformCtrl ? playCue(waveformCtrl.context, waveformCtrl.input, inSec) : null),
+  });
+  const needle = createNeedleSounds({
+    play: (kind) => waveformCtrl && playNeedle(waveformCtrl.context, waveformCtrl.input, kind),
   });
 
   function syncSound() {
     gate.sync(shouldBeAudible(view.state));
-    deck.set(recordTurns(view.state));
+    deck.set(deckMode(view.state));
     cue.sync(view.state, Date.now());
+    needle.sync(needleAt(view.state));
   }
 
   // The clock tick can land up to TICK_MS after the music start; start it on time.

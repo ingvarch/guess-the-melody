@@ -6,9 +6,8 @@
 import { mulberry32 } from './prng.js';
 import { drumRows, drumRadiusEm, pickSpinTarget, nearestRowAngle } from './genre-drum.js';
 import { pullLever } from './lever.js';
-import { audioCurrentTime, formatClock } from './audio-sync.js';
+import { audioCurrentTime, formatClock, CLIP_DURATION_SEC } from './audio-sync.js';
 
-const CLIP_DURATION_SEC = 30;
 
 // The clip outlives the reveal: revealing mid-play must not cut the music.
 function hasClip(state) {
@@ -21,19 +20,28 @@ function isClipEnded(state) {
   return audioCurrentTime(Date.now(), state.audioStartTimestamp, CLIP_DURATION_SEC, state.audioPausedTimestamp) >= CLIP_DURATION_SEC;
 }
 
-// The record turns from the Play press on: first while the jukebox puts it
-// on (the music starts at audioStartTimestamp), then under the music.
-export function recordTurns(state) {
-  return hasClip(state)
-    && state.audioPausedTimestamp == null
-    && !isClipEnded(state);
+// What the turntable does (turntable.js modes). It plays from the Play press
+// on: first while the jukebox puts the record on (the music starts at
+// audioStartTimestamp), then under the music. A pause lifts the needle off
+// the turning record; the clip end stops the deck.
+export function deckMode(state) {
+  if (!hasClip(state) || isClipEnded(state)) return 'stop';
+  return state.audioPausedTimestamp == null ? 'play' : 'cue';
 }
 
 // True while the shared state says the clip must be audible on this screen.
 // The sound gate polls this every tick; starting playback lives there, not in
 // the renderer, because play() needs autoplay-policy handling and retries.
 export function shouldBeAudible(state) {
-  return recordTurns(state) && Date.now() >= state.audioStartTimestamp;
+  return deckMode(state) === 'play' && Date.now() >= state.audioStartTimestamp;
+}
+
+// Where the needle is, for its sounds: in the groove while the music sounds,
+// lifted on a pause, away otherwise (on its way during the record cue, or
+// back on the rest).
+export function needleAt(state) {
+  if (shouldBeAudible(state)) return 'groove';
+  return deckMode(state) === 'cue' ? 'lifted' : 'away';
 }
 
 const TEAM_ICONS = ['rocket_launch', 'electric_bolt', 'auto_awesome', 'texture', 'bolt', 'flare', 'whatshot', 'star'];

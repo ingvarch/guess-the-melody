@@ -107,6 +107,14 @@ test('replay: playing -> playing, resets audioStartTimestamp', () => {
   assert.deepEqual(out.currentTrack, { id: 'abc', genre: 'rock' });
 });
 
+test('replay after the clip ran out puts the record on again, like Play', () => {
+  // Music from 1000; 31 s later the clip is over and the arm is back on its rest.
+  const s = playingAt(1000);
+  const out = applyAction(s, { action: 'replay', now: 32_000 });
+  assert.equal(out.audioStartTimestamp, 32_000 + RECORD_CUE_MS);
+  assert.equal(out.audioPausedTimestamp, null);
+});
+
 test('replay: rejected outside playing', () => {
   const idle = initialState();
   assert.throws(() => applyAction(idle, { action: 'replay', now: 1 }));

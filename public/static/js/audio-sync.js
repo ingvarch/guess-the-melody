@@ -1,3 +1,6 @@
+// Every clip is a 30 s store preview.
+export const CLIP_DURATION_SEC = 30;
+
 // Clip position as m:ss. Shared by the display and the host console so both
 // readouts render identically.
 export function formatClock(sec) {

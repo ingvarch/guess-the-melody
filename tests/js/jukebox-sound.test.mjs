@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RECORD_CUE_MS } from '../../public/static/js/logic.js';
 import { LIFT_SEC, SWING_SEC } from '../../public/static/js/turntable.js';
-import { CUE_SOUNDS, cueSchedule, playCue, createCuePlayer } from '../../public/static/js/jukebox-sound.js';
+import { CUE_SOUNDS, cueSchedule, playCue, createCuePlayer, playNeedle, createNeedleSounds } from '../../public/static/js/jukebox-sound.js';
 
 const CUE_SEC = RECORD_CUE_MS / 1000;
 const near = (a, b) => Math.abs(a - b) < 1e-9;
@@ -14,6 +14,14 @@ test('CUE_SOUNDS: the needle sound lands with the tonearm, before the music', ()
   assert.ok(near(needle.at, -CUE_SEC + 2 * LIFT_SEC + SWING_SEC), `needle at ${needle.at}`);
   assert.ok(needle.at < 0);
   CUE_SOUNDS.forEach((s) => assert.ok(s.at >= -CUE_SEC, `${s.kind} starts before the Play press`));
+});
+
+test('CUE_SOUNDS: the needle crackles on the record for 1.2 s, then on under the music', () => {
+  const needle = find(CUE_SOUNDS, 'needle');
+  const crackle = find(CUE_SOUNDS, 'crackle');
+  assert.ok(-needle.at >= 1.2 - 1e-9, `only ${-needle.at}s of crackle before the music`);
+  assert.equal(crackle.at, needle.at);
+  assert.ok(crackle.at + crackle.dur > 0, 'it fades out under the music');
 });
 
 test('cueSchedule: at the Play press every sound lies ahead, the record drop first', () => {
@@ -29,13 +37,13 @@ test('cueSchedule: a screen that hears of the press a moment late still plays th
   assert.equal(find(plan, 'motor').inSec, 0);
 });
 
-test('cueSchedule: joining mid-cue skips what has passed and shortens what is running', () => {
-  const plan = cueSchedule(0.8);
+test('cueSchedule: joining 1 s after the press skips what has passed and shortens what is running', () => {
+  const plan = cueSchedule(CUE_SEC - 1);
   assert.equal(find(plan, 'drop'), undefined, 'no late clunk');
   const motor = find(plan, 'motor');
   assert.equal(motor.inSec, 0);
-  assert.ok(near(motor.dur, find(CUE_SOUNDS, 'motor').dur - (CUE_SEC - 0.8)));
-  assert.ok(find(plan, 'needle'), 'the needle is still ahead');
+  assert.ok(near(motor.dur, find(CUE_SOUNDS, 'motor').dur - 1));
+  assert.ok(find(plan, 'needle').inSec > 0, 'the needle is still ahead');
 });
 
 // A Web Audio stand-in that records when each source starts and what feeds the output.
@@ -158,4 +166,52 @@ test('createCuePlayer: tries again while the audio is not ready yet', () => {
   ready = true;
   player.sync(cueState(12_000), 10_500);
   assert.deepEqual(calls, [1.5]);
+});
+
+test('playNeedle: lifting plays at once; dropping thumps and crackles briefly', () => {
+  const lift = fakeContext();
+  assert.ok(playNeedle(lift, {}, 'lift'));
+  assert.ok(lift.started.length > 0);
+  assert.ok(lift.started.every((s) => s.t === 10), 'right away');
+
+  const drop = fakeContext();
+  assert.ok(playNeedle(drop, {}, 'drop'));
+  assert.ok(drop.started.some((s) => s.kind === 'osc'), 'the thump');
+  assert.ok(drop.started.some((s) => s.kind === 'buffer'), 'the crackle');
+});
+
+test('playNeedle: a locked audio context plays nothing', () => {
+  assert.equal(playNeedle(fakeContext('suspended'), {}, 'lift'), null);
+});
+
+function needlePlayer() {
+  const played = [];
+  const player = createNeedleSounds({ play: (kind) => played.push(kind) });
+  const walk = (...positions) => positions.forEach((p) => player.sync(p));
+  return { played, walk };
+}
+
+test('createNeedleSounds: pause lifts the needle, play drops it back on', () => {
+  const { played, walk } = needlePlayer();
+  walk('away', 'groove', 'lifted', 'lifted', 'groove');
+  assert.deepEqual(played, ['lift', 'drop']);
+});
+
+test('createNeedleSounds: the clip running out lifts the needle too', () => {
+  const { played, walk } = needlePlayer();
+  walk('groove', 'away');
+  assert.deepEqual(played, ['lift']);
+});
+
+test('createNeedleSounds: the record cue lands the needle itself, and a needle already up stays quiet', () => {
+  const { played, walk } = needlePlayer();
+  walk('away', 'groove');
+  walk('lifted', 'away');
+  assert.deepEqual(played, ['lift']);
+});
+
+test('createNeedleSounds: a page opened on a paused clip makes no sound', () => {
+  const { played, walk } = needlePlayer();
+  walk('lifted');
+  assert.deepEqual(played, []);
 });
