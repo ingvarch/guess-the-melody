@@ -109,3 +109,26 @@ test('ringGeometry: the bars start past the progress ring and stay on the canvas
   assert.ok(ring.inner + ring.reach <= size / 2, 'full bars stay on the canvas');
   assert.ok(ring.reach > 10 * unit, 'room for the bars to move');
 });
+
+test('the ring waits for the music: attaching early does not start drawing', async () => {
+  const canvas = { width: 720, height: 720, getContext: () => ({ clearRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, stroke() {} }) };
+  class FakeAudioContext {
+    state = 'running';
+    destination = {};
+    createMediaElementSource() { return { connect() {} }; }
+    createAnalyser() { return { frequencyBinCount: 64, connect() {}, getByteFrequencyData() {} }; }
+  }
+  let frames = 0;
+  const hadRaf = 'requestAnimationFrame' in globalThis;
+  const prevRaf = globalThis.requestAnimationFrame;
+  globalThis.requestAnimationFrame = () => { frames += 1; return 0; };
+  try {
+    const ctrl = withWindow({ AudioContext: FakeAudioContext }, () => attachWaveform({ audioEl: {}, canvas }));
+    assert.equal(frames, 0);
+    await ctrl.resume();
+    assert.equal(frames, 1, 'drawing starts with the clip');
+  } finally {
+    if (hadRaf) globalThis.requestAnimationFrame = prevRaf;
+    else delete globalThis.requestAnimationFrame;
+  }
+});

@@ -4,7 +4,7 @@
 // Pure DOM — testable with happy-dom.
 
 import { mulberry32 } from './prng.js';
-import { drumRows, drumRadiusEm, pickSpinTarget, nearestRowAngle } from './genre-drum.js';
+import { drumRows, drumRadiusEm, pickSpinTarget, nearestRowAngle, spinTicks, SPIN_EASE } from './genre-drum.js';
 import { pullLever } from './lever.js';
 import { audioCurrentTime, formatClock, CLIP_DURATION_SEC } from './audio-sync.js';
 
@@ -418,8 +418,10 @@ function drumAngle(drum) {
   return parseFloat(drum.style.getPropertyValue('--spin')) || 0;
 }
 
-// CSS transitions --spin over `ms`; 0 jumps straight there.
+// CSS transitions --spin over `ms`; 0 jumps straight there. The curve is
+// SPIN_EASE, so the spin's clicks (spinTicks) land on the rows.
 function turnDrum(drum, angle, ms) {
+  drum.style.transitionTimingFunction = `cubic-bezier(${SPIN_EASE.join(', ')})`;
   drum.style.transitionDuration = `${ms}ms`;
   drum.style.setProperty('--spin', `${angle}deg`);
 }
@@ -465,7 +467,9 @@ async function waitWhile(ms, keepGoing) {
 // Pulls the jukebox lever and spins the drum to the chosen genre. The landing
 // row is the same for every viewer (spinSeed); the start is wherever the idle
 // drum stood. Leaves the headline showing the genre's display name.
-export async function runSpin(doc, state, genres, { durationMs = 8000, settleMs = 3000, confirmMs = 1000, getPhase } = {}) {
+// `sound.spin(ticksMs, landMs)` plays a click per row and the landing; it
+// returns a handle whose stop() cuts it if the round moves on mid-spin.
+export async function runSpin(doc, state, genres, { durationMs = 8000, settleMs = 3000, confirmMs = 1000, getPhase, sound } = {}) {
   const drum = doc.getElementById('genre-drum');
   const announcer = doc.getElementById('jukebox-genre');
   const headline = doc.getElementById('display-genre');
@@ -493,19 +497,28 @@ export async function runSpin(doc, state, genres, { durationMs = 8000, settleMs 
   if (announcer) announcer.textContent = '';
   void drum.offsetWidth; // commit the start angle so the spin animates from it
 
+  const from = drumAngle(drum);
+  const turn = (angle, ms) => {
+    turnDrum(drum, angle, ms);
+    return sound?.spin(spinTicks(from, angle, 360 / rowCount, ms), ms) ?? null;
+  };
+
   // Host chose the genre: a random-looking spin would fake a draw. Turn the
   // short way to it.
   if (state.genrePicked) {
-    turnDrum(drum, nearestRowAngle(genreIndex, names.length, rowCount, drumAngle(drum)), PICK_TURN_MS);
+    turn(nearestRowAngle(genreIndex, names.length, rowCount, from), PICK_TURN_MS);
     land();
     await waitWhile(confirmMs, stillSpinning);
     return;
   }
 
   if (headline) headline.textContent = 'Picking Genre...';
-  const { angle } = pickSpinTarget(genreIndex, names.length, rowCount, mulberry32(state.spinSeed || 1), drumAngle(drum));
-  turnDrum(drum, angle, durationMs);
-  if (!(await waitWhile(durationMs, stillSpinning))) return;
+  const { angle } = pickSpinTarget(genreIndex, names.length, rowCount, mulberry32(state.spinSeed || 1), from);
+  const spinning = turn(angle, durationMs);
+  if (!(await waitWhile(durationMs, stillSpinning))) {
+    spinning?.stop();
+    return;
+  }
   land();
 
   // Hold briefly so players read the genre, then the Play screen takes over.

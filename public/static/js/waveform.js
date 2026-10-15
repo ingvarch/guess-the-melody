@@ -57,7 +57,9 @@ export function attachWaveform({ audioEl, canvas }) {
   const c2d = canvas.getContext('2d');
   if (!c2d) return { stop: () => {}, suspended: () => false };
 
-  let running = true;
+  // The ring is drawn while the clip plays (start/resume), not from attach:
+  // the display attaches early so its other sounds share this context.
+  let running = false;
   const ring = ringGeometry(canvas.width);
 
   function draw() {
@@ -88,7 +90,6 @@ export function attachWaveform({ audioEl, canvas }) {
     }
   }
 
-  draw();
 
   // A MediaElementSourceNode can be created only ONCE per <audio> element, and
   // once created the element's output is routed through this AudioContext for

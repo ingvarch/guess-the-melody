@@ -37,7 +37,7 @@ import {
 import { attachWaveform } from './waveform.js';
 import { attachTurntable } from './turntable.js';
 import { attachLever } from './lever.js';
-import { createCuePlayer, playCue, createNeedleSounds, playNeedle } from './jukebox-sound.js';
+import { createCuePlayer, playCue, createNeedleSounds, playNeedle, playLever, playSpin } from './jukebox-sound.js';
 import { attachRingSeek } from './ring-seek.js';
 
 const sessionId = document.querySelector('meta[name="session-id"]')?.content ?? '';
@@ -68,8 +68,35 @@ function boot() {
   }
 
   const view = { state: {}, genres: [], sessionId, picking: false };
-  let waveformCtrl = null;
   let prevPhase = null;
+
+  // The analyser and its audio context live for the whole page: attached
+  // once (createMediaElementSource throws on a second call) and early, so the
+  // jukebox sounds have a context before the first clip. It draws only while
+  // a clip plays.
+  const waveformCtrl = attachWaveform({
+    audioEl: document.getElementById('audio'),
+    canvas: document.getElementById('waveform'),
+  });
+
+  // Jukebox sounds play through the analyser, so the ring shows them too. A
+  // locked context is woken (that works once the page has had a tap).
+  // playIfAwake returns null meanwhile, for players that retry every tick;
+  // playWhenAwake plays a one-off sound as soon as the context wakes.
+  function playIfAwake(play) {
+    const ctx = waveformCtrl.context;
+    if (!ctx) return null;
+    if (ctx.state === 'running') return play(ctx, waveformCtrl.input);
+    ctx.resume().catch(() => {});
+    return null;
+  }
+  function playWhenAwake(play) {
+    const ctx = waveformCtrl.context;
+    if (!ctx) return null;
+    if (ctx.state === 'running') return play(ctx, waveformCtrl.input);
+    ctx.resume().then(() => play(ctx, waveformCtrl.input), () => {});
+    return null;
+  }
 
   // Owns starting audible playback: retried on every state frame and clock
   // tick, so a blocked autoplay recovers as soon as the page gets a gesture.
@@ -85,14 +112,15 @@ function boot() {
     reduceMotion: window.matchMedia('(prefers-reduced-motion: reduce)').matches,
   });
 
-  // The record going on and the needle coming off and back play through the
-  // ring's audio context, which the sound gate unlocks.
   const cue = createCuePlayer({
-    play: (inSec) => (waveformCtrl ? playCue(waveformCtrl.context, waveformCtrl.input, inSec) : null),
+    play: (inSec) => playIfAwake((ctx, out) => playCue(ctx, out, inSec)),
   });
   const needle = createNeedleSounds({
-    play: (kind) => waveformCtrl && playNeedle(waveformCtrl.context, waveformCtrl.input, kind),
+    play: (kind) => playWhenAwake((ctx, out) => playNeedle(ctx, out, kind)),
   });
+  const spinSound = {
+    spin: (ticksMs, landMs) => playWhenAwake((ctx, out) => playSpin(ctx, out, ticksMs, landMs)),
+  };
 
   function syncSound() {
     gate.sync(shouldBeAudible(view.state));
@@ -116,7 +144,7 @@ function boot() {
     render(document, view);
 
     if (spinStarted) {
-      void runSpin(document, view.state, view.genres, { getPhase: () => view.state.phase })
+      void runSpin(document, view.state, view.genres, { getPhase: () => view.state.phase, sound: spinSound })
         .finally(() => {
           view.picking = false;
           render(document, view);
@@ -124,19 +152,11 @@ function boot() {
     }
 
     if (view.state.phase === 'playing') {
-      // Attach the analyser exactly once for the page lifetime; reuse it every
-      // round. Re-attaching would call createMediaElementSource twice and throw.
-      if (!waveformCtrl) {
-        waveformCtrl = attachWaveform({
-          audioEl: document.getElementById('audio'),
-          canvas: document.getElementById('waveform'),
-        });
-      }
-      void waveformCtrl?.resume?.();
+      void waveformCtrl.resume?.();
     } else if (prevPhase === 'playing') {
       // Leaving playback (reveal or skip): pause the render loop only. The
       // AudioContext stays open so the next round still produces sound.
-      waveformCtrl?.stop?.();
+      waveformCtrl.stop();
     }
 
     prevPhase = view.state.phase;
@@ -174,6 +194,9 @@ function boot() {
     genreSelect?.addEventListener('change', () => showGenreChoice(document, view.genres));
 
     const lever = document.getElementById('spin-btn');
+    // The clunk sounds with the pull itself, for a tap here or a spin from
+    // the console; on a tap it also wakes the audio inside the gesture.
+    lever?.addEventListener('leverpull', () => playWhenAwake((ctx, out) => playLever(ctx, out)));
     if (lever) {
       attachLever(lever, {
         onPull: () => {

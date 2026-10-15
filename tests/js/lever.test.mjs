@@ -133,3 +133,15 @@ test('attachLever: a disabled lever does nothing', () => {
   assert.equal(pulls.length, 0);
   assert.equal(lever.style.getPropertyValue('--pull'), '');
 });
+
+test('pullLever: announces each pull once, so the clunk sounds with the animation', () => {
+  const { win, lever } = makeLever();
+  let pulls = 0;
+  lever.addEventListener('leverpull', () => { pulls += 1; });
+  pullLever(lever);
+  pullLever(lever);
+  assert.equal(pulls, 1, 'a pull under way is not announced again');
+  lever.dispatchEvent(new win.AnimationEvent('animationend', { animationName: 'lever-pull' }));
+  pullLever(lever);
+  assert.equal(pulls, 2);
+});

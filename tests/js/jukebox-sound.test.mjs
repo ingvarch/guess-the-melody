@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { RECORD_CUE_MS } from '../../public/static/js/logic.js';
 import { LIFT_SEC, SWING_SEC } from '../../public/static/js/turntable.js';
-import { CUE_SOUNDS, cueSchedule, playCue, createCuePlayer, playNeedle, createNeedleSounds } from '../../public/static/js/jukebox-sound.js';
+import { CUE_SOUNDS, cueSchedule, playCue, createCuePlayer, playNeedle, createNeedleSounds, playLever, playSpin } from '../../public/static/js/jukebox-sound.js';
 
 const CUE_SEC = RECORD_CUE_MS / 1000;
 const near = (a, b) => Math.abs(a - b) < 1e-9;
@@ -49,9 +49,10 @@ test('cueSchedule: joining 1 s after the press skips what has passed and shorten
 // A Web Audio stand-in that records when each source starts and what feeds the output.
 function fakeContext(state = 'running') {
   const started = [];
+  // `first` keeps the first value scheduled, e.g. an oscillator's starting pitch.
   const param = () => ({
     value: 0,
-    setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {},
+    setValueAtTime(v) { this.first ??= v; }, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {},
   });
   const node = (extra = {}) => ({
     connections: [],
@@ -61,7 +62,7 @@ function fakeContext(state = 'running') {
   });
   const source = (kind) => node({
     kind,
-    start(t) { started.push({ kind, t }); },
+    start(t) { started.push({ kind, t, node: this }); },
     stop() {},
   });
   return {
@@ -214,4 +215,50 @@ test('createNeedleSounds: a page opened on a paused clip makes no sound', () => 
   const { played, walk } = needlePlayer();
   walk('lifted');
   assert.deepEqual(played, []);
+});
+
+test('playLever: ratchet clicks on the way down, then the clunk, all within the pull', () => {
+  const ctx = fakeContext();
+  assert.ok(playLever(ctx, {}));
+  const times = ctx.started.map((s) => s.t - 10);
+  assert.ok(times.length >= 6, 'a run of clicks');
+  assert.ok(times.every((t) => t >= 0 && t < 0.9), 'over before the lever is back up');
+  assert.ok(ctx.started.some((s) => s.kind === 'osc'), 'the metal clack rings');
+});
+
+test('playSpin: a click for every tick and the landing when the drum stops', () => {
+  const ctx = fakeContext();
+  const spin = playSpin(ctx, {}, [100, 250, 600], 600);
+  assert.ok(spin);
+  const times = ctx.started.map((s) => Math.round((s.t - 10) * 1000));
+  for (const tick of [100, 250, 600]) assert.ok(times.includes(tick), `click at ${tick}ms`);
+  assert.ok(ctx.started.filter((s) => s.kind === 'osc' && Math.round((s.t - 10) * 1000) === 600).length >= 2, 'the chime rings on the stop');
+});
+
+const startPitch = (s) => s.node.frequency.first ?? s.node.frequency.value;
+
+test('playLever and playSpin: bright mechanical sounds, no low thump (it ran into a buzz)', () => {
+  const ticks = Array.from({ length: 20 }, (_, i) => i * 30);
+  const lever = fakeContext();
+  playLever(lever, {});
+  const spin = fakeContext();
+  playSpin(spin, {}, ticks, 600);
+  for (const ctx of [lever, spin]) {
+    const oscs = ctx.started.filter((s) => s.kind === 'osc');
+    assert.ok(oscs.length > 0);
+    oscs.forEach((s) => assert.ok(startPitch(s) >= 500, `an oscillator at ${startPitch(s)} Hz`));
+  }
+});
+
+test('playSpin: a fast drum is thinned to separate clicks, never closer than 50 ms', () => {
+  const ctx = fakeContext();
+  playSpin(ctx, {}, Array.from({ length: 20 }, (_, i) => i * 20), 2000);
+  const clicks = ctx.started.filter((s) => s.kind === 'buffer').map((s) => s.t);
+  assert.ok(clicks.length >= 5);
+  clicks.slice(1).forEach((t, i) => assert.ok(t - clicks[i] >= 0.05 - 1e-9, `${Math.round((t - clicks[i]) * 1000)} ms apart`));
+});
+
+test('playSpin and playLever: a locked audio context plays nothing', () => {
+  assert.equal(playSpin(fakeContext('suspended'), {}, [100], 100), null);
+  assert.equal(playLever(fakeContext('suspended'), {}), null);
 });

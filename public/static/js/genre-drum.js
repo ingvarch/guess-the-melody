@@ -33,3 +33,37 @@ export function nearestRowAngle(genreIndex, genreCount, rowCount, from) {
   const base = rowAngle(genreIndex, rowCount);
   return base + Math.round((from - base) / period) * period;
 }
+
+// The drum's easing (a CSS cubic-bezier): fast at first, a long slow stop.
+export const SPIN_EASE = Object.freeze([0.25, 0.6, 0.3, 1]);
+
+function bezier(p1, p2, s) {
+  return 3 * (1 - s) * (1 - s) * s * p1 + 3 * (1 - s) * s * s * p2 + s * s * s;
+}
+
+// Share of the turn's time at which the drum has covered `share` of its turn.
+function timeAtShare(share) {
+  const [x1, y1, x2, y2] = SPIN_EASE;
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    if (bezier(y1, y2, mid) < share) lo = mid;
+    else hi = mid;
+  }
+  return bezier(x1, x2, (lo + hi) / 2);
+}
+
+// When, in ms into a turn from `from` to `to`, each row reaches the center:
+// one click per row, either way round.
+export function spinTicks(from, to, step, durationMs) {
+  const dir = Math.sign(to - from);
+  if (dir === 0) return [];
+  const ticks = [];
+  const eps = 1e-9;
+  let k = dir > 0 ? Math.floor(from / step + eps) + 1 : Math.ceil(from / step - eps) - 1;
+  for (; dir > 0 ? k * step <= to + eps : k * step >= to - eps; k += dir) {
+    ticks.push(timeAtShare((k * step - from) / (to - from)) * durationMs);
+  }
+  return ticks;
+}

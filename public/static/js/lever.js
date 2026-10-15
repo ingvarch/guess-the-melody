@@ -20,10 +20,12 @@ export function leverRelease(dy, rod) {
 }
 
 // Plays the pull and spring-back once; a pull already under way finishes alone.
+// Each pull is announced with a `leverpull` event, for its sound.
 export function pullLever(lever, from = 0) {
   if (!lever || lever.classList.contains('lever--pulling')) return;
   lever.style.setProperty('--pull-from', String(from));
   lever.classList.add('lever--pulling');
+  lever.dispatchEvent(new lever.ownerDocument.defaultView.CustomEvent('leverpull'));
   const done = () => {
     lever.classList.remove('lever--pulling');
     lever.removeEventListener('animationend', done);

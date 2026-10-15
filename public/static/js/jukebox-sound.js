@@ -3,7 +3,10 @@
 // needle lands, then the record crackles until the music starts and a little
 // after. The cue follows the deck's motion (turntable.js), which starts at the
 // Play press; its times are seconds relative to the music start. A pause
-// lifts the needle off the record and Play drops it back on.
+// lifts the needle off the record and Play drops it back on. The lever
+// ratchets down and clacks against its stop; the genre drum ticks per row like
+// a selector flapper and a chime rings as it stops. Those run fast, so they
+// stay bright: low notes repeated that quickly blur into a buzz.
 
 import { RECORD_CUE_MS } from './logic.js';
 import { LIFT_SEC, SWING_SEC } from './turntable.js';
@@ -23,6 +26,17 @@ export const CUE_SOUNDS = Object.freeze([
   { kind: 'needle', at: NEEDLE_AT },
   { kind: 'crackle', at: NEEDLE_AT, dur: -NEEDLE_AT + CRACKLE_TAIL_SEC },
 ]);
+
+// The lever pull (lever-pull in display.html): down in 0.27 s, then it springs back.
+const LEVER_SOUNDS = [
+  ...[0, 0.06, 0.11, 0.155, 0.195, 0.23].map((inSec) => ({ kind: 'ratchet', inSec })),
+  { kind: 'clack', inSec: 0.27 },
+  ...[0.36, 0.45, 0.56].map((inSec) => ({ kind: 'rattle', inSec })),
+];
+// Faster clicks would run together into a buzz; a fast drum just skips some.
+const MIN_CLICK_GAP_SEC = 0.05;
+// The landing chime: G5, C6, E6 rolled upward.
+const CHIME = [[784, 0], [1046.5, 0.08], [1318.5, 0.16]];
 
 const NEEDLE_SOUNDS = {
   lift: [{ kind: 'lift', inSec: 0 }],
@@ -80,6 +94,23 @@ function thump(ctx, out, t, from, to, peak, decay) {
   osc.connect(gain).connect(out);
   osc.start(t);
   osc.stop(t + decay + 0.05);
+}
+
+// A short bright ring, like a small bell or struck metal.
+function ping(ctx, out, t, freq, peak, decay) {
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(freq, t);
+  const gain = ctx.createGain();
+  envelope(gain.gain, t, peak, 0.002, decay);
+  osc.connect(gain).connect(out);
+  osc.start(t);
+  osc.stop(t + decay + 0.05);
+}
+
+// A slight random detune, so a run of clicks does not sound machine-made.
+function wobble(freq) {
+  return freq * (0.94 + Math.random() * 0.12);
 }
 
 // A short burst of filtered noise: clicks, rattles, the pop of the needle.
@@ -147,6 +178,37 @@ const SOUNDS = {
     tick(ctx, out, t, 1500, 0.4, 0.008, 'highpass');
   },
 
+  ratchet(ctx, out, t) {
+    tick(ctx, out, t, 3500, 0.2, 0.008, 'highpass');
+    ping(ctx, out, t, wobble(3200), 0.03, 0.02);
+  },
+
+  // The lever hits its stop: a crisp knock and a short metal ring.
+  clack(ctx, out, t) {
+    tick(ctx, out, t, 1500, 0.4, 0.04);
+    ping(ctx, out, t, 1760, 0.12, 0.12);
+    ping(ctx, out, t, 2730, 0.06, 0.08);
+  },
+
+  rattle(ctx, out, t) {
+    tick(ctx, out, t, 4000, 0.08, 0.008, 'highpass');
+  },
+
+  // A row of the drum passing the window: a flapper snapping off a peg.
+  reel(ctx, out, t) {
+    tick(ctx, out, t, 4200, 0.16, 0.006, 'highpass');
+    ping(ctx, out, t, wobble(2600), 0.05, 0.03);
+  },
+
+  // The drum stops on the genre: a bright three-note chime.
+  ding(ctx, out, t) {
+    for (const [freq, at] of CHIME) {
+      ping(ctx, out, t + at, freq, 0.16, 1);
+      ping(ctx, out, t + at, freq * 2, 0.05, 0.6);
+      ping(ctx, out, t + at, freq * 3, 0.02, 0.4);
+    }
+  },
+
   // The stylus leaves the groove: a pop, a short scratch and a light knock.
   lift(ctx, out, t) {
     tick(ctx, out, t, 1800, 0.35, 0.012, 'highpass');
@@ -194,6 +256,24 @@ export function playCue(ctx, out, musicInSec) {
 // `kind`: 'lift' (the needle comes off the record) or 'drop' (it goes back on).
 export function playNeedle(ctx, out, kind) {
   return playPlan(ctx, out, NEEDLE_SOUNDS[kind]);
+}
+
+export function playLever(ctx, out) {
+  return playPlan(ctx, out, LEVER_SOUNDS);
+}
+
+// A click per row (`ticksMs`, from genre-drum spinTicks) and the landing at `landMs`.
+export function playSpin(ctx, out, ticksMs, landMs) {
+  const plan = [];
+  let last = -Infinity;
+  for (const ms of ticksMs) {
+    const inSec = ms / 1000;
+    if (inSec - last < MIN_CLICK_GAP_SEC) continue;
+    plan.push({ kind: 'reel', inSec });
+    last = inSec;
+  }
+  plan.push({ kind: 'ding', inSec: landMs / 1000 });
+  return playPlan(ctx, out, plan);
 }
 
 // Starts the cue once per Play press and stops it if the press is undone: a

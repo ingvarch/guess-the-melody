@@ -194,7 +194,7 @@ guess-the-melody/
 │           ├── turntable.js       # record spin + tonearm cueing motion
 │           ├── genre-drum.js      # genre drum geometry for the jukebox window
 │           ├── lever.js           # jukebox lever: tap or drag down to spin
-│           ├── jukebox-sound.js   # synthesised record cue played before the music
+│           ├── jukebox-sound.js   # synthesised jukebox sounds: lever, genre drum, record cue, needle
 │           ├── sse.js             # reconnecting EventSource wrapper
 │           ├── sound-gate.js      # autoplay gate + tap-for-sound overlay
 │           ├── host-actions.js    # game API wrappers

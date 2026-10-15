@@ -690,3 +690,60 @@ test('clearActionError: hides the surface again', () => {
   clearActionError(doc);
   assert.ok(doc.getElementById('action-error').hasAttribute('hidden'));
 });
+
+function fakeSpinSound() {
+  const calls = [];
+  return {
+    calls,
+    spin(ticksMs, landMs) {
+      const handle = { ticksMs, landMs, stopped: false, stop() { this.stopped = true; } };
+      calls.push(handle);
+      return handle;
+    },
+  };
+}
+
+test('runSpin: the drum clicks once per row it turns past and lands with the stop', async () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }, { slug: 'jazz', name: 'Jazz' }];
+  const sound = fakeSpinSound();
+  const state = makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 7 });
+  await runSpin(doc, state, genres, { durationMs: 40, settleMs: 0, sound });
+  assert.equal(sound.calls.length, 1);
+  const [{ ticksMs, landMs, stopped }] = sound.calls;
+  const [rows] = drumRowTexts(doc);
+  const turned = parseFloat(doc.getElementById('genre-drum').style.getPropertyValue('--spin'));
+  assert.equal(ticksMs.length, Math.round(turned / (360 / rows.length)));
+  assert.equal(landMs, 40);
+  assert.ok(Math.abs(ticksMs.at(-1) - 40) < 1);
+  assert.equal(stopped, false);
+});
+
+test('runSpin: the click rhythm follows the same curve the drum turns by', async () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }];
+  await runSpin(doc, makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 7 }), genres, { durationMs: 20, settleMs: 0 });
+  const { SPIN_EASE } = await import('../../public/static/js/genre-drum.js');
+  assert.equal(doc.getElementById('genre-drum').style.transitionTimingFunction, `cubic-bezier(${SPIN_EASE.join(', ')})`);
+});
+
+test('runSpin: a chosen genre clicks the short way and lands at the end of the turn', async () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }, { slug: 'jazz', name: 'Jazz' }];
+  const sound = fakeSpinSound();
+  const state = makeState({ phase: 'spinning', selectedGenre: 'jazz', genrePicked: true, spinSeed: 7 });
+  await runSpin(doc, state, genres, { durationMs: 100000, confirmMs: 10, getPhase: () => 'spinning', sound });
+  const [{ ticksMs, landMs }] = sound.calls;
+  assert.ok(landMs > 0 && landMs < 100000, 'the short turn, not a full spin');
+  assert.ok(ticksMs.every((t) => t <= landMs + 1));
+});
+
+test('runSpin: the spin sound stops when the round moves on mid-spin', async () => {
+  const doc = makeDoc();
+  const genres = [{ slug: 'rock', name: 'Rock' }, { slug: 'pop', name: 'Pop' }];
+  const sound = fakeSpinSound();
+  const startedAt = Date.now();
+  const getPhase = () => (Date.now() - startedAt < 50 ? 'spinning' : 'playing');
+  await runSpin(doc, makeState({ phase: 'spinning', selectedGenre: 'pop', spinSeed: 3 }), genres, { durationMs: 100000, settleMs: 100000, getPhase, sound });
+  assert.equal(sound.calls[0].stopped, true);
+});
